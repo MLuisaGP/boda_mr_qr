@@ -1,6 +1,6 @@
 <?php
 /**
- * Unified App Navigation Bar (Desktop + Mobile Hamburger with Highlighted Camera)
+ * Unified App Navigation Bar (Desktop + Mobile Hamburger)
  * Expects $activePage ('home' | 'camera' | 'gallery' | 'guestbook'),
  * optional $navTransparent (bool) and optional $homeFloatingMenu (bool: solo botón hamburguesa flotante sin barra superior)
  */
@@ -16,7 +16,7 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
     <span class="hamburger-line"></span>
   </button>
 <?php else: ?>
-  <!-- BARRA DE NAVEGACIÓN APP (ESCRITORIO + MÓVIL CON HAMBURGUESA Y CÁMARA DESTACADA) -->
+  <!-- BARRA DE NAVEGACIÓN APP (ESCRITORIO + MÓVIL CON HAMBURGUESA) -->
   <header class="site-nav<?= $navTransparent ? ' nav-over-hero' : '' ?>" id="siteNav">
     <a href="/" class="nav-brand app-nav-link" aria-label="Ir al inicio — Michelle y René">
       <span class="brand-emblem" aria-hidden="true">
@@ -50,12 +50,6 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
       <li><a href="/galeria" class="nav-link app-nav-link<?= $activePage === 'gallery' ? ' active' : '' ?>">Galería</a></li>
       <li><a href="/firmas" class="nav-link app-nav-link<?= $activePage === 'guestbook' ? ' active' : '' ?>">Libro de Firmas</a></li>
       <li>
-        <a href="/camara" class="nav-camera-cta app-nav-link<?= $activePage === 'camera' ? ' active' : '' ?>" title="Comparte tus momentos con la cámara">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-          <span>Cámara</span>
-        </a>
-      </li>
-      <li>
         <div id="guestDisplayBadge" class="user-badge" style="display:none;" onclick="if(window.promptGuestName) window.promptGuestName(true);" title="Mi perfil de invitado">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
           <span id="guestDisplayName">Invitado</span>
@@ -63,14 +57,8 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
       </li>
     </ul>
 
-    <!-- Controles Móviles: Cámara Destacada + Botón Hamburguesa -->
+    <!-- Controles Móviles: Botón Hamburguesa -->
     <div class="nav-mobile-actions">
-      <a href="/camara" class="nav-camera-mobile-btn app-nav-link<?= $activePage === 'camera' ? ' active' : '' ?>" aria-label="Abrir Cámara y compartir momentos">
-        <span class="nav-cam-pulse" aria-hidden="true"></span>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-        <span>Cámara</span>
-      </a>
-
       <button type="button" class="nav-hamburger-btn" id="navHamburgerBtn" aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="mobileDrawer">
         <span class="hamburger-line"></span>
         <span class="hamburger-line"></span>

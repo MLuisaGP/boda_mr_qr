@@ -32,36 +32,68 @@
     </div>
   </div>
 
-  <!-- LIGHTBOX CINEMATOGRÁFICO DE PANTALLA COMPLETA -->
+  <!-- VISOR ESTILO INSTAGRAM DE PANTALLA COMPLETA -->
   <div class="gallery-lightbox" id="gallery-lightbox" role="dialog" aria-modal="true" aria-label="Visor de recuerdos">
-    <button class="lightbox-close" id="lightboxClose" type="button" aria-label="Cerrar visor">&times;</button>
-    <button class="lightbox-nav lightbox-prev" id="lightboxPrev" type="button" aria-label="Anterior">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
-    </button>
-    <button class="lightbox-nav lightbox-next" id="lightboxNext" type="button" aria-label="Siguiente">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </button>
+    <!-- Cabecera superior estilo Instagram -->
+    <div class="lightbox-header">
+      <div class="lightbox-header-inner">
+        <div class="lightbox-user">
+          <div class="lightbox-avatar" id="lightboxAvatar" aria-hidden="true">MR</div>
+          <div class="lightbox-user-info">
+            <span id="lightboxAuthor" class="lightbox-author">Invitado</span>
+            <span id="lightboxTime" class="lightbox-time">Hace instantes</span>
+          </div>
+        </div>
+        <div class="lightbox-header-right">
+          <span id="lightboxCounter" class="lightbox-counter">1 / 1</span>
+          <button class="lightbox-close" id="lightboxClose" type="button" aria-label="Cerrar visor" title="Cerrar">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Escenario central del recuerdo -->
     <div class="lightbox-media-container" id="lightboxMediaContainer">
+      <button class="lightbox-nav lightbox-prev" id="lightboxPrev" type="button" aria-label="Anterior">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+
       <img id="lightboxImg" class="lightbox-media" src="" alt="Recuerdo de boda" style="display:none;" />
       <video id="lightboxVideo" class="lightbox-media" controls playsinline style="display:none;"></video>
-    </div>
-    <div class="lightbox-bottom">
-      <div class="lightbox-meta">
-        <span id="lightboxCounter" class="lightbox-counter">1 / 1</span>
-        <span id="lightboxAuthor" class="lightbox-author">Invitado</span>
+
+      <div class="lightbox-heart-burst" id="lightboxHeartBurst" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
       </div>
-      <div class="lightbox-actions">
-        <button type="button" id="lightboxLikeBtn" class="lightbox-btn lightbox-like" title="Dar me gusta">
-          <span class="lb-heart">♥</span> <span id="lightboxLikeCount">0</span>
-        </button>
-        <a id="lightboxDownloadBtn" href="#" download class="lightbox-btn lightbox-download" title="Descargar en alta resolución">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          <span>Descargar</span>
-        </a>
-        <button type="button" id="lightboxDeleteBtn" class="lightbox-btn lightbox-delete" title="Eliminar mi recuerdo" style="display:none;">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-          <span>Eliminar</span>
-        </button>
+
+      <button class="lightbox-nav lightbox-next" id="lightboxNext" type="button" aria-label="Siguiente">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </button>
+    </div>
+
+    <!-- Barra inferior de iconos estilo Instagram -->
+    <div class="lightbox-bottom">
+      <div class="lightbox-bottom-inner">
+        <div class="lightbox-actions-row">
+          <div class="lightbox-actions-left">
+            <button type="button" id="lightboxLikeBtn" class="lightbox-icon-btn lightbox-like" aria-label="Dar me gusta" title="Me gusta">
+              <svg class="lb-heart-svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            </button>
+            <div class="lightbox-likes-text">
+              <strong id="lightboxLikeCount">0</strong>
+              <span id="lightboxLikesLabel">me gusta</span>
+            </div>
+          </div>
+
+          <div class="lightbox-actions-right">
+            <a id="lightboxDownloadBtn" href="#" download class="lightbox-icon-btn lightbox-download" aria-label="Descargar en alta resolución" title="Descargar">
+              <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </a>
+            <button type="button" id="lightboxDeleteBtn" class="lightbox-icon-btn lightbox-delete" aria-label="Eliminar mi recuerdo" title="Eliminar" style="display:none;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -88,3 +120,33 @@
 
   <!-- CONTENEDOR DE ALERTAS TOAST -->
   <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- AVISO ELEGANTE DE ORIENTACIÓN VERTICAL EN TELÉFONOS (BLOQUEO HORIZONTAL) -->
+  <div class="orientation-lock-overlay" id="orientationLockOverlay" role="dialog" aria-modal="true" aria-labelledby="orientationLockTitle" aria-hidden="true">
+    <div class="orientation-lock-card">
+      <div class="orientation-lock-visual" aria-hidden="true">
+        <div class="orientation-phone-frame">
+          <span class="orientation-phone-notch"></span>
+          <span class="orientation-phone-monogram">M&amp;R</span>
+          <span class="orientation-phone-bar"></span>
+        </div>
+        <svg class="orientation-rotate-arrow" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+          <path d="M3 3v5h5"></path>
+        </svg>
+      </div>
+      <div class="orientation-lock-copy">
+        <div class="orientation-lock-eyebrow">
+          <span></span>
+          <i>✦</i>
+          <span>Michelle &amp; René</span>
+          <i>✦</i>
+          <span></span>
+        </div>
+        <h2 class="orientation-lock-title" id="orientationLockTitle">Gira tu teléfono a vertical</h2>
+        <p class="orientation-lock-desc">
+          Esta experiencia está diseñada en formato vertical para que nada se desacomode al recorrer nuestra boda.
+        </p>
+      </div>
+    </div>
+  </div>

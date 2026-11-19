@@ -92,8 +92,10 @@ $navTransparent = false;
         </button>
       </div>
 
-      <!-- Input exclusivo para la opción 3 (Subir de Galería) con soporte múltiple -->
-      <input type="file" id="inputUploadDevice" accept="image/*,video/*" multiple style="position:fixed; top:-9999px; left:-9999px; opacity:0; width:1px; height:1px; pointer-events:none;" />
+      <!-- Inputs ocultos: cámara nativa (foto/video) y galería múltiple -->
+      <input type="file" id="inputNativePhotoCamera" class="sr-only-file-input" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true" />
+      <input type="file" id="inputNativeVideoCamera" class="sr-only-file-input" accept="video/*" capture="environment" tabindex="-1" aria-hidden="true" />
+      <input type="file" id="inputUploadDevice" class="sr-only-file-input" accept="image/*,video/*" multiple tabindex="-1" aria-hidden="true" />
 
       <!-- Barra de Progreso de Subida (Por lotes) -->
       <div class="upload-progress-wrapper camera-upload-progress" id="uploadProgress" style="display:none;">
@@ -166,9 +168,10 @@ $navTransparent = false;
         <span class="rec-limit-label">/ 00:15</span>
       </div>
 
-      <!-- Estado de Permiso / Solicitud de Cámara (Nunca muestra subida de archivos) -->
+      <!-- Estado de Permiso / Solicitud de Cámara -->
       <div class="live-cam-permission" id="cameraPermissionOverlay" style="display:none;">
         <div class="live-cam-perm-card">
+          <button type="button" class="live-cam-perm-close" id="btnCameraPermClose" title="Cerrar" aria-label="Cerrar">&times;</button>
           <div class="live-cam-perm-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
           </div>
@@ -176,9 +179,17 @@ $navTransparent = false;
           <p id="cameraPermMessage">
             Autoriza el acceso a la cámara (y micrófono para video) en tu teléfono para capturar tus recuerdos directamente.
           </p>
-          <button type="button" class="btn btn-primary" id="btnRetryCameraPermission">
-            Permitir y Abrir Cámara
-          </button>
+          <div class="live-cam-perm-actions">
+            <button type="button" class="btn btn-primary" id="btnRetryCameraPermission">
+              Permitir y Abrir Cámara
+            </button>
+            <button type="button" class="btn btn-outline-light" id="btnNativeCameraFallback">
+              Abrir Cámara del Teléfono
+            </button>
+            <button type="button" class="live-cam-perm-dismiss" id="btnCameraPermCancel">
+              Cerrar
+            </button>
+          </div>
         </div>
       </div>
 
@@ -229,6 +240,6 @@ $navTransparent = false;
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=10"></script>
+  <script src="/assets/js/app.js?v=17"></script>
 </body>
 </html>

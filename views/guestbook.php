@@ -84,11 +84,6 @@ $navTransparent = false;
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                   <span>Firmar el Libro</span>
                 </button>
-
-                <button type="button" class="book-secondary-btn" id="btnGoToReadSignatures">
-                  <span>Ver firmas de los demás invitados</span>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                </button>
               </div>
             </form>
           </div>
@@ -102,33 +97,13 @@ $navTransparent = false;
               </button>
             </div>
 
-            <!-- Escenario 3D del Libro (Hoja deslizable con el dedo, sin scroll vertical) -->
-            <div class="book-flip-stage" id="bookFlipStage" aria-label="Hojas del libro de firmas, desliza horizontalmente para cambiar de página">
+            <!-- Escenario Interactivo del Libro (StPageFlip con doblado real de hoja, sin scroll vertical) -->
+            <div class="book-flip-stage" id="bookFlipStage" aria-label="Hojas del libro de firmas, desliza con tu dedo para cambiar de página">
               <!-- Grosor visual de hojas apiladas a la derecha -->
               <div class="book-pages-stack" id="bookPagesStack" aria-hidden="true"></div>
 
-              <!-- Hoja inferior (destino que se revela al voltear) -->
-              <div class="book-leaf-under" id="bookLeafUnder" aria-hidden="true">
-                <div class="book-paper-page" id="bookUnderContent"></div>
-                <div class="book-under-shadow" id="bookUnderShadow"></div>
-              </div>
-
-              <!-- Hoja activa (gira en 3D siguiendo el dedo) -->
-              <div class="book-leaf-active" id="bookLeafActive">
-                <div class="book-leaf-face book-leaf-front">
-                  <div class="book-paper-page" id="bookFrontContent">
-                    <!-- Renderizado dinámico por app.js -->
-                  </div>
-                  <div class="book-leaf-shade book-front-shade" id="bookFrontShade" aria-hidden="true"></div>
-                  <button type="button" class="book-page-curl" id="bookPageCurl" aria-label="Pasar a la siguiente hoja" title="Desliza o toca para pasar la hoja"></button>
-                </div>
-                <div class="book-leaf-face book-leaf-back" aria-hidden="true">
-                  <div class="book-paper-back">
-                    <div class="book-back-watermark">M &amp; R</div>
-                  </div>
-                  <div class="book-leaf-shade book-back-shade" id="bookBackShade"></div>
-                </div>
-              </div>
+              <!-- Contenedor donde StPageFlip monta las hojas reales -->
+              <div class="book-flip-host-wrap" id="bookFlipHostWrap"></div>
             </div>
 
             <!-- Pie compacto de navegación del libro -->
@@ -139,6 +114,62 @@ $navTransparent = false;
                 <span class="book-swipe-hint" id="bookSwipeHint">Desliza con tu dedo para cambiar de hoja</span>
               </div>
               <button type="button" class="book-page-btn" id="btnBookNextPage" aria-label="Hoja siguiente">→</button>
+            </div>
+          </div>
+
+          <!-- Animación de carga: pluma firmando el libro sobre pergamino -->
+          <div class="book-signing-overlay" id="bookSigningOverlay" aria-hidden="true" role="status" aria-live="polite">
+            <div class="book-signing-stage">
+              <svg class="book-signing-svg" viewBox="0 0 280 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs>
+                  <linearGradient id="penBodyGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#3E5035" />
+                    <stop offset="55%" stop-color="#222E1C" />
+                    <stop offset="100%" stop-color="#141C11" />
+                  </linearGradient>
+                  <linearGradient id="penGoldGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#F6E5BE" />
+                    <stop offset="50%" stop-color="#C9A050" />
+                    <stop offset="100%" stop-color="#8F6B28" />
+                  </linearGradient>
+                </defs>
+
+                <!-- Línea guía de firma -->
+                <line x1="22" y1="88" x2="258" y2="88" stroke="rgba(201, 160, 80, 0.36)" stroke-width="1" stroke-dasharray="3 4" />
+
+                <!-- Trazo caligráfico de tinta -->
+                <path
+                  id="bookSigningPath"
+                  class="book-signing-ink-path"
+                  d="M 28 80 C 36 42, 56 26, 62 46 C 67 62, 48 82, 64 76 C 78 70, 92 40, 102 52 C 110 62, 96 78, 114 72 C 128 67, 138 46, 148 56 C 156 64, 146 78, 166 71 C 180 66, 192 46, 202 58 C 210 67, 204 78, 224 73 C 238 70, 248 64, 254 68"
+                  stroke="#2D3A27"
+                  stroke-width="2.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+
+                <!-- Destello sutil en la punta de tinta -->
+                <circle id="bookSigningInkDot" cx="28" cy="80" r="2.6" fill="#C9A050" opacity="0.85" />
+
+                <!-- Pluma estilográfica (su punta exacta está en 0,0) -->
+                <g id="bookSigningPen" transform="translate(28 80)">
+                  <!-- Plumín dorado -->
+                  <path d="M 0 0 L 10 -16 L 17 -10 Z" fill="url(#penGoldGrad)" stroke="#7E5C1E" stroke-width="0.7" stroke-linejoin="round" />
+                  <line x1="1" y1="-1" x2="10.5" y2="-10.5" stroke="#5A4012" stroke-width="0.8" />
+                  <circle cx="9.2" cy="-9.2" r="1.15" fill="#5A4012" />
+                  <!-- Aro dorado -->
+                  <path d="M 10 -16 L 17 -10 L 20 -13 L 13 -19 Z" fill="#F2DCAA" stroke="#8F6B28" stroke-width="0.6" />
+                  <!-- Cuerpo de la pluma -->
+                  <path d="M 13 -19 L 47 -53 C 50 -56, 54 -55, 55 -53 C 56 -51, 55 -47, 52 -44 L 20 -13 Z" fill="url(#penBodyGrad)" stroke="#161E13" stroke-width="0.8" />
+                  <!-- Reflejo dorado en el cuerpo -->
+                  <line x1="18" y1="-21" x2="47" y2="-49" stroke="rgba(244, 226, 183, 0.55)" stroke-width="1.3" stroke-linecap="round" />
+                  <!-- Clip dorado -->
+                  <path d="M 35 -43 L 49 -57 C 51 -59, 54 -58, 53 -56 L 41 -44" stroke="url(#penGoldGrad)" stroke-width="1.5" stroke-linecap="round" fill="none" />
+                </g>
+              </svg>
+
+              <p class="book-signing-title">Firmando el libro...</p>
+              <p class="book-signing-author" id="bookSigningAuthorLabel"></p>
             </div>
           </div>
         </div>
@@ -157,6 +188,7 @@ $navTransparent = false;
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=10"></script>
+  <script src="/assets/js/vendor/page-flip.browser.min.js"></script>
+  <script src="/assets/js/app.js?v=17"></script>
 </body>
 </html>
