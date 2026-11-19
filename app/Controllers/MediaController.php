@@ -99,12 +99,12 @@ class MediaController extends Controller {
             Response::error('El archivo enviado está vacío.', 422);
         }
 
-        // Límite estricto de 25 elementos por invitado
+        // Límite estricto (< 25 -> máx. 24 elementos por invitado)
         $uploaderId = $guest ? (int) $guest['id'] : 0;
         if ($guest && !$admin) {
             $currentCount = Guest::getItemCount($uploaderId);
             if ($currentCount >= Guest::MAX_ITEMS) {
-                Response::error('Has alcanzado el límite de 25 recuerdos multimedia.', 403, [
+                Response::error('Has alcanzado el límite de ' . Guest::MAX_ITEMS . ' recuerdos multimedia.', 403, [
                     'current_count' => $currentCount,
                     'max_items' => Guest::MAX_ITEMS
                 ]);

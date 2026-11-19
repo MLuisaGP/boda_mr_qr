@@ -11,7 +11,7 @@ use App\Config\Database;
 use PDO;
 
 class Guest {
-    public const MAX_ITEMS = 25;
+    public const MAX_ITEMS = 24;
 
     public static function findByToken(string $token): ?array {
         $pdo = Database::getConnection();

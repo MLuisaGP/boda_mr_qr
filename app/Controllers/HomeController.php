@@ -12,6 +12,10 @@ class HomeController extends Controller {
         $this->renderView('home');
     }
 
+    public function camera(): void {
+        $this->renderView('camera');
+    }
+
     public function gallery(): void {
         $this->renderView('gallery');
     }

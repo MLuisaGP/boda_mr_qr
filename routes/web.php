@@ -14,6 +14,10 @@ $router = new Router();
 // Ruta pública principal
 $router->get('/', [HomeController::class, 'index']);
 
+// Ruta dedicada de Cámara y gestión de momentos subidos
+$router->get('/camara', [HomeController::class, 'camera']);
+$router->get('/subir', [HomeController::class, 'camera']);
+
 // Ruta independiente de Galería (estilo Pinterest y wedding.jongjeonglee.com)
 $router->get('/galeria', [HomeController::class, 'gallery']);
 $router->get('/galerias', [HomeController::class, 'gallery']);

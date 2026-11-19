@@ -1,0 +1,47 @@
+{
+  "name": "Boda Michelle & René",
+  "short_name": "M&R Boda",
+  "description": "Comparte tus fotos, videos y firma el libro de recuerdos en la boda de Michelle & René.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FAF7F2",
+  "theme_color": "#4A5842",
+  "lang": "es-MX",
+  "categories": ["photo", "lifestyle", "social"],
+  "icons": [
+    {
+      "src": "/assets/img/pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/img/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Cámara · Comparte tus Momentos",
+      "short_name": "Cámara",
+      "url": "/camara",
+      "icons": [{ "src": "/assets/img/pwa-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Galería de Fotos",
+      "short_name": "Galería",
+      "url": "/galeria",
+      "icons": [{ "src": "/assets/img/pwa-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Libro de Firmas",
+      "short_name": "Firmas",
+      "url": "/firmas",
+      "icons": [{ "src": "/assets/img/pwa-icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
