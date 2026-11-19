@@ -93,7 +93,7 @@ $navTransparent = false;
             </form>
           </div>
 
-          <!-- PÁGINA 2 DEL LIBRO: VER FIRMAS DE LOS INVITADOS (PAGINADO COMO PÁGINAS DE LIBRO) -->
+          <!-- PÁGINA 2 DEL LIBRO: VER FIRMAS DE LOS INVITADOS (HOJA DE LIBRO INTERACTIVA 3D SIN SCROLL) -->
           <div class="book-view book-view-read" id="bookReadView">
             <div class="book-read-topbar">
               <span class="book-read-counter" id="gbCounterBadge">Cargando firmas...</span>
@@ -102,16 +102,43 @@ $navTransparent = false;
               </button>
             </div>
 
-            <!-- Lista de Firmas de la Página Actual del Libro -->
-            <div class="book-signatures-list" id="guestbookList">
-              <!-- Renderizado dinámico por app.js -->
+            <!-- Escenario 3D del Libro (Hoja deslizable con el dedo, sin scroll vertical) -->
+            <div class="book-flip-stage" id="bookFlipStage" aria-label="Hojas del libro de firmas, desliza horizontalmente para cambiar de página">
+              <!-- Grosor visual de hojas apiladas a la derecha -->
+              <div class="book-pages-stack" id="bookPagesStack" aria-hidden="true"></div>
+
+              <!-- Hoja inferior (destino que se revela al voltear) -->
+              <div class="book-leaf-under" id="bookLeafUnder" aria-hidden="true">
+                <div class="book-paper-page" id="bookUnderContent"></div>
+                <div class="book-under-shadow" id="bookUnderShadow"></div>
+              </div>
+
+              <!-- Hoja activa (gira en 3D siguiendo el dedo) -->
+              <div class="book-leaf-active" id="bookLeafActive">
+                <div class="book-leaf-face book-leaf-front">
+                  <div class="book-paper-page" id="bookFrontContent">
+                    <!-- Renderizado dinámico por app.js -->
+                  </div>
+                  <div class="book-leaf-shade book-front-shade" id="bookFrontShade" aria-hidden="true"></div>
+                  <button type="button" class="book-page-curl" id="bookPageCurl" aria-label="Pasar a la siguiente hoja" title="Desliza o toca para pasar la hoja"></button>
+                </div>
+                <div class="book-leaf-face book-leaf-back" aria-hidden="true">
+                  <div class="book-paper-back">
+                    <div class="book-back-watermark">M &amp; R</div>
+                  </div>
+                  <div class="book-leaf-shade book-back-shade" id="bookBackShade"></div>
+                </div>
+              </div>
             </div>
 
-            <!-- Navegación de Páginas del Libro (evita scroll largo) -->
-            <div class="book-pagination" id="bookPagination" style="display:none;">
-              <button type="button" class="book-page-btn" id="btnBookPrevPage">← Anterior</button>
-              <span class="book-page-indicator" id="bookPageIndicator">Página 1 de 1</span>
-              <button type="button" class="book-page-btn" id="btnBookNextPage">Siguiente →</button>
+            <!-- Pie compacto de navegación del libro -->
+            <div class="book-pagination" id="bookPagination">
+              <button type="button" class="book-page-btn" id="btnBookPrevPage" aria-label="Hoja anterior">←</button>
+              <div class="book-page-meta">
+                <span class="book-page-indicator" id="bookPageIndicator">Hoja 1 de 1</span>
+                <span class="book-swipe-hint" id="bookSwipeHint">Desliza con tu dedo para cambiar de hoja</span>
+              </div>
+              <button type="button" class="book-page-btn" id="btnBookNextPage" aria-label="Hoja siguiente">→</button>
             </div>
           </div>
         </div>
@@ -119,8 +146,17 @@ $navTransparent = false;
     </section>
   </main>
 
+  <!-- Modal ligero para leer dedicatorias largas completas en su misma tipografía -->
+  <div class="book-sig-modal" id="bookSigModal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="book-sig-modal-card">
+      <button type="button" class="book-sig-modal-close" id="bookSigModalClose" aria-label="Cerrar">&times;</button>
+      <div class="book-sig-modal-ornament" aria-hidden="true">✦</div>
+      <div class="book-sig-modal-body" id="bookSigModalBody"></div>
+    </div>
+  </div>
+
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=4"></script>
+  <script src="/assets/js/app.js?v=10"></script>
 </body>
 </html>

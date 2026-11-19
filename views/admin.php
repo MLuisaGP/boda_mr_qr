@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel de Administración · Boda Michelle & René</title>
   
-  <link rel="stylesheet" href="assets/css/admin.css">
+  <link rel="stylesheet" href="assets/css/admin.css?v=2">
   <link rel="icon" type="image/jpeg" href="assets/img/couple-portrait.jpg">
 </head>
 <body>
@@ -173,25 +173,33 @@
   </div>
 
   <!-- Modal de Confirmación Elegante -->
-  <div class="admin-modal-backdrop" id="adminConfirmModal">
-    <div class="admin-modal-content" style="max-width:440px; text-align:center;">
-      <div style="width:54px; height:54px; border-radius:50%; background:rgba(198,40,40,0.2); border:1px solid #C62828; margin:0 auto 16px; display:grid; place-items:center; color:#FF8A80; font-size:1.4rem;">
-        ✕
+  <div class="admin-modal-backdrop" id="adminConfirmModal" role="alertdialog" aria-modal="true" aria-labelledby="confirmModalTitle" aria-describedby="confirmModalText">
+    <div class="admin-modal-content admin-confirm-dialog">
+      <div class="admin-confirm-ornament" aria-hidden="true">
+        <span></span>
+        <i>✦</i>
+        <span></span>
       </div>
-      <h3 style="font-family:var(--font-serif); font-size:1.8rem; color:var(--gold-light); margin-bottom:10px;">¿Confirmar Acción?</h3>
-      <p id="confirmModalText" style="font-size:0.92rem; color:var(--text-dim); margin-bottom:26px;"></p>
+      <div class="admin-confirm-icon" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+      </div>
+      <h3 id="confirmModalTitle" class="admin-confirm-title">¿Confirmar Acción?</h3>
+      <p id="confirmModalText" class="admin-confirm-text"></p>
       
-      <div style="display:flex; justify-content:center; gap:12px;">
-        <button id="btnConfirmCancel" class="admin-btn admin-btn-outline" style="min-width:110px;">
+      <div class="admin-confirm-actions">
+        <button id="btnConfirmCancel" type="button" class="admin-btn admin-btn-outline">
           Cancelar
         </button>
-        <button id="btnConfirmOk" class="admin-btn admin-btn-danger" style="min-width:110px;">
+        <button id="btnConfirmOk" type="button" class="admin-btn admin-btn-danger">
           Sí, eliminar
         </button>
       </div>
     </div>
   </div>
 
-  <script src="assets/js/admin.js"></script>
+  <!-- Contenedor de Notificaciones Toast del Panel -->
+  <div class="admin-toast-container" id="adminToastContainer" aria-live="polite" aria-atomic="false"></div>
+
+  <script src="assets/js/admin.js?v=2"></script>
 </body>
 </html>

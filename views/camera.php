@@ -229,6 +229,6 @@ $navTransparent = false;
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=4"></script>
+  <script src="/assets/js/app.js?v=10"></script>
 </body>
 </html>

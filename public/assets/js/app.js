@@ -10,7 +10,7 @@
 
   const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB por archivo (límite del servidor)
   const MAX_ITEMS = 24; // Menos de 25 recuerdos por invitado
-  const BOOK_PAGE_SIZE = 4; // Firmas por hoja del libro (mínimo scroll)
+  const SIGNATURE_FONTS = ['qwigley', 'sacramento', 'indie_flower', 'la_luxes_script'];
 
   let currentGuest = null;
   let currentFilter = 'all';
@@ -18,6 +18,8 @@
   let myMediaCache = [];
   let guestbookEntries = [];
   let currentBookPage = 1;
+  let currentBookPageSize = 3;
+  let bookIsFlipping = false;
 
   // Estado de Cámara en Vivo y Multi-Captura
   let cameraStream = null;
@@ -96,7 +98,6 @@
   const btnRefreshGallery = document.getElementById('btnRefreshGallery');
 
   const guestbookForm = document.getElementById('guestbookForm');
-  const guestbookList = document.getElementById('guestbookList');
   const guestbookAuthorInput = document.getElementById('gbAuthor');
   const guestbookMsgInput = document.getElementById('gbMessage');
   const btnBookWriteTab = document.getElementById('btnBookWriteTab');
@@ -110,6 +111,19 @@
   const btnBookPrevPage = document.getElementById('btnBookPrevPage');
   const btnBookNextPage = document.getElementById('btnBookNextPage');
   const bookPageIndicator = document.getElementById('bookPageIndicator');
+  const bookSwipeHint = document.getElementById('bookSwipeHint');
+  const bookFlipStage = document.getElementById('bookFlipStage');
+  const bookPagesStack = document.getElementById('bookPagesStack');
+  const bookLeafActive = document.getElementById('bookLeafActive');
+  const bookFrontContent = document.getElementById('bookFrontContent');
+  const bookUnderContent = document.getElementById('bookUnderContent');
+  const bookFrontShade = document.getElementById('bookFrontShade');
+  const bookBackShade = document.getElementById('bookBackShade');
+  const bookUnderShadow = document.getElementById('bookUnderShadow');
+  const bookPageCurl = document.getElementById('bookPageCurl');
+  const bookSigModal = document.getElementById('bookSigModal');
+  const bookSigModalClose = document.getElementById('bookSigModalClose');
+  const bookSigModalBody = document.getElementById('bookSigModalBody');
 
   const lightbox = document.getElementById('gallery-lightbox');
   const lightboxImg = document.getElementById('lightboxImg');
@@ -127,6 +141,13 @@
   let currentLightboxIndex = 0;
 
   const toastContainer = document.getElementById('toastContainer');
+  const appConfirmModal = document.getElementById('appConfirmModal');
+  const appConfirmDialog = document.getElementById('appConfirmDialog');
+  const appConfirmIcon = document.getElementById('appConfirmIcon');
+  const appConfirmTitle = document.getElementById('appConfirmTitle');
+  const appConfirmMsg = document.getElementById('appConfirmMsg');
+  const appConfirmCancel = document.getElementById('appConfirmCancel');
+  const appConfirmOk = document.getElementById('appConfirmOk');
 
   // Utilidad segura contra HTML injection
   function escapeHtml(str) {
@@ -139,9 +160,24 @@
   }
 
   // =====================================================================
-  // 1. PWA SERVICE WORKER, INSTALACIÓN Y TRANSICIONES SUAVES ENTRE VISTAS
+  // 1. PWA SERVICE WORKER, ALTURA REAL VISIBLE EN MÓVIL Y TRANSICIONES
   // =====================================================================
+  function syncAppViewportHeight() {
+    const h = (window.visualViewport && window.visualViewport.height)
+      ? Math.round(window.visualViewport.height)
+      : window.innerHeight;
+    if (h > 0) {
+      document.documentElement.style.setProperty('--app-height', `${h}px`);
+    }
+  }
+
   function initPWA() {
+    syncAppViewportHeight();
+    window.addEventListener('resize', syncAppViewportHeight);
+    window.addEventListener('orientationchange', () => setTimeout(syncAppViewportHeight, 120));
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', syncAppViewportHeight);
+    }
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -352,34 +388,56 @@
     resize();
     window.addEventListener('resize', resize);
 
-    const colors = [
-      'rgba(255, 245, 236, 0.75)',
-      'rgba(246, 224, 214, 0.72)',
-      'rgba(244, 226, 183, 0.68)',
-      'rgba(255, 251, 244, 0.78)',
-      'rgba(236, 206, 198, 0.65)'
+    // Tonos suaves y tenues de flor de cerezo (sakura)
+    const palette = [
+      { base: [255, 210, 222], tip: [255, 246, 249] },
+      { base: [252, 198, 214], tip: [255, 240, 245] },
+      { base: [255, 226, 234], tip: [255, 252, 253] },
+      { base: [248, 206, 218], tip: [255, 244, 247] }
     ];
 
-    const petalCount = window.innerWidth < 768 ? 22 : 34;
+    const petalCount = window.innerWidth < 768 ? 18 : 28;
     const petals = Array.from({ length: petalCount }, () => createPetal(true));
 
     function createPetal(randomY) {
-      const size = 6 + Math.random() * 9;
+      const size = 6.5 + Math.random() * 8.5;
       return {
         x: Math.random() * width,
-        y: randomY ? Math.random() * height : -20 - Math.random() * 60,
+        y: randomY ? Math.random() * height : -24 - Math.random() * 60,
         size,
-        speedY: 0.45 + Math.random() * 0.85,
-        speedX: -0.25 + Math.random() * 0.5,
-        swayAmp: 0.4 + Math.random() * 0.9,
-        swayFreq: 0.008 + Math.random() * 0.012,
+        alpha: 0.18 + Math.random() * 0.24,
+        speedY: 0.34 + Math.random() * 0.56,
+        speedX: -0.22 + Math.random() * 0.44,
+        swayAmp: 0.35 + Math.random() * 0.75,
+        swayFreq: 0.007 + Math.random() * 0.01,
         phase: Math.random() * Math.PI * 2,
         rot: Math.random() * Math.PI * 2,
-        rotSpeed: (-0.015 + Math.random() * 0.03),
+        rotSpeed: -0.012 + Math.random() * 0.024,
         tilt: Math.random() * Math.PI,
-        tiltSpeed: 0.01 + Math.random() * 0.02,
-        color: colors[Math.floor(Math.random() * colors.length)]
+        tiltSpeed: 0.009 + Math.random() * 0.018,
+        tone: palette[Math.floor(Math.random() * palette.length)]
       };
+    }
+
+    function drawCherryPetal(s, tone, alpha) {
+      const grad = ctx.createLinearGradient(0, s, 0, -s);
+      grad.addColorStop(0, `rgba(${tone.base[0]}, ${tone.base[1]}, ${tone.base[2]}, ${alpha.toFixed(3)})`);
+      grad.addColorStop(1, `rgba(${tone.tip[0]}, ${tone.tip[1]}, ${tone.tip[2]}, ${(alpha * 0.78).toFixed(3)})`);
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      // Base afinada del pétalo de cerezo
+      ctx.moveTo(0, s * 0.95);
+      // Curva derecha hacia el lóbulo superior derecho
+      ctx.bezierCurveTo(s * 0.78, s * 0.52, s * 0.96, -s * 0.42, s * 0.42, -s * 0.92);
+      // Escotadura característica (muesca en V suave) en la punta del pétalo de cerezo
+      ctx.quadraticCurveTo(s * 0.16, -s * 0.96, 0, -s * 0.58);
+      // Lóbulo superior izquierdo simétrico
+      ctx.quadraticCurveTo(-s * 0.16, -s * 0.96, -s * 0.42, -s * 0.92);
+      // Curva izquierda de regreso a la base
+      ctx.bezierCurveTo(-s * 0.96, -s * 0.42, -s * 0.78, s * 0.52, 0, s * 0.95);
+      ctx.closePath();
+      ctx.fill();
     }
 
     let frame = 0;
@@ -395,7 +453,7 @@
           p.rot += p.rotSpeed;
           p.tilt += p.tiltSpeed;
 
-          if (p.y > height + 30 || p.x < -40 || p.x > width + 40) {
+          if (p.y > height + 32 || p.x < -42 || p.x > width + 42) {
             petals[i] = createPetal(false);
             continue;
           }
@@ -403,15 +461,8 @@
           ctx.save();
           ctx.translate(p.x, p.y);
           ctx.rotate(p.rot);
-          ctx.scale(1, 0.55 + Math.abs(Math.cos(p.tilt)) * 0.45);
-
-          ctx.fillStyle = p.color;
-          ctx.beginPath();
-          ctx.moveTo(0, -p.size);
-          ctx.bezierCurveTo(p.size * 0.85, -p.size * 0.65, p.size * 0.9, p.size * 0.55, 0, p.size);
-          ctx.bezierCurveTo(-p.size * 0.9, p.size * 0.55, -p.size * 0.85, -p.size * 0.65, 0, -p.size);
-          ctx.closePath();
-          ctx.fill();
+          ctx.scale(0.88 + Math.sin(p.tilt) * 0.12, 0.48 + Math.abs(Math.cos(p.tilt)) * 0.52);
+          drawCherryPetal(p.size, p.tone, p.alpha);
           ctx.restore();
         }
       }
@@ -422,36 +473,199 @@
   }
 
   // =====================================================================
-  // 5. NOTIFICACIONES TOAST
+  // 5. NOTIFICACIONES TOAST Y ALERTAS DE CONFIRMACIÓN ELEGANTES
   // =====================================================================
-  function showToast(message, type = 'info', title = '') {
-    if (!toastContainer) return;
-    const toast = document.createElement('div');
-    toast.className = `toast-item ${type}`;
+  function dismissToast(toast) {
+    if (!toast || toast.dataset.dismissing === '1') return;
+    toast.dataset.dismissing = '1';
+    if (toast._timerId) {
+      clearTimeout(toast._timerId);
+      toast._timerId = null;
+    }
+    toast.classList.add('is-leaving');
+    setTimeout(() => toast.remove(), 310);
+  }
+
+  function showToast(message, type = 'info', title = '', options = {}) {
+    if (!toastContainer) return null;
+
+    const validTypes = ['success', 'error', 'warning', 'info'];
+    const safeType = validTypes.includes(type) ? type : 'info';
+    const defaultDuration = safeType === 'error' ? 5200 : safeType === 'warning' ? 4600 : 4000;
+    const duration = Number(options.duration) > 0 ? Number(options.duration) : defaultDuration;
+
+    // Limitar a máximo 3 notificaciones visibles simultáneamente
+    const activeToasts = Array.from(toastContainer.querySelectorAll('.toast-item:not(.is-leaving)'));
+    while (activeToasts.length >= 3) {
+      dismissToast(activeToasts.shift());
+    }
 
     const icons = {
-      success: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>',
-      error: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D32F2F" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>',
-      info: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A050" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>'
+      success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+      error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+      warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+      info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"></path></svg>'
     };
 
-    const heading = title || (type === 'success' ? '¡Listo!' : type === 'error' ? 'Aviso' : 'Boda M&R');
+    const defaultTitles = {
+      success: '¡Listo!',
+      error: 'Algo salió mal',
+      warning: 'Atención',
+      info: 'Boda M&R'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast-item toast toast-${safeType} ${safeType}`;
+    toast.setAttribute('role', safeType === 'error' || safeType === 'warning' ? 'alert' : 'status');
+    toast.style.setProperty('--toast-duration', `${duration}ms`);
+
+    const heading = title || defaultTitles[safeType];
     toast.innerHTML = `
-      <div class="toast-icon">${icons[type] || icons.info}</div>
+      <div class="toast-icon" aria-hidden="true">${icons[safeType]}</div>
       <div class="toast-content">
         <div class="toast-title">${escapeHtml(heading)}</div>
         <div class="toast-msg">${escapeHtml(message)}</div>
       </div>
+      <button type="button" class="toast-close" aria-label="Cerrar notificación">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <div class="toast-progress" aria-hidden="true"><div class="toast-progress-bar"></div></div>
     `;
 
+    // Temporizador con pausa al pasar el cursor o tocar
+    let remaining = duration;
+    let startedAt = Date.now();
+
+    const startTimer = () => {
+      startedAt = Date.now();
+      toast.classList.remove('is-paused');
+      toast._timerId = setTimeout(() => dismissToast(toast), remaining);
+    };
+
+    const pauseTimer = () => {
+      if (!toast._timerId) return;
+      clearTimeout(toast._timerId);
+      toast._timerId = null;
+      remaining = Math.max(400, remaining - (Date.now() - startedAt));
+      toast.classList.add('is-paused');
+    };
+
+    toast.addEventListener('mouseenter', pauseTimer);
+    toast.addEventListener('mouseleave', () => {
+      if (toast.dataset.dismissing !== '1') startTimer();
+    });
+
+    const closeBtn = toast.querySelector('.toast-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dismissToast(toast);
+      });
+    }
+
+    // Deslizar hacia arriba o a la derecha en móvil para cerrar
+    let touchStartX = 0;
+    let touchStartY = 0;
+    toast.addEventListener('touchstart', (e) => {
+      if (!e.touches || !e.touches[0]) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      pauseTimer();
+    }, { passive: true });
+
+    toast.addEventListener('touchend', (e) => {
+      if (!e.changedTouches || !e.changedTouches[0]) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (dx > 55 || dy < -32) {
+        dismissToast(toast);
+      } else if (toast.dataset.dismissing !== '1') {
+        startTimer();
+      }
+    }, { passive: true });
+
     toastContainer.appendChild(toast);
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateX(40px)';
-      toast.style.transition = 'all 0.32s ease';
-      setTimeout(() => toast.remove(), 340);
-    }, 3800);
+    startTimer();
+    return toast;
   }
+
+  window.showToast = showToast;
+
+  // Modal de Confirmación Elegante (Reemplaza window.confirm)
+  let activeConfirmResolve = null;
+
+  function closeConfirmDialog(result) {
+    if (!appConfirmModal) return;
+    appConfirmModal.classList.remove('active');
+    appConfirmModal.setAttribute('aria-hidden', 'true');
+    const resolve = activeConfirmResolve;
+    activeConfirmResolve = null;
+    if (typeof resolve === 'function') resolve(Boolean(result));
+  }
+
+  function showConfirmDialog(options = {}) {
+    const {
+      title = '¿Confirmar acción?',
+      message = '',
+      confirmText = 'Confirmar',
+      cancelText = 'Cancelar',
+      variant = 'danger'
+    } = typeof options === 'string' ? { message: options } : options;
+
+    if (!appConfirmModal || !appConfirmDialog) {
+      return Promise.resolve(window.confirm(message || title));
+    }
+
+    if (activeConfirmResolve) {
+      closeConfirmDialog(false);
+    }
+
+    const icons = {
+      danger: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
+      warning: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+      info: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
+      success: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>'
+    };
+
+    const safeVariant = icons[variant] ? variant : 'danger';
+    appConfirmDialog.className = `app-confirm-dialog is-${safeVariant}`;
+    if (appConfirmIcon) appConfirmIcon.innerHTML = icons[safeVariant];
+    if (appConfirmTitle) appConfirmTitle.textContent = title;
+    if (appConfirmMsg) appConfirmMsg.textContent = message;
+    if (appConfirmCancel) appConfirmCancel.textContent = cancelText;
+    if (appConfirmOk) appConfirmOk.textContent = confirmText;
+
+    appConfirmModal.classList.add('active');
+    appConfirmModal.setAttribute('aria-hidden', 'false');
+
+    if (appConfirmCancel) {
+      setTimeout(() => appConfirmCancel.focus(), 60);
+    }
+
+    return new Promise((resolve) => {
+      activeConfirmResolve = resolve;
+    });
+  }
+
+  if (appConfirmCancel) {
+    appConfirmCancel.addEventListener('click', () => closeConfirmDialog(false));
+  }
+  if (appConfirmOk) {
+    appConfirmOk.addEventListener('click', () => closeConfirmDialog(true));
+  }
+  if (appConfirmModal) {
+    appConfirmModal.addEventListener('click', (e) => {
+      if (e.target === appConfirmModal) closeConfirmDialog(false);
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && appConfirmModal && appConfirmModal.classList.contains('active')) {
+      e.preventDefault();
+      closeConfirmDialog(false);
+    }
+  });
+
+  window.showConfirmDialog = showConfirmDialog;
 
   // =====================================================================
   // 6. SESIÓN Y PERFIL DEL INVITADO (NO INTRUSIVO EN PORTADA)
@@ -576,7 +790,7 @@
       e.preventDefault();
       const name = guestNameInput ? guestNameInput.value.trim() : '';
       if (!name) {
-        showToast('Por favor escribe tu nombre para continuar.', 'error');
+        showToast('Por favor escribe tu nombre para continuar.', 'warning', 'Falta tu nombre');
         return;
       }
 
@@ -590,12 +804,12 @@
         const data = await res.json();
         if (data.success && data.guest) {
           setGuestSession(data.guest);
-          showToast(`¡Bienvenido, ${data.guest.name}!`, 'success');
+          showToast(`¡Bienvenido, ${data.guest.name}!`, 'success', 'Perfil listo');
         } else {
-          showToast(data.error || 'No se pudo guardar tu perfil.', 'error');
+          showToast(data.error || 'No se pudo guardar tu perfil.', 'error', 'No se pudo guardar');
         }
       } catch (err) {
-        showToast('Error de conexión con el servidor.', 'error');
+        showToast('Error de conexión con el servidor.', 'error', 'Sin conexión');
       }
     });
   }
@@ -864,7 +1078,7 @@
     if (!liveCameraModal) return;
 
     if (getUploadedCount() >= getMaxItems()) {
-      showToast(`Ya alcanzaste tu límite de ${getMaxItems()} recuerdos. Puedes eliminar alguno abajo para subir nuevos.`, 'error');
+      showToast(`Ya alcanzaste tu límite de ${getMaxItems()} recuerdos. Puedes eliminar alguno abajo para subir nuevos.`, 'warning', 'Límite alcanzado');
       return;
     }
 
@@ -895,7 +1109,7 @@
   function snapLivePhoto() {
     if (!cameraVideo || !cameraCanvas || !cameraStream) return;
     if (remainingSlotsIncludingQueue() <= 0) {
-      showToast(`Alcanzaste el máximo permitido de ${getMaxItems()} recuerdos. Pulsa "Subir" para guardar los capturados.`, 'info');
+      showToast(`Alcanzaste el máximo permitido de ${getMaxItems()} recuerdos. Pulsa "Subir" para guardar los capturados.`, 'warning', 'Álbum lleno');
       return;
     }
 
@@ -943,7 +1157,7 @@
   function startLiveRecording() {
     if (!cameraStream) return;
     if (remainingSlotsIncludingQueue() <= 0) {
-      showToast(`Alcanzaste el máximo permitido de ${getMaxItems()} recuerdos. Pulsa "Subir" para guardar los videos.`, 'info');
+      showToast(`Alcanzaste el máximo permitido de ${getMaxItems()} recuerdos. Pulsa "Subir" para guardar los videos.`, 'warning', 'Álbum lleno');
       return;
     }
 
@@ -978,7 +1192,7 @@
           // Detener automáticamente antes de llegar a 2 MB para garantizar subida exitosa
           if (recordedApproxBytes >= 1.75 * 1024 * 1024 && mediaRecorder.state === 'recording') {
             stopRecording(true);
-            showToast('Clip listo en el tamaño óptimo para subir.', 'info');
+            showToast('Clip listo en el tamaño óptimo para subir.', 'success', 'Video listo');
           }
         }
       };
@@ -1019,7 +1233,7 @@
         }
       }, 1000);
     } catch (err) {
-      showToast('Tu navegador no permite grabar video en vivo desde aquí.', 'error');
+      showToast('Tu navegador no permite grabar video en vivo desde aquí.', 'error', 'Video no compatible');
     }
   }
 
@@ -1046,7 +1260,7 @@
   if (btnUploadFromDevice && inputUploadDevice) {
     btnUploadFromDevice.addEventListener('click', () => {
       if (getUploadedCount() >= getMaxItems()) {
-        showToast(`Ya alcanzaste tu límite de ${getMaxItems()} recuerdos. Elimina alguno abajo para subir nuevos.`, 'error');
+        showToast(`Ya alcanzaste tu límite de ${getMaxItems()} recuerdos. Elimina alguno abajo para subir nuevos.`, 'warning', 'Límite alcanzado');
         return;
       }
       inputUploadDevice.click();
@@ -1140,21 +1354,21 @@
     if (!currentGuest) {
       pendingFilesBatch = files;
       promptGuestName(true);
-      showToast('Escribe tu nombre para guardar tus recuerdos en el álbum.', 'info');
+      showToast('Escribe tu nombre para guardar tus recuerdos en el álbum.', 'info', 'Identifícate');
       return;
     }
 
     const max = getMaxItems();
     const available = Math.max(0, max - getUploadedCount());
     if (available <= 0) {
-      showToast(`Ya alcanzaste tu límite de ${max} recuerdos. Elimina alguno para subir más.`, 'error');
+      showToast(`Ya alcanzaste tu límite de ${max} recuerdos. Elimina alguno para subir más.`, 'warning', 'Límite alcanzado');
       return;
     }
 
     let toUpload = files;
     if (files.length > available) {
       toUpload = files.slice(0, available);
-      showToast(`Solo te quedan ${available} espacios de ${max}. Se subirán los primeros ${available} archivos.`, 'info');
+      showToast(`Solo te quedan ${available} espacios de ${max}. Se subirán los primeros ${available} archivos.`, 'warning', 'Espacio limitado');
     }
 
     if (uploadProgress) uploadProgress.style.display = 'block';
@@ -1199,7 +1413,8 @@
         uploadedOk === 1
           ? '¡Tu recuerdo se compartió en el álbum!'
           : `¡${uploadedOk} recuerdos compartidos en el álbum!`,
-        'success'
+        'success',
+        uploadedOk === 1 ? 'Recuerdo compartido' : 'Recuerdos compartidos'
       );
       if (myUploadsGrid) loadMyUploads();
       if (galleryGrid) loadGallery(false);
@@ -1281,7 +1496,7 @@
   if (btnRefreshMyUploads) {
     btnRefreshMyUploads.addEventListener('click', () => {
       loadMyUploads();
-      showToast('Actualizando tus recuerdos...', 'info');
+      showToast('Actualizando tus recuerdos...', 'info', 'Sincronizando');
     });
   }
 
@@ -1462,7 +1677,14 @@
   }
 
   async function deleteMyMedia(mediaId) {
-    if (!confirm('¿Deseas eliminar este recuerdo del álbum de la boda?')) return;
+    const confirmed = await showConfirmDialog({
+      title: '¿Eliminar recuerdo?',
+      message: 'Este recuerdo se quitará permanentemente del álbum de la boda.',
+      confirmText: 'Sí, eliminar',
+      cancelText: 'Conservar',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
 
     allMediaCache = allMediaCache.filter((i) => Number(i.id) !== Number(mediaId));
     myMediaCache = myMediaCache.filter((i) => Number(i.id) !== Number(mediaId));
@@ -1481,19 +1703,19 @@
       });
       const data = await res.json();
       if (data.success) {
-        showToast('Recuerdo eliminado.', 'info');
+        showToast('Recuerdo eliminado del álbum.', 'info', 'Recuerdo eliminado');
         if (currentGuest) {
           currentGuest.item_count = Math.max(0, getUploadedCount() - 1);
           updateQuotaUI();
         }
         if (myUploadsGrid) loadMyUploads();
       } else {
-        showToast(data.error || 'No se pudo eliminar.', 'error');
+        showToast(data.error || 'No se pudo eliminar.', 'error', 'Error al eliminar');
         if (galleryGrid) loadGallery(false);
         if (myUploadsGrid) loadMyUploads();
       }
     } catch (e) {
-      showToast('Error de conexión.', 'error');
+      showToast('Error de conexión.', 'error', 'Sin conexión');
     }
   }
 
@@ -1606,16 +1828,434 @@
       closeLightbox();
       closeMobileDrawer();
       closeGuestModal();
+      closeSignatureModal();
     }
     if (lightbox && lightbox.classList.contains('active')) {
       if (e.key === 'ArrowLeft') openLightboxAtIndex(currentLightboxIndex - 1, currentLightboxItems);
       if (e.key === 'ArrowRight') openLightboxAtIndex(currentLightboxIndex + 1, currentLightboxItems);
+      return;
+    }
+    if (bookReadView && bookReadView.classList.contains('is-active') && !(bookSigModal && bookSigModal.classList.contains('is-open'))) {
+      if (e.key === 'ArrowRight') triggerBookFlip('next');
+      if (e.key === 'ArrowLeft') triggerBookFlip('prev');
     }
   });
 
   // =====================================================================
-  // 13. LIBRO DE FIRMAS TIPO LIBRO (CON CAMBIO DE HOJA Y MÍNIMO SCROLL)
+  // 13. LIBRO DE FIRMAS 3D INTERACTIVO (HOJA REAL CON DESLIZAMIENTO TÁCTIL)
   // =====================================================================
+  function resolveSignatureFont(entry) {
+    const raw = entry && typeof entry.font_family === 'string' ? entry.font_family.trim() : '';
+    if (SIGNATURE_FONTS.includes(raw)) return raw;
+    const seed = Math.abs(Number(entry && entry.id ? entry.id : 0));
+    return SIGNATURE_FONTS[seed % SIGNATURE_FONTS.length];
+  }
+
+  function computeBookPageSize() {
+    const stageH = bookFlipStage ? bookFlipStage.clientHeight : 0;
+    if (stageH > 0) {
+      return stageH >= 460 ? 4 : 3;
+    }
+    return window.innerHeight >= 780 ? 4 : 3;
+  }
+
+  function computeLineClamp(pageSize) {
+    const stageH = bookFlipStage ? bookFlipStage.clientHeight : (window.innerHeight - 260);
+    const usableH = Math.max(220, stageH - 46);
+    const slotH = usableH / pageSize;
+    return slotH >= 132 ? 3 : 2;
+  }
+
+  function getTotalBookPages() {
+    return Math.max(1, Math.ceil(guestbookEntries.length / currentBookPageSize));
+  }
+
+  function buildBookPageHtml(pageNum) {
+    const total = guestbookEntries.length;
+    const totalPages = getTotalBookPages();
+
+    if (total === 0) {
+      return `
+        <div class="book-paper-running-head">
+          <span>Libro de Honor</span>
+          <span>Hoja 1 / 1</span>
+        </div>
+        <div class="book-paper-empty">
+          <p class="book-paper-empty-title">Sé el primero en estrenar este libro</p>
+          <p class="book-paper-empty-sub">
+            Tus palabras quedarán escritas con tinta y cariño en el recuerdo de Michelle &amp; René.
+          </p>
+        </div>
+      `;
+    }
+
+    const safePage = Math.min(Math.max(1, pageNum), totalPages);
+    const start = (safePage - 1) * currentBookPageSize;
+    const pageEntries = guestbookEntries.slice(start, start + currentBookPageSize);
+    const lineClamp = computeLineClamp(currentBookPageSize);
+
+    const entriesHtml = pageEntries.map((entry) => {
+      const fontKey = resolveSignatureFont(entry);
+      const authorText = entry.raw_guest_name || entry.guest_name || 'Invitado';
+      const rawMsg = (entry.raw_message || entry.message || '').replace(/\r?\n+/g, ' ').trim();
+
+      return `
+        <article class="book-signature-entry sig-font-${fontKey} is-clickable" data-entry-id="${Number(entry.id)}">
+          <p class="book-sig-message">${escapeHtml(rawMsg)}</p>
+          <div class="book-sig-footer">
+            <span class="book-sig-author">— ${escapeHtml(authorText)}</span>
+          </div>
+        </article>
+      `;
+    }).join('');
+
+    return `
+      <div class="book-paper-running-head">
+        <span>Libro de Honor · M &amp; R</span>
+        <span>Hoja ${safePage} de ${totalPages}</span>
+      </div>
+      <div class="book-paper-entries" data-slots="${currentBookPageSize}" style="--page-slots:${currentBookPageSize}; --sig-lines:${lineClamp};">
+        ${entriesHtml}
+      </div>
+    `;
+  }
+
+  function openSignatureModal(entryId) {
+    if (!bookSigModal || !bookSigModalBody) return;
+    const entry = guestbookEntries.find((e) => Number(e.id) === Number(entryId));
+    if (!entry) return;
+
+    const fontKey = resolveSignatureFont(entry);
+    const authorText = entry.raw_guest_name || entry.guest_name || 'Invitado';
+    const rawMsg = (entry.raw_message || entry.message || '').trim();
+    const formattedMsg = escapeHtml(rawMsg).replace(/\r?\n/g, '<br>');
+
+    bookSigModalBody.className = `book-sig-modal-body sig-font-${fontKey}`;
+    bookSigModalBody.innerHTML = `
+      <p class="book-sig-message">${formattedMsg}</p>
+      <div class="book-sig-footer">
+        <span class="book-sig-author">— ${escapeHtml(authorText)}</span>
+      </div>
+    `;
+
+    bookSigModal.classList.add('is-open');
+    bookSigModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeSignatureModal() {
+    if (!bookSigModal) return;
+    bookSigModal.classList.remove('is-open');
+    bookSigModal.setAttribute('aria-hidden', 'true');
+  }
+
+  if (bookSigModalClose) bookSigModalClose.addEventListener('click', closeSignatureModal);
+  if (bookSigModal) {
+    bookSigModal.addEventListener('click', (e) => {
+      if (e.target === bookSigModal) closeSignatureModal();
+    });
+  }
+
+  function resetBookLeafStyles() {
+    if (!bookLeafActive) return;
+    bookLeafActive.classList.remove('is-animating');
+    bookLeafActive.style.transition = '';
+    bookLeafActive.style.transform = 'rotateY(0deg)';
+    if (bookFrontShade) {
+      bookFrontShade.style.transition = '';
+      bookFrontShade.style.opacity = '0';
+    }
+    if (bookBackShade) {
+      bookBackShade.style.transition = '';
+      bookBackShade.style.opacity = '0';
+    }
+    if (bookUnderShadow) {
+      bookUnderShadow.style.transition = '';
+      bookUnderShadow.style.opacity = '0';
+    }
+  }
+
+  function applyFlipVisuals(angleDeg) {
+    if (!bookLeafActive) return;
+    const clamped = Math.max(-180, Math.min(0, angleDeg));
+    bookLeafActive.style.transform = `rotateY(${clamped.toFixed(2)}deg)`;
+
+    const rad = (Math.abs(clamped) / 180) * Math.PI;
+    const arch = Math.sin(rad); // 0 en 0° y -180°, pico 1 en -90°
+    if (bookFrontShade) {
+      bookFrontShade.style.opacity = (arch * 0.42).toFixed(3);
+    }
+    if (bookBackShade) {
+      bookBackShade.style.opacity = (arch * 0.32).toFixed(3);
+    }
+    if (bookUnderShadow) {
+      const coverFactor = Math.max(0, 1 - Math.abs(clamped) / 155);
+      bookUnderShadow.style.opacity = (coverFactor * 0.5).toFixed(3);
+    }
+  }
+
+  function updateBookChrome() {
+    const total = guestbookEntries.length;
+    const totalPages = getTotalBookPages();
+    currentBookPage = Math.min(Math.max(1, currentBookPage), totalPages);
+
+    if (gbBookCountPill) gbBookCountPill.textContent = String(total);
+    const counterBadge = document.getElementById('gbCounterBadge');
+    if (counterBadge) {
+      counterBadge.textContent = `${total} ${total === 1 ? 'Firma en el libro' : 'Firmas en el libro'}`;
+    }
+
+    if (bookPageIndicator) {
+      bookPageIndicator.textContent = total > 0 ? `Hoja ${currentBookPage} de ${totalPages}` : 'Libro listo';
+    }
+
+    if (bookSwipeHint) {
+      if (totalPages <= 1) {
+        bookSwipeHint.textContent = total > 0 ? 'Toca una firma para leerla completa' : 'Agrega la primera dedicatoria';
+      } else if (currentBookPage === 1) {
+        bookSwipeHint.textContent = 'Desliza ← con tu dedo para pasar la hoja';
+      } else if (currentBookPage === totalPages) {
+        bookSwipeHint.textContent = 'Última hoja · Desliza → para regresar';
+      } else {
+        bookSwipeHint.textContent = 'Desliza ← o → con tu dedo para hojear';
+      }
+    }
+
+    if (btnBookPrevPage) btnBookPrevPage.disabled = currentBookPage <= 1 || total === 0;
+    if (btnBookNextPage) btnBookNextPage.disabled = currentBookPage >= totalPages || total === 0;
+
+    if (bookPagesStack) {
+      const remaining = Math.max(0, totalPages - currentBookPage);
+      bookPagesStack.dataset.depth = String(Math.min(3, remaining));
+    }
+
+    if (bookPageCurl) {
+      bookPageCurl.classList.toggle('is-hidden', currentBookPage >= totalPages || total === 0);
+    }
+  }
+
+  function renderGuestbookPage(pageNum) {
+    if (!bookFrontContent) return;
+    currentBookPageSize = computeBookPageSize();
+    const totalPages = getTotalBookPages();
+    currentBookPage = Math.min(Math.max(1, pageNum), totalPages);
+
+    bookIsFlipping = false;
+    resetBookLeafStyles();
+
+    bookFrontContent.innerHTML = buildBookPageHtml(currentBookPage);
+    if (bookUnderContent) {
+      const nextPreview = currentBookPage < totalPages ? currentBookPage + 1 : currentBookPage;
+      bookUnderContent.innerHTML = buildBookPageHtml(nextPreview);
+    }
+    updateBookChrome();
+  }
+
+  function prepareFlipLayers(dir) {
+    const totalPages = getTotalBookPages();
+    if (!bookFrontContent || !bookUnderContent || !bookLeafActive) return false;
+
+    if (dir === 'next') {
+      if (currentBookPage >= totalPages) return false;
+      bookFrontContent.innerHTML = buildBookPageHtml(currentBookPage);
+      bookUnderContent.innerHTML = buildBookPageHtml(currentBookPage + 1);
+      bookLeafActive.classList.remove('is-animating');
+      bookLeafActive.style.transition = 'none';
+      applyFlipVisuals(0);
+      if (bookPageCurl) bookPageCurl.classList.add('is-hidden');
+      return true;
+    }
+
+    if (dir === 'prev') {
+      if (currentBookPage <= 1) return false;
+      bookUnderContent.innerHTML = buildBookPageHtml(currentBookPage);
+      bookFrontContent.innerHTML = buildBookPageHtml(currentBookPage - 1);
+      bookLeafActive.classList.remove('is-animating');
+      bookLeafActive.style.transition = 'none';
+      applyFlipVisuals(-180);
+      if (bookPageCurl) bookPageCurl.classList.add('is-hidden');
+      return true;
+    }
+
+    return false;
+  }
+
+  function finishFlipAnimation(dir, shouldCommit) {
+    if (!bookLeafActive) return;
+    bookIsFlipping = true;
+
+    const targetAngle = (dir === 'next')
+      ? (shouldCommit ? -180 : 0)
+      : (shouldCommit ? 0 : -180);
+
+    const durationMs = 460;
+    const easing = 'cubic-bezier(0.22, 0.86, 0.32, 1)';
+
+    bookLeafActive.style.transition = `transform ${durationMs}ms ${easing}`;
+    if (bookFrontShade) bookFrontShade.style.transition = `opacity ${durationMs}ms ease`;
+    if (bookBackShade) bookBackShade.style.transition = `opacity ${durationMs}ms ease`;
+    if (bookUnderShadow) bookUnderShadow.style.transition = `opacity ${durationMs}ms ease`;
+
+    // Forzar layout antes de animar
+    void bookLeafActive.offsetWidth;
+    applyFlipVisuals(targetAngle);
+
+    let done = false;
+    const finalize = () => {
+      if (done) return;
+      done = true;
+      bookLeafActive.removeEventListener('transitionend', onEnd);
+
+      if (shouldCommit) {
+        currentBookPage += (dir === 'next' ? 1 : -1);
+      }
+
+      renderGuestbookPage(currentBookPage);
+    };
+
+    const onEnd = (ev) => {
+      if (ev.target === bookLeafActive && ev.propertyName === 'transform') {
+        finalize();
+      }
+    };
+
+    bookLeafActive.addEventListener('transitionend', onEnd);
+    setTimeout(finalize, durationMs + 70);
+  }
+
+  function triggerBookFlip(dir) {
+    if (bookIsFlipping || !bookFlipStage) return;
+    if (!prepareFlipLayers(dir)) return;
+    // Pequeño frame para que el estado inicial se pinte antes de iniciar la vuelta de hoja
+    requestAnimationFrame(() => {
+      finishFlipAnimation(dir, true);
+    });
+  }
+
+  function initBookTouchFlip() {
+    if (!bookFlipStage || !bookLeafActive) return;
+
+    const drag = {
+      active: false,
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      startTime: 0,
+      dir: null,
+      canTurn: false,
+      progress: 0,
+      stageWidth: 320,
+      tapEntryId: null
+    };
+
+    bookFlipStage.addEventListener('pointerdown', (e) => {
+      if (bookIsFlipping || guestbookEntries.length === 0) return;
+      if (e.button !== undefined && e.button !== 0) return;
+      if (e.target && e.target.closest && e.target.closest('#bookPageCurl')) return;
+
+      const entryEl = e.target && e.target.closest ? e.target.closest('.book-signature-entry') : null;
+      drag.active = true;
+      drag.pointerId = e.pointerId;
+      drag.startX = e.clientX;
+      drag.startY = e.clientY;
+      drag.startTime = performance.now();
+      drag.dir = null;
+      drag.canTurn = false;
+      drag.progress = 0;
+      drag.stageWidth = Math.max(220, bookFlipStage.clientWidth || 320);
+      drag.tapEntryId = entryEl ? entryEl.dataset.entryId : null;
+    });
+
+    bookFlipStage.addEventListener('pointermove', (e) => {
+      if (!drag.active || e.pointerId !== drag.pointerId) return;
+
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+
+      if (!drag.dir) {
+        if (Math.abs(dx) < 8) return;
+        if (Math.abs(dy) > Math.abs(dx) * 1.35) {
+          drag.active = false;
+          return;
+        }
+
+        drag.dir = dx < 0 ? 'next' : 'prev';
+        drag.tapEntryId = null;
+        drag.canTurn = prepareFlipLayers(drag.dir);
+        bookFlipStage.classList.add('is-dragging');
+        if (bookFlipStage.setPointerCapture) {
+          try { bookFlipStage.setPointerCapture(e.pointerId); } catch (err) {}
+        }
+      }
+
+      if (drag.dir === 'next') {
+        if (!drag.canTurn) {
+          // Efecto suave de tope en la última hoja
+          const resist = Math.min(13, Math.abs(dx) * 0.085);
+          bookLeafActive.style.transition = 'none';
+          applyFlipVisuals(-resist);
+          return;
+        }
+        drag.progress = Math.max(0, Math.min(1, -dx / (drag.stageWidth * 0.82)));
+        applyFlipVisuals(-180 * drag.progress);
+      } else if (drag.dir === 'prev') {
+        if (!drag.canTurn) {
+          // Efecto suave de tope en la primera hoja
+          const resist = Math.min(10, Math.max(0, dx) * 0.06);
+          bookLeafActive.style.transition = 'none';
+          bookLeafActive.style.transform = `translateX(${resist.toFixed(1)}px)`;
+          return;
+        }
+        drag.progress = Math.max(0, Math.min(1, dx / (drag.stageWidth * 0.82)));
+        applyFlipVisuals(-180 + 180 * drag.progress);
+      }
+    });
+
+    const handlePointerEnd = (e) => {
+      if (!drag.active || e.pointerId !== drag.pointerId) return;
+
+      const wasDragging = Boolean(drag.dir);
+      const dir = drag.dir;
+      const canTurn = drag.canTurn;
+      const progress = drag.progress;
+      const tapEntryId = drag.tapEntryId;
+      const dx = e.clientX - drag.startX;
+      const elapsed = Math.max(16, performance.now() - drag.startTime);
+      const velocity = dx / elapsed; // px/ms
+
+      drag.active = false;
+      drag.pointerId = null;
+      drag.dir = null;
+      bookFlipStage.classList.remove('is-dragging');
+
+      if (!wasDragging) {
+        if (tapEntryId) {
+          openSignatureModal(tapEntryId);
+        }
+        return;
+      }
+
+      if (!canTurn) {
+        bookLeafActive.style.transition = 'transform 260ms cubic-bezier(0.22, 0.86, 0.32, 1)';
+        bookLeafActive.style.transform = 'rotateY(0deg)';
+        if (bookFrontShade) bookFrontShade.style.opacity = '0';
+        if (bookUnderShadow) bookUnderShadow.style.opacity = '0';
+        setTimeout(() => {
+          if (!bookIsFlipping) resetBookLeafStyles();
+        }, 280);
+        return;
+      }
+
+      const shouldCommit = dir === 'next'
+        ? (progress > 0.22 || velocity < -0.3)
+        : (progress > 0.22 || velocity > 0.3);
+
+      finishFlipAnimation(dir, shouldCommit);
+    };
+
+    bookFlipStage.addEventListener('pointerup', handlePointerEnd);
+    bookFlipStage.addEventListener('pointercancel', handlePointerEnd);
+  }
+
   function setBookMode(mode) {
     const isRead = mode === 'read';
     if (bookWriteView) bookWriteView.classList.toggle('is-active', !isRead);
@@ -1623,7 +2263,12 @@
     if (btnBookWriteTab) btnBookWriteTab.classList.toggle('is-active', !isRead);
     if (btnBookReadTab) btnBookReadTab.classList.toggle('is-active', isRead);
     if (isRead) {
-      loadGuestbook();
+      requestAnimationFrame(() => {
+        if (guestbookEntries.length > 0) {
+          renderGuestbookPage(currentBookPage);
+        }
+        loadGuestbook();
+      });
     }
   }
 
@@ -1632,8 +2277,33 @@
   if (btnGoToReadSignatures) btnGoToReadSignatures.addEventListener('click', () => setBookMode('read'));
   if (btnBackToWrite) btnBackToWrite.addEventListener('click', () => setBookMode('write'));
 
+  if (btnBookPrevPage) {
+    btnBookPrevPage.addEventListener('click', () => triggerBookFlip('prev'));
+  }
+  if (btnBookNextPage) {
+    btnBookNextPage.addEventListener('click', () => triggerBookFlip('next'));
+  }
+  if (bookPageCurl) {
+    bookPageCurl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      triggerBookFlip('next');
+    });
+  }
+
+  // Recalcular 3 o 4 firmas por hoja si cambia el tamaño/orientación de la pantalla
+  let bookResizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (!bookFlipStage || !bookReadView || !bookReadView.classList.contains('is-active')) return;
+    clearTimeout(bookResizeTimer);
+    bookResizeTimer = setTimeout(() => {
+      if (!bookIsFlipping) {
+        renderGuestbookPage(currentBookPage);
+      }
+    }, 150);
+  });
+
   async function loadGuestbook() {
-    if (!guestbookList) return;
+    if (!bookFrontContent) return;
     try {
       const res = await fetch('/api/guestbook');
       const data = await res.json();
@@ -1644,71 +2314,6 @@
     } catch (e) {
       console.error('Error cargando libro de firmas:', e);
     }
-  }
-
-  function renderGuestbookPage(pageNum) {
-    if (!guestbookList) return;
-    const total = guestbookEntries.length;
-
-    if (gbBookCountPill) gbBookCountPill.textContent = String(total);
-    const counterBadge = document.getElementById('gbCounterBadge');
-    if (counterBadge) {
-      counterBadge.textContent = `${total} ${total === 1 ? 'Firma en el libro' : 'Firmas en el libro'}`;
-    }
-
-    guestbookList.innerHTML = '';
-
-    if (total === 0) {
-      if (bookPagination) bookPagination.style.display = 'none';
-      guestbookList.innerHTML = `
-        <div style="text-align:center; padding:32px 14px; color:var(--color-olive);">
-          <p style="font-family:var(--font-serif); font-size:1.35rem; margin-bottom:6px;">
-            Sé el primero en estrenar este libro
-          </p>
-          <p style="font-size:0.84rem; color:var(--color-text-secondary);">
-            Tus palabras quedarán guardadas para siempre en el recuerdo de Michelle &amp; René.
-          </p>
-        </div>
-      `;
-      return;
-    }
-
-    const totalPages = Math.max(1, Math.ceil(total / BOOK_PAGE_SIZE));
-    currentBookPage = Math.min(Math.max(1, pageNum), totalPages);
-
-    const start = (currentBookPage - 1) * BOOK_PAGE_SIZE;
-    const pageEntries = guestbookEntries.slice(start, start + BOOK_PAGE_SIZE);
-
-    pageEntries.forEach((entry, idx) => {
-      const card = document.createElement('article');
-      card.className = 'book-entry-note';
-      card.style.animationDelay = `${idx * 55}ms`;
-      const dateStr = entry.created_at ? entry.created_at.substring(0, 10) : '';
-      card.innerHTML = `
-        <div class="book-entry-top">
-          <span class="book-entry-author">${escapeHtml(entry.guest_name)}</span>
-          <span class="book-entry-date">${escapeHtml(dateStr)}</span>
-        </div>
-        <p class="book-entry-msg">“${escapeHtml(entry.message)}”</p>
-      `;
-      guestbookList.appendChild(card);
-    });
-
-    if (bookPagination) {
-      bookPagination.style.display = totalPages > 1 ? 'flex' : 'none';
-    }
-    if (bookPageIndicator) {
-      bookPageIndicator.textContent = `Página ${currentBookPage} de ${totalPages}`;
-    }
-    if (btnBookPrevPage) btnBookPrevPage.disabled = currentBookPage <= 1;
-    if (btnBookNextPage) btnBookNextPage.disabled = currentBookPage >= totalPages;
-  }
-
-  if (btnBookPrevPage) {
-    btnBookPrevPage.addEventListener('click', () => renderGuestbookPage(currentBookPage - 1));
-  }
-  if (btnBookNextPage) {
-    btnBookNextPage.addEventListener('click', () => renderGuestbookPage(currentBookPage + 1));
   }
 
   function initGuestbookChips() {
@@ -1730,7 +2335,7 @@
       const message = guestbookMsgInput ? guestbookMsgInput.value.trim() : '';
 
       if (!author || !message) {
-        showToast('Por favor escribe tu nombre y tu dedicatoria.', 'error');
+        showToast('Por favor escribe tu nombre y tu dedicatoria.', 'warning', 'Completa tu firma');
         return;
       }
 
@@ -1746,15 +2351,18 @@
         });
         const data = await res.json();
         if (data.success) {
-          showToast('¡Tu firma ha quedado guardada en el libro!', 'success');
+          showToast('¡Tu firma ha quedado guardada en el libro!', 'success', '¡Gracias por firmar!');
           if (guestbookMsgInput) guestbookMsgInput.value = '';
+          if (data.entry) {
+            guestbookEntries = [data.entry, ...guestbookEntries.filter((x) => Number(x.id) !== Number(data.entry.id))];
+          }
           currentBookPage = 1;
           setBookMode('read');
         } else {
-          showToast(data.error || 'No se pudo guardar tu firma.', 'error');
+          showToast(data.error || 'No se pudo guardar tu firma.', 'error', 'No se pudo guardar');
         }
       } catch (err) {
-        showToast('Error de conexión al enviar tu firma.', 'error');
+        showToast('Error de conexión al enviar tu firma.', 'error', 'Sin conexión');
       }
     });
   }
@@ -1767,8 +2375,9 @@
   initHeroSlideshow();
   initFallingPetals();
   initGuestbookChips();
+  initBookTouchFlip();
   checkGuestSession();
 
   if (galleryGrid) loadGallery(false);
-  if (guestbookList) loadGuestbook();
+  if (bookFrontContent) loadGuestbook();
 })();

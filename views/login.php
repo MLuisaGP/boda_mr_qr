@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Acceso Novios · Boda Michelle & René</title>
   
-  <link rel="stylesheet" href="assets/css/admin.css">
+  <link rel="stylesheet" href="assets/css/admin.css?v=2">
   <link rel="icon" type="image/jpeg" href="assets/img/couple-portrait.jpg">
 </head>
 <body>
@@ -21,7 +21,12 @@
         Boda Michelle & René · 19 de Diciembre 2026
       </p>
 
-      <div id="loginError" style="display:none; padding:12px; border-radius:8px; background:rgba(198,40,40,0.2); border:1px solid #C62828; color:#FFCDD2; font-size:0.84rem; margin-bottom:20px;"></div>
+      <div id="loginError" class="admin-alert admin-alert-error" role="alert" aria-live="assertive">
+        <span class="admin-alert-icon" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </span>
+        <span class="admin-alert-body" id="loginErrorText"></span>
+      </div>
 
       <form id="adminLoginForm">
         <div style="text-align:left; margin-bottom:18px;">
@@ -46,11 +51,23 @@
   </div>
 
   <script>
+    function showLoginError(msg) {
+      const errBox = document.getElementById('loginError');
+      const errText = document.getElementById('loginErrorText');
+      if (!errBox || !errText) return;
+      errText.textContent = msg;
+      errBox.classList.remove('is-shake');
+      errBox.classList.add('is-visible');
+      void errBox.offsetWidth;
+      errBox.classList.add('is-shake');
+    }
+
     document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const u = document.getElementById('adminUsername').value.trim();
       const p = document.getElementById('adminPassword').value;
       const errBox = document.getElementById('loginError');
+      if (errBox) errBox.classList.remove('is-visible', 'is-shake');
 
       try {
         const res = await fetch('/api/auth/admin-login', {
@@ -62,12 +79,10 @@
         if (data.success) {
           window.location.reload();
         } else {
-          errBox.textContent = data.error || 'Credenciales inválidas.';
-          errBox.style.display = 'block';
+          showLoginError(data.error || 'Credenciales inválidas. Verifica tu usuario y contraseña.');
         }
       } catch (err) {
-        errBox.textContent = 'Error de conexión con el servidor.';
-        errBox.style.display = 'block';
+        showLoginError('Error de conexión con el servidor. Intenta nuevamente.');
       }
     });
   </script>

@@ -510,29 +510,416 @@ body {
 
 .admin-modal-content {
   width: min(92%, 600px);
-  background: var(--admin-surface);
-  border: 1px solid var(--admin-card-border);
+  background: linear-gradient(165deg, #2B1721 0%, #211018 100%);
+  border: 1px solid rgba(212, 175, 55, 0.34);
   border-radius: var(--radius-lg);
   padding: 34px;
-  box-shadow: var(--shadow-dark);
+  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   position: relative;
   color: #FFFFFF;
+  transform: translateY(16px) scale(0.95);
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-modal-backdrop.active .admin-modal-content {
+  transform: translateY(0) scale(1);
 }
 
 .admin-modal-close {
   position: absolute;
   top: 18px;
   right: 20px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 1.6rem;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  color: var(--text-dim);
+  font-size: 1.35rem;
   cursor: pointer;
   line-height: 1;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s ease;
 }
 
 .admin-modal-close:hover {
   color: #FFF;
+  background: rgba(212, 175, 55, 0.16);
+  border-color: rgba(212, 175, 55, 0.48);
+}
+
+/* Modal de Confirmación Elegante del Panel */
+.admin-confirm-dialog {
+  max-width: 430px;
+  text-align: center;
+  padding: 30px 28px 28px;
+}
+
+.admin-confirm-ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  color: var(--gold-primary);
+  font-size: 0.72rem;
+}
+
+.admin-confirm-ornament span {
+  width: 34px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.65), transparent);
+}
+
+.admin-confirm-ornament i {
+  font-style: normal;
+}
+
+.admin-confirm-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+  background: rgba(211, 56, 66, 0.16);
+  border: 1px solid rgba(235, 92, 100, 0.45);
+  color: #FF8A92;
+  box-shadow: 0 0 0 8px rgba(211, 56, 66, 0.08), 0 10px 24px rgba(198, 40, 40, 0.25);
+}
+
+.admin-confirm-title {
+  font-family: var(--font-serif);
+  font-size: 1.85rem;
+  font-weight: 600;
+  color: var(--gold-light);
+  margin-bottom: 10px;
+  line-height: 1.15;
+}
+
+.admin-confirm-text {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+  margin-bottom: 26px;
+}
+
+.admin-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.admin-confirm-actions .admin-btn {
+  justify-content: center;
+  padding: 12px 18px;
+}
+
+/* =====================================================================
+   NOTIFICACIONES TOAST Y ALERTAS INLINE (DARK VELVET & CHAMPAGNE GOLD)
+   ===================================================================== */
+.admin-toast-container {
+  position: fixed;
+  top: 20px;
+  right: 22px;
+  z-index: 3500;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(390px, calc(100vw - 28px));
+  pointer-events: none;
+}
+
+.admin-toast {
+  --atoast-accent: #D4AF37;
+  --atoast-soft: rgba(212, 175, 55, 0.16);
+  --atoast-border: rgba(212, 175, 55, 0.42);
+  --atoast-icon: #F6E6C2;
+  --atoast-bar: linear-gradient(90deg, #F4E2B7 0%, #C9A050 100%);
+  --atoast-duration: 4200ms;
+
+  pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 14px 16px 17px 16px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(44, 23, 33, 0.96) 0%, rgba(28, 14, 21, 0.96) 100%);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid var(--atoast-border);
+  box-shadow:
+    0 20px 44px rgba(0, 0, 0, 0.52),
+    0 0 24px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  animation: adminToastIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 0.24s ease, box-shadow 0.24s ease;
+}
+
+.admin-toast::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 12px;
+  left: 0;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--atoast-bar);
+}
+
+.admin-toast:hover {
+  transform: translateY(-2px);
+}
+
+.admin-toast.is-leaving {
+  pointer-events: none;
+  animation: adminToastOut 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.admin-toast.admin-toast-success {
+  --atoast-accent: #52B788;
+  --atoast-soft: rgba(82, 183, 136, 0.16);
+  --atoast-border: rgba(82, 183, 136, 0.42);
+  --atoast-icon: #8CE0B6;
+  --atoast-bar: linear-gradient(90deg, #74C69D 0%, #40916C 100%);
+}
+
+.admin-toast.admin-toast-error {
+  --atoast-accent: #E5535B;
+  --atoast-soft: rgba(229, 83, 91, 0.18);
+  --atoast-border: rgba(229, 83, 91, 0.46);
+  --atoast-icon: #FF9BA1;
+  --atoast-bar: linear-gradient(90deg, #F07178 0%, #C62828 100%);
+}
+
+.admin-toast.admin-toast-warning {
+  --atoast-accent: #E6A942;
+  --atoast-soft: rgba(230, 169, 66, 0.18);
+  --atoast-border: rgba(230, 169, 66, 0.45);
+  --atoast-icon: #FFD27D;
+  --atoast-bar: linear-gradient(90deg, #F2C063 0%, #C98821 100%);
+}
+
+.admin-toast.admin-toast-info {
+  --atoast-accent: #D4AF37;
+  --atoast-soft: rgba(212, 175, 55, 0.16);
+  --atoast-border: rgba(212, 175, 55, 0.42);
+  --atoast-icon: #F6E6C2;
+  --atoast-bar: linear-gradient(90deg, #F4E2B7 0%, #C9A050 100%);
+}
+
+.admin-toast-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--atoast-soft);
+  border: 1px solid var(--atoast-border);
+  color: var(--atoast-icon);
+  margin-top: 1px;
+}
+
+.admin-toast-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.admin-toast-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-toast-title {
+  font-family: var(--font-serif);
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--gold-light);
+  line-height: 1.15;
+  margin-bottom: 3px;
+}
+
+.admin-toast-msg {
+  font-size: 0.81rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.admin-toast-close {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin: -2px -4px 0 0;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.admin-toast-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+.admin-toast-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.admin-toast-progress-bar {
+  width: 100%;
+  height: 100%;
+  background: var(--atoast-bar);
+  transform-origin: left center;
+  animation: adminToastProgress var(--atoast-duration) linear forwards;
+}
+
+.admin-toast:hover .admin-toast-progress-bar,
+.admin-toast.is-paused .admin-toast-progress-bar {
+  animation-play-state: paused;
+}
+
+@keyframes adminToastIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(34px, 0, 0) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes adminToastOut {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(38px, 0, 0) scale(0.95);
+  }
+}
+
+@keyframes adminToastProgress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+/* Alertas Inline Elegantes (Login y Formularios del Panel) */
+.admin-alert {
+  --aalert-accent: #D4AF37;
+  --aalert-bg: rgba(212, 175, 55, 0.12);
+  --aalert-border: rgba(212, 175, 55, 0.4);
+  --aalert-color: #F6E6C2;
+
+  display: none;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 15px;
+  border-radius: 14px;
+  background: var(--aalert-bg);
+  border: 1px solid var(--aalert-border);
+  border-left: 4px solid var(--aalert-accent);
+  color: var(--aalert-color);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  text-align: left;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.admin-alert.is-visible {
+  display: flex;
+  animation: adminAlertReveal 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.admin-alert.is-shake {
+  animation: adminAlertShake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.admin-alert-error {
+  --aalert-accent: #E5535B;
+  --aalert-bg: linear-gradient(135deg, rgba(198, 40, 40, 0.22) 0%, rgba(130, 22, 32, 0.24) 100%);
+  --aalert-border: rgba(229, 83, 91, 0.48);
+  --aalert-color: #FFD6D9;
+}
+
+.admin-alert-success {
+  --aalert-accent: #52B788;
+  --aalert-bg: linear-gradient(135deg, rgba(64, 145, 108, 0.22) 0%, rgba(36, 94, 68, 0.22) 100%);
+  --aalert-border: rgba(82, 183, 136, 0.45);
+  --aalert-color: #D2F4E3;
+}
+
+.admin-alert-warning {
+  --aalert-accent: #E6A942;
+  --aalert-bg: linear-gradient(135deg, rgba(201, 136, 33, 0.22) 0%, rgba(138, 88, 16, 0.22) 100%);
+  --aalert-border: rgba(230, 169, 66, 0.46);
+  --aalert-color: #FFE9BF;
+}
+
+.admin-alert-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--aalert-accent);
+  margin-top: 1px;
+}
+
+.admin-alert-body {
+  flex: 1;
+  min-width: 0;
+}
+
+@keyframes adminAlertReveal {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes adminAlertShake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+
+@media (max-width: 640px) {
+  .admin-toast-container {
+    top: 14px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: calc(100vw - 24px);
+    max-width: 420px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-toast,
+  .admin-toast.is-leaving,
+  .admin-modal-content,
+  .admin-alert {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Estilos de Impresión Limpios */
@@ -541,7 +928,7 @@ body {
     background: #FFF !important;
     color: #000 !important;
   }
-  .admin-header, .admin-actions-bar, .admin-tabs, .admin-user-menu, .no-print {
+  .admin-header, .admin-actions-bar, .admin-tabs, .admin-user-menu, .admin-toast-container, .admin-modal-backdrop, .no-print {
     display: none !important;
   }
   .admin-container {

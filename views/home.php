@@ -3,10 +3,10 @@ $pageTitle = 'Boda Michelle & René · 19 de Diciembre 2026';
 $pageDesc = 'Celebra con nosotros la boda de Michelle y René. Comparte tus fotos, videos y firma nuestro libro de recuerdos.';
 $themeColor = '#171E14';
 $activePage = 'home';
-$navTransparent = true;
+$homeFloatingMenu = true;
 ?>
 <!DOCTYPE html>
-<html lang="es-MX">
+<html lang="es-MX" class="home-no-scroll">
 <head>
 <?php require __DIR__ . '/partials/pwa_head.php'; ?>
 </head>
@@ -62,40 +62,31 @@ $navTransparent = true;
 <?php require __DIR__ . '/partials/navbar.php'; ?>
 
   <main class="app-main-home">
-    <!-- PORTADA APP FULLSCREEN: FOTOS DE LOS NOVIOS CON TRANSICIÓN TENUE + PÉTALOS + 3 BOTONES -->
+    <!-- PORTADA APP FULLSCREEN SIN SCROLL: FOTOS DE LOS NOVIOS CON TRANSICIÓN TENUE + PÉTALOS DE CEREZO + 3 BOTONES -->
     <section class="hero-section hero-app-cover" id="inicio">
-      <!-- Fondo Slideshow con Transición Tenue entre Fotos de los Novios -->
+      <!-- Fondo Slideshow con Transición Tenue entre las Fotos Seleccionadas de los Novios -->
       <div class="hero-bg-frame hero-slideshow" id="heroSlideshow" aria-hidden="true">
         <div class="hero-slide is-active">
-          <picture>
-            <source media="(max-width: 768px)" srcset="/assets/img/hero-portrait.jpg">
-            <img src="/assets/img/hero-widescreen.jpg" alt="Michelle y René" class="hero-image">
-          </picture>
-        </div>
-        <div class="hero-slide">
-          <img src="/assets/img/couple-story-1.jpg" alt="Michelle y René" class="hero-image" loading="lazy">
-        </div>
-        <div class="hero-slide">
-          <img src="/assets/img/couple-story-2.jpg" alt="Michelle y René" class="hero-image" loading="lazy">
+          <img src="/assets/img/couple-portrait.jpg" alt="Michelle y René" class="hero-image">
         </div>
         <div class="hero-slide">
           <img src="/assets/img/couple-story-3.jpg" alt="Michelle y René" class="hero-image" loading="lazy">
         </div>
         <div class="hero-slide">
-          <img src="/assets/img/couple-story-4.jpg" alt="Michelle y René" class="hero-image" loading="lazy">
+          <img src="/assets/img/imagen_5.jpeg" alt="Michelle y René" class="hero-image" loading="lazy">
         </div>
         <div class="hero-slide">
-          <img src="/assets/img/couple-story-5.jpg" alt="Michelle y René" class="hero-image" loading="lazy">
+          <img src="/assets/img/imagen_4.jpeg" alt="Michelle y René" class="hero-image" loading="lazy">
         </div>
         <div class="hero-slide">
-          <img src="/assets/img/couple-portrait.jpg" alt="Michelle y René" class="hero-image" loading="lazy">
+          <img src="/assets/img/imagen_2.jpeg" alt="Michelle y René" class="hero-image" loading="lazy">
         </div>
 
         <!-- Degradado suave concentrado en la parte inferior para lucir mejor a los novios -->
         <div class="hero-overlay hero-overlay-lower"></div>
       </div>
 
-      <!-- Lluvia Suave de Pétalos Románticos -->
+      <!-- Lluvia Tenue de Pétalos de Cerezo -->
       <canvas id="petalsCanvas" class="hero-petals-canvas" aria-hidden="true"></canvas>
 
       <!-- Contenido Posicionado Más Abajo para Destacar la Foto de los Novios -->
@@ -143,6 +134,6 @@ $navTransparent = true;
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=4"></script>
+  <script src="/assets/js/app.js?v=10"></script>
 </body>
 </html>

@@ -13,15 +13,17 @@ use App\Models\Guestbook;
 
 class GuestbookController extends Controller {
     public function index(): void {
-        $rows = Guestbook::listVisible(100);
+        $rows = Guestbook::listVisible(300);
 
         $entries = array_map(function ($r) {
             return [
                 'id' => (int) $r['id'],
                 'guest_id' => $r['guest_id'] ? (int) $r['guest_id'] : null,
                 'guest_name' => htmlspecialchars($r['guest_name'], ENT_QUOTES, 'UTF-8'),
+                'raw_guest_name' => $r['guest_name'],
                 'message' => nl2br(htmlspecialchars($r['message'], ENT_QUOTES, 'UTF-8')),
                 'raw_message' => $r['message'],
+                'font_family' => Guestbook::normalizeFont($r['font_family'] ?? null, (int) $r['id']),
                 'created_at' => $r['created_at'],
             ];
         }, $rows);
@@ -58,14 +60,17 @@ class GuestbookController extends Controller {
         }
 
         $guestId = $guest ? (int) $guest['id'] : null;
-        $entryId = Guestbook::create($guestId, $name, $message);
+        $assignedFont = null;
+        $entryId = Guestbook::create($guestId, $name, $message, $assignedFont);
 
         Response::success('¡Muchas gracias por tus hermosos deseos!', [
             'entry' => [
                 'id' => $entryId,
                 'guest_name' => htmlspecialchars($name, ENT_QUOTES, 'UTF-8'),
+                'raw_guest_name' => $name,
                 'message' => nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8')),
                 'raw_message' => $message,
+                'font_family' => $assignedFont ?? Guestbook::normalizeFont(null, $entryId),
                 'created_at' => date('Y-m-d H:i:s')
             ]
         ], 201);

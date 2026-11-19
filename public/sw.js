@@ -3,7 +3,7 @@
  * Caché inteligente de interfaz para experiencia tipo app nativa.
  * Nunca intercepta peticiones dinámicas de /api/* ni /uploads/*.
  */
-const CACHE_NAME = 'boda-mr-pwa-v3';
+const CACHE_NAME = 'boda-mr-pwa-v10';
 const SHELL_ASSETS = [
   '/',
   '/camara',
@@ -12,8 +12,11 @@ const SHELL_ASSETS = [
   '/manifest.json',
   '/assets/css/app.css',
   '/assets/js/app.js',
-  '/assets/img/hero-portrait.jpg',
-  '/assets/img/hero-widescreen.jpg',
+  '/assets/img/couple-portrait.jpg',
+  '/assets/img/couple-story-3.jpg',
+  '/assets/img/imagen_5.jpeg',
+  '/assets/img/imagen_4.jpeg',
+  '/assets/img/imagen_2.jpeg',
   '/assets/img/pwa-icon-192.png'
 ];
 

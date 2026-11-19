@@ -43,21 +43,139 @@
   const btnPrintCard = document.getElementById('btnPrintCard');
   const qrUrlInput = document.getElementById('qrUrlInput');
   const qrImg = document.getElementById('qrImg');
+  const adminToastContainer = document.getElementById('adminToastContainer');
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // =====================================================================
+  // 0. NOTIFICACIONES TOAST DEL PANEL (DARK VELVET & CHAMPAGNE GOLD)
+  // =====================================================================
+  function dismissAdminToast(toast) {
+    if (!toast || toast.dataset.dismissing === '1') return;
+    toast.dataset.dismissing = '1';
+    if (toast._timerId) {
+      clearTimeout(toast._timerId);
+      toast._timerId = null;
+    }
+    toast.classList.add('is-leaving');
+    setTimeout(() => toast.remove(), 290);
+  }
+
+  function showAdminToast(message, type = 'info', title = '', options = {}) {
+    if (!adminToastContainer) return null;
+
+    const validTypes = ['success', 'error', 'warning', 'info'];
+    const safeType = validTypes.includes(type) ? type : 'info';
+    const defaultDuration = safeType === 'error' ? 5200 : 4000;
+    const duration = Number(options.duration) > 0 ? Number(options.duration) : defaultDuration;
+
+    const activeToasts = Array.from(adminToastContainer.querySelectorAll('.admin-toast:not(.is-leaving)'));
+    while (activeToasts.length >= 3) {
+      dismissAdminToast(activeToasts.shift());
+    }
+
+    const icons = {
+      success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+      error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+      warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+      info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"></path></svg>'
+    };
+
+    const defaultTitles = {
+      success: 'Acción completada',
+      error: 'Ocurrió un error',
+      warning: 'Atención',
+      info: 'Panel M&R'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `admin-toast admin-toast-${safeType}`;
+    toast.setAttribute('role', safeType === 'error' || safeType === 'warning' ? 'alert' : 'status');
+    toast.style.setProperty('--atoast-duration', `${duration}ms`);
+
+    const heading = title || defaultTitles[safeType];
+    toast.innerHTML = `
+      <div class="admin-toast-icon" aria-hidden="true">${icons[safeType]}</div>
+      <div class="admin-toast-content">
+        <div class="admin-toast-title">${escapeHtml(heading)}</div>
+        <div class="admin-toast-msg">${escapeHtml(message)}</div>
+      </div>
+      <button type="button" class="admin-toast-close" aria-label="Cerrar notificación">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <div class="admin-toast-progress" aria-hidden="true"><div class="admin-toast-progress-bar"></div></div>
+    `;
+
+    let remaining = duration;
+    let startedAt = Date.now();
+
+    const startTimer = () => {
+      startedAt = Date.now();
+      toast.classList.remove('is-paused');
+      toast._timerId = setTimeout(() => dismissAdminToast(toast), remaining);
+    };
+
+    const pauseTimer = () => {
+      if (!toast._timerId) return;
+      clearTimeout(toast._timerId);
+      toast._timerId = null;
+      remaining = Math.max(400, remaining - (Date.now() - startedAt));
+      toast.classList.add('is-paused');
+    };
+
+    toast.addEventListener('mouseenter', pauseTimer);
+    toast.addEventListener('mouseleave', () => {
+      if (toast.dataset.dismissing !== '1') startTimer();
+    });
+
+    const closeBtn = toast.querySelector('.admin-toast-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dismissAdminToast(toast);
+      });
+    }
+
+    adminToastContainer.appendChild(toast);
+    startTimer();
+    return toast;
+  }
+
+  window.showAdminToast = showAdminToast;
 
   // =====================================================================
   // 1. MODALES Y DIÁLOGOS ELEGANTES
   // =====================================================================
+  function closeConfirmModal() {
+    if (!confirmModal) return;
+    confirmModal.classList.remove('active');
+    confirmCallback = null;
+  }
+
   function showConfirm(message, callback) {
     if (!confirmModal) return;
     confirmModalText.textContent = message;
     confirmCallback = callback;
     confirmModal.classList.add('active');
+    if (btnConfirmCancel) {
+      setTimeout(() => btnConfirmCancel.focus(), 60);
+    }
   }
 
   if (btnConfirmCancel) {
-    btnConfirmCancel.addEventListener('click', () => {
-      confirmModal.classList.remove('active');
-      confirmCallback = null;
+    btnConfirmCancel.addEventListener('click', closeConfirmModal);
+  }
+
+  if (confirmModal) {
+    confirmModal.addEventListener('click', (e) => {
+      if (e.target === confirmModal) closeConfirmModal();
     });
   }
 
@@ -65,8 +183,9 @@
     btnConfirmOk.addEventListener('click', () => {
       confirmModal.classList.remove('active');
       if (confirmCallback) {
-        confirmCallback();
+        const fn = confirmCallback;
         confirmCallback = null;
+        fn();
       }
     });
   }
@@ -82,6 +201,23 @@
   if (msgModalClose) {
     msgModalClose.addEventListener('click', () => msgModal.classList.remove('active'));
   }
+
+  if (msgModal) {
+    msgModal.addEventListener('click', (e) => {
+      if (e.target === msgModal) msgModal.classList.remove('active');
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (confirmModal && confirmModal.classList.contains('active')) {
+      e.preventDefault();
+      closeConfirmModal();
+    } else if (msgModal && msgModal.classList.contains('active')) {
+      e.preventDefault();
+      msgModal.classList.remove('active');
+    }
+  });
 
   // =====================================================================
   // 2. CARGA DE MÉTRICAS Y ESTADÍSTICAS
@@ -229,6 +365,7 @@
   // Descargas ZIP
   if (btnDownloadAll) {
     btnDownloadAll.addEventListener('click', () => {
+      showAdminToast('Preparando el archivo ZIP con todo el álbum de la boda...', 'info', 'Descarga iniciada');
       window.location.href = '/api/zip-download';
     });
   }
@@ -236,6 +373,8 @@
   if (btnDownloadSelected) {
     btnDownloadSelected.addEventListener('click', () => {
       if (selectedMediaIds.size === 0) return;
+      const count = selectedMediaIds.size;
+      showAdminToast(`Preparando archivo ZIP con ${count} ${count === 1 ? 'recuerdo' : 'recuerdos'}...`, 'info', 'Descarga iniciada');
       const ids = Array.from(selectedMediaIds).join(',');
       window.location.href = `/api/zip-download?ids=${encodeURIComponent(ids)}`;
     });
@@ -251,13 +390,14 @@
       });
       const data = await res.json();
       if (data.success) {
+        showAdminToast('El recuerdo se eliminó permanentemente del álbum.', 'success', 'Recuerdo eliminado');
         loadMedia();
         loadStats();
       } else {
-        alert(data.error || 'Error al eliminar');
+        showAdminToast(data.error || 'No se pudo eliminar el recuerdo.', 'error', 'Error al eliminar');
       }
     } catch (e) {
-      alert('Error de conexión');
+      showAdminToast('No se pudo conectar con el servidor. Intenta nuevamente.', 'error', 'Sin conexión');
     }
   }
 
@@ -323,11 +463,14 @@
             });
             const data = await res.json();
             if (data.success) {
+              showAdminToast(`Se eliminó la dedicatoria de ${item.guest_name}.`, 'success', 'Firma eliminada');
               loadGuestbook();
               loadStats();
+            } else {
+              showAdminToast(data.error || 'No se pudo eliminar la dedicatoria.', 'error', 'Error al eliminar');
             }
           } catch (e) {
-            alert('Error');
+            showAdminToast('No se pudo conectar con el servidor.', 'error', 'Sin conexión');
           }
         });
       });

@@ -66,5 +66,25 @@
     </div>
   </div>
 
+  <!-- MODAL DE CONFIRMACIÓN Y ALERTAS ELEGANTES -->
+  <div class="app-confirm-backdrop" id="appConfirmModal" role="alertdialog" aria-modal="true" aria-labelledby="appConfirmTitle" aria-describedby="appConfirmMsg" aria-hidden="true">
+    <div class="app-confirm-dialog is-danger" id="appConfirmDialog">
+      <div class="app-confirm-ornament" aria-hidden="true">
+        <span></span>
+        <i>✦</i>
+        <span></span>
+      </div>
+      <div class="app-confirm-icon" id="appConfirmIcon" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+      </div>
+      <h3 class="app-confirm-title" id="appConfirmTitle">¿Confirmar acción?</h3>
+      <p class="app-confirm-msg" id="appConfirmMsg"></p>
+      <div class="app-confirm-actions">
+        <button type="button" class="app-confirm-btn app-confirm-cancel" id="appConfirmCancel">Cancelar</button>
+        <button type="button" class="app-confirm-btn app-confirm-ok" id="appConfirmOk">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- CONTENEDOR DE ALERTAS TOAST -->
-  <div class="toast-container" id="toastContainer"></div>
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="false"></div>
