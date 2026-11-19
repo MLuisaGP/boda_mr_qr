@@ -21,7 +21,7 @@ $navTransparent = false;
         <span class="section-tag">Álbum en Vivo</span>
         <h1 class="camera-hub-title">Comparte tus Momentos</h1>
         <p class="camera-hub-desc">
-          Elige cómo capturar el instante. Puedes subir varios recuerdos (hasta 24 en total).
+          Elige cómo capturar el instante. Puedes subir hasta 24 recuerdos en total (máximo 4 videos de hasta 20 s).
         </p>
 
         <!-- Tarjeta de Estado y Cupo del Invitado -->
@@ -36,9 +36,6 @@ $navTransparent = false;
                 <div class="camera-quota-name" id="bannerGuestName">Identifícate para guardar tus recuerdos</div>
               </div>
             </div>
-            <button type="button" class="camera-edit-profile-btn" onclick="if(window.promptGuestName) window.promptGuestName(true);">
-              Cambiar
-            </button>
           </div>
 
           <div class="camera-quota-meter">
@@ -46,8 +43,8 @@ $navTransparent = false;
               <div class="camera-quota-fill" id="quotaProgressFill" style="width: 0%;"></div>
             </div>
             <div class="camera-quota-numbers">
-              <span id="guestQuotaText">0 de 24 recuerdos</span>
-              <span id="guestQuotaRemaining">Te quedan 24 disponibles</span>
+              <span id="guestQuotaText">0 de 24 recuerdos · 0/4 videos</span>
+              <span id="guestQuotaRemaining">Te quedan 24 (máx. 4 videos)</span>
             </div>
           </div>
         </div>
@@ -113,10 +110,10 @@ $navTransparent = false;
             <p class="my-uploads-sub">Revisa, descarga o elimina los recuerdos que has compartido.</p>
           </div>
           <div class="my-uploads-actions">
+            <a href="/galeria" class="btn-mini-gallery app-nav-link">Ver Galería ↗</a>
             <button type="button" class="btn-mini-refresh" id="btnRefreshMyUploads" title="Actualizar mis recuerdos">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
             </button>
-            <a href="/galeria" class="btn-mini-gallery app-nav-link">Ver Galería ↗</a>
           </div>
         </div>
 
@@ -165,7 +162,7 @@ $navTransparent = false;
       <div class="camera-rec-badge" id="cameraRecBadge" style="display:none;">
         <span class="rec-dot"></span>
         <span id="cameraRecTimer">00:00</span>
-        <span class="rec-limit-label">/ 00:15</span>
+        <span class="rec-limit-label">/ 00:20</span>
       </div>
 
       <!-- Estado de Permiso / Solicitud de Cámara -->
@@ -240,6 +237,7 @@ $navTransparent = false;
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=17"></script>
+  <script src="/assets/js/vendor/browser-image-compression.js?v=2.0.2"></script>
+  <script src="/assets/js/app.js?v=19"></script>
 </body>
 </html>

@@ -20,8 +20,10 @@ $router->post('/api/auth/admin-logout', [AuthController::class, 'adminLogout']);
 $router->get('/api/auth/admin-check', [AuthController::class, 'adminCheck']);
 $router->any('/api/auth', [AuthController::class, 'handleLegacy']);
 
-// Media endpoints (Photos & Videos)
+// Media endpoints (Photos & Videos - Cloudflare R2 Direct Upload)
 $router->get('/api/media', [MediaController::class, 'index']);
+$router->post('/api/media/presign', [MediaController::class, 'presign']);
+$router->post('/api/media/confirm', [MediaController::class, 'confirm']);
 $router->post('/api/media', [MediaController::class, 'store']);
 $router->delete('/api/media/{id}', [MediaController::class, 'destroy']);
 $router->post('/api/media/delete', [MediaController::class, 'destroy']);

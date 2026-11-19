@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Helpers\AuthHelper;
+use App\Services\R2StorageService;
 
 class AdminController extends Controller {
     public function index(): void {
@@ -19,7 +20,8 @@ class AdminController extends Controller {
         }
 
         $this->renderView('admin', [
-            'adminUser' => $adminUser
+            'adminUser' => $adminUser,
+            'r2Info' => R2StorageService::getPublicConnectionInfo(),
         ]);
     }
 }

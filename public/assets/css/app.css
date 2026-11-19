@@ -5525,14 +5525,20 @@ html.home-no-scroll {
   border-color: rgba(201, 160, 80, 0.6);
 }
 
-.camera-option-card.option-video {
-  background: linear-gradient(155deg, #2D3A27 0%, #1E271A 100%);
-  color: #FFFFFF;
-  border-color: rgba(201, 160, 80, 0.5);
+.camera-option-card.option-video,
+.camera-option-card.option-gallery {
+  background: #FFFFFF;
+  border: 1.5px solid var(--color-gold);
+  color: var(--color-olive);
+  box-shadow: 0 4px 14px rgba(74, 88, 66, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.camera-option-card.option-gallery {
-  background: linear-gradient(155deg, #FFFFFF 0%, #F5F1E8 100%);
+.camera-option-card.option-video:hover,
+.camera-option-card.option-gallery:hover {
+  background: linear-gradient(135deg, #FFFDF8 0%, #FBF6EC 100%);
+  border-color: var(--color-gold-dark);
+  color: var(--color-olive-dark);
+  box-shadow: 0 8px 22px rgba(201, 160, 80, 0.22);
 }
 
 .option-icon-wrap {
@@ -5547,6 +5553,7 @@ html.home-no-scroll {
   flex-shrink: 0;
 }
 
+.option-video .option-icon-wrap,
 .option-gallery .option-icon-wrap {
   background: linear-gradient(135deg, #4A5842 0%, #2D3A27 100%);
   color: #F4E2B7;
@@ -5561,18 +5568,10 @@ html.home-no-scroll {
   margin-bottom: 4px;
 }
 
-.option-video .option-body h3 {
-  color: #FFFFFF;
-}
-
 .option-body p {
   font-size: 0.84rem;
   color: var(--color-text-secondary);
   line-height: 1.45;
-}
-
-.option-video .option-body p {
-  color: rgba(240, 245, 236, 0.82);
 }
 
 .option-pill {
@@ -5585,11 +5584,6 @@ html.home-no-scroll {
   text-transform: uppercase;
   background: rgba(201, 160, 80, 0.18);
   color: var(--color-gold-dark);
-}
-
-.option-video .option-pill {
-  background: rgba(244, 226, 183, 0.16);
-  color: var(--color-gold-light);
 }
 
 @media (max-width: 768px) {
@@ -5680,7 +5674,14 @@ html.home-no-scroll {
 .my-uploads-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .my-uploads-actions {
+    width: 100%;
+  }
 }
 
 .btn-mini-refresh {
@@ -6383,11 +6384,14 @@ html:has(body.page-guestbook) {
 }
 
 .book-eyebrow {
-  font-size: 0.64rem;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
+  line-height: 1.2;
   color: var(--color-gold-dark);
+  margin: 2px 0 8px;
 }
 
 .book-main-title {
@@ -6832,7 +6836,7 @@ html:has(body.page-guestbook) {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 10px 14px 10px 24px;
+  padding: 10px 14px 7px 24px;
   background:
     /* Sombra del doblez izquierdo (lomo) */
     linear-gradient(
@@ -7054,70 +7058,81 @@ html:has(body.page-guestbook) {
   max-width: 280px;
 }
 
-/* Pie compacto de paginación + pista táctil */
-.book-pagination {
+/* Pie integrado dentro de cada hoja: pista táctil + flechas en las esquinas */
+.book-paper-footer {
   position: relative;
-  z-index: 2;
+  z-index: 5;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 7px;
-  border-top: 1px solid rgba(201, 160, 80, 0.24);
+  gap: 6px;
+  margin: 4px -7px 0 -4px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(201, 160, 80, 0.26);
 }
 
-.book-page-btn {
-  width: 34px;
-  height: 34px;
+.book-paper-corner-btn {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   display: inline-grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid rgba(201, 160, 80, 0.45);
-  background: #FFFFFF;
+  border: 1px solid rgba(201, 160, 80, 0.5);
+  background: rgba(255, 253, 248, 0.86);
   color: var(--color-olive-dark);
-  font-size: 0.92rem;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
   font-weight: 700;
+  line-height: 1;
   cursor: pointer;
-  transition: all 0.2s ease;
   flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(31, 40, 27, 0.08);
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 }
 
-.book-page-btn:hover:not(:disabled) {
+/* Área táctil ampliada para facilidad en móvil sin perder sutileza visual */
+.book-paper-corner-btn::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+}
+
+.book-paper-corner-btn:hover:not(:disabled) {
   background: var(--color-olive-dark);
   color: #FAF7F2;
   border-color: var(--color-olive-dark);
 }
 
-.book-page-btn:disabled {
-  opacity: 0.34;
-  cursor: not-allowed;
+.book-paper-corner-btn:active:not(:disabled) {
+  transform: scale(0.92);
 }
 
-.book-page-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
+.book-paper-corner-btn:disabled {
+  opacity: 0.26;
+  cursor: default;
+  box-shadow: none;
+}
+
+.book-paper-corner-btn.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.book-paper-swipe-hint {
+  flex: 1;
   min-width: 0;
-}
-
-.book-page-indicator {
+  text-align: center;
   font-family: var(--font-serif);
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--color-olive-dark);
-  line-height: 1.1;
-}
-
-.book-swipe-hint {
-  font-size: 0.66rem;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+  font-size: 0.75rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  line-height: 1.18;
+  color: rgba(124, 96, 42, 0.88);
+  padding: 0 2px;
 }
 
 /* Modal ligero para leer dedicatorias largas completas */
@@ -7279,13 +7294,12 @@ html:has(body.page-guestbook) {
     margin-bottom: 7px;
   }
 
-  .book-ornament,
-  .book-eyebrow {
+  .book-ornament {
     display: none;
   }
 
-  .book-main-title {
-    font-size: 1.42rem;
+  .book-eyebrow {
+    font-size: 0.62rem;
     margin: 0 0 6px;
   }
 
@@ -7294,22 +7308,23 @@ html:has(body.page-guestbook) {
     font-size: 0.74rem;
   }
 
-  .book-read-topbar {
-    margin-bottom: 6px;
-  }
-
   .book-paper-page {
-    padding: 8px 12px 8px 20px;
+    padding: 8px 12px 6px 20px;
   }
 
-  .book-pagination {
-    margin-top: 6px;
-    padding-top: 5px;
+  .book-paper-footer {
+    margin: 3px -6px 0 -2px;
+    padding-top: 4px;
   }
 
-  .book-page-btn {
-    width: 30px;
-    height: 30px;
+  .book-paper-corner-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 0.78rem;
+  }
+
+  .book-paper-swipe-hint {
+    font-size: 0.7rem;
   }
 }
 

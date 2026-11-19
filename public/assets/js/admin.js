@@ -5,7 +5,6 @@
 (function () {
   'use strict';
 
-  let selectedMediaIds = new Set();
   let allMediaItems = [];
 
   // DOM Elements
@@ -17,10 +16,12 @@
   const mediaGrid = document.getElementById('adminMediaGrid');
   const guestbookTableBody = document.getElementById('adminGuestbookBody');
 
-  const btnSelectAll = document.getElementById('btnSelectAll');
-  const btnDownloadSelected = document.getElementById('btnDownloadSelected');
-  const btnDownloadAll = document.getElementById('btnDownloadAll');
-  const selectedCountText = document.getElementById('selectedCountText');
+  const btnOpenR2Guide = document.getElementById('btnOpenR2Guide');
+  const r2GuideModal = document.getElementById('adminR2GuideModal');
+  const r2GuideModalClose = document.getElementById('r2GuideModalClose');
+  const r2GuideModalOk = document.getElementById('r2GuideModalOk');
+  const btnCopyRcloneCmd = document.getElementById('btnCopyRcloneCmd');
+  const r2RcloneCmd = document.getElementById('r2RcloneCmd');
 
   const tabButtons = document.querySelectorAll('.admin-tab');
   const sectionMedia = document.getElementById('sectionMedia');
@@ -216,8 +217,40 @@
     } else if (msgModal && msgModal.classList.contains('active')) {
       e.preventDefault();
       msgModal.classList.remove('active');
+    } else if (r2GuideModal && r2GuideModal.classList.contains('active')) {
+      e.preventDefault();
+      r2GuideModal.classList.remove('active');
     }
   });
+
+  if (btnOpenR2Guide && r2GuideModal) {
+    btnOpenR2Guide.addEventListener('click', () => {
+      r2GuideModal.classList.add('active');
+    });
+  }
+  if (r2GuideModalClose && r2GuideModal) {
+    r2GuideModalClose.addEventListener('click', () => r2GuideModal.classList.remove('active'));
+  }
+  if (r2GuideModalOk && r2GuideModal) {
+    r2GuideModalOk.addEventListener('click', () => r2GuideModal.classList.remove('active'));
+  }
+  if (r2GuideModal) {
+    r2GuideModal.addEventListener('click', (e) => {
+      if (e.target === r2GuideModal) r2GuideModal.classList.remove('active');
+    });
+  }
+  if (btnCopyRcloneCmd && r2RcloneCmd) {
+    btnCopyRcloneCmd.addEventListener('click', async () => {
+      const cmd = (r2RcloneCmd.textContent || '').trim();
+      if (!cmd) return;
+      try {
+        await navigator.clipboard.writeText(cmd);
+        showAdminToast('Comando de rclone copiado al portapapeles.', 'success', 'Copiado');
+      } catch (err) {
+        showAdminToast('Selecciona y copia el comando manualmente.', 'info', 'rclone');
+      }
+    });
+  }
 
   // =====================================================================
   // 2. CARGA DE MÉTRICAS Y ESTADÍSTICAS
@@ -238,8 +271,35 @@
   }
 
   // =====================================================================
-  // 3. GESTIÓN MULTIMEDIA (Checkboxes, Descargas ZIP y Borrado)
+  // 3. GESTIÓN MULTIMEDIA (Thumbnails R2, Descarga Individual y Borrado)
   // =====================================================================
+  async function downloadSingleMedia(url, fileName) {
+    if (!url || !/^https?:\/\//i.test(url) || url.startsWith(window.location.origin)) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || 'recuerdo_boda';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return;
+    }
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName || 'recuerdo_boda';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 2500);
+    } catch (e) {
+      window.open(url, '_blank', 'noopener');
+    }
+  }
+
   async function loadMedia() {
     if (!mediaGrid) return;
     try {
@@ -256,8 +316,6 @@
 
   function renderMediaGrid(items) {
     mediaGrid.innerHTML = '';
-    selectedMediaIds.clear();
-    updateSelectedState();
 
     if (!items || items.length === 0) {
       mediaGrid.innerHTML = '<p style="color:var(--text-muted); grid-column:1/-1; text-align:center; padding:40px;">Aún no se han subido fotos o videos.</p>';
@@ -270,24 +328,26 @@
       card.dataset.id = item.id;
 
       const isVideo = item.media_type === 'video';
+      const previewSrc = item.thumb_url || item.url;
+      const sizeLabel = item.file_size >= 1024 * 1024
+        ? `${(item.file_size / (1024 * 1024)).toFixed(1)} MB`
+        : `${(item.file_size / 1024).toFixed(0)} KB`;
 
       card.innerHTML = `
-        <div class="admin-card-select-wrap">
-          <input type="checkbox" class="admin-checkbox" data-id="${item.id}" />
-        </div>
-        ${isVideo ? `
-          <video class="admin-media-preview" src="${item.url}" preload="metadata"></video>
+        ${isVideo ? `<div class="admin-card-select-wrap" style="pointer-events:none;"><span style="background:rgba(0,0,0,0.72); color:#F5E6C4; border:1px solid rgba(201,160,80,0.45); font-size:0.65rem; font-weight:700; padding:3px 7px; border-radius:999px; letter-spacing:0.08em;">VIDEO</span></div>` : ''}
+        ${isVideo && !item.thumb_url ? `
+          <video class="admin-media-preview" src="${escapeHtml(item.url)}" preload="metadata" muted></video>
         ` : `
-          <img class="admin-media-preview" src="${item.url}" alt="${item.original_name}" loading="lazy" />
+          <img class="admin-media-preview" src="${escapeHtml(previewSrc)}" alt="${escapeHtml(item.original_name)}" loading="lazy" />
         `}
         <div class="admin-media-meta">
-          <div class="admin-media-author">${item.guest_name}</div>
+          <div class="admin-media-author">${escapeHtml(item.guest_name)}</div>
           <div class="admin-media-sub">
-            <span>${(item.file_size / 1024).toFixed(0)} KB · ${item.likes_count} likes</span>
-            <span>${item.created_at.substring(5, 16)}</span>
+            <span>${sizeLabel} · ${item.likes_count} likes</span>
+            <span>${escapeHtml((item.created_at || '').substring(5, 16))}</span>
           </div>
           <div class="admin-media-card-actions">
-            <a href="${item.url}" download="${item.original_name}" class="admin-btn admin-btn-outline" style="padding:6px 12px; font-size:0.75rem;" title="Descargar">
+            <a href="${escapeHtml(item.url)}" download="${escapeHtml(item.original_name)}" class="admin-btn admin-btn-outline btn-download-single" style="padding:6px 12px; font-size:0.75rem;" title="Descargar">
               ⬇ Guardar
             </a>
             <button class="admin-btn admin-btn-danger btn-delete-media" data-id="${item.id}" style="padding:6px 12px; font-size:0.75rem;" title="Eliminar">
@@ -297,24 +357,20 @@
         </div>
       `;
 
-      // Checkbox click
-      const chk = card.querySelector('.admin-checkbox');
-      chk.addEventListener('change', () => {
-        if (chk.checked) {
-          selectedMediaIds.add(item.id);
-          card.classList.add('selected');
-        } else {
-          selectedMediaIds.delete(item.id);
-          card.classList.remove('selected');
-        }
-        updateSelectedState();
-      });
-
-      // Preview click to zoom
+      // Preview click to open full resolution
       const prev = card.querySelector('.admin-media-preview');
       prev.addEventListener('click', () => {
-        window.open(item.url, '_blank');
+        window.open(item.url, '_blank', 'noopener');
       });
+
+      // Single download click (cross-origin friendly)
+      const dlBtn = card.querySelector('.btn-download-single');
+      if (dlBtn) {
+        dlBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          downloadSingleMedia(item.url, item.original_name || (isVideo ? 'video_boda.mp4' : 'foto_boda.webp'));
+        });
+      }
 
       // Delete click
       const del = card.querySelector('.btn-delete-media');
@@ -325,58 +381,6 @@
       });
 
       mediaGrid.appendChild(card);
-    });
-  }
-
-  function updateSelectedState() {
-    const count = selectedMediaIds.size;
-    if (selectedCountText) {
-      selectedCountText.textContent = `${count} seleccionadas`;
-    }
-    if (btnDownloadSelected) {
-      btnDownloadSelected.disabled = count === 0;
-      btnDownloadSelected.style.opacity = count === 0 ? '0.5' : '1';
-    }
-  }
-
-  if (btnSelectAll) {
-    btnSelectAll.addEventListener('click', () => {
-      const allCheckboxes = document.querySelectorAll('.admin-checkbox');
-      const allSelected = selectedMediaIds.size === allMediaItems.length && allMediaItems.length > 0;
-
-      allCheckboxes.forEach(chk => {
-        const id = parseInt(chk.dataset.id, 10);
-        if (allSelected) {
-          chk.checked = false;
-          selectedMediaIds.delete(id);
-          chk.closest('.admin-media-card').classList.remove('selected');
-        } else {
-          chk.checked = true;
-          selectedMediaIds.add(id);
-          chk.closest('.admin-media-card').classList.add('selected');
-        }
-      });
-
-      btnSelectAll.textContent = allSelected ? 'Seleccionar Todas' : 'Deseleccionar Todas';
-      updateSelectedState();
-    });
-  }
-
-  // Descargas ZIP
-  if (btnDownloadAll) {
-    btnDownloadAll.addEventListener('click', () => {
-      showAdminToast('Preparando el archivo ZIP con todo el álbum de la boda...', 'info', 'Descarga iniciada');
-      window.location.href = '/api/zip-download';
-    });
-  }
-
-  if (btnDownloadSelected) {
-    btnDownloadSelected.addEventListener('click', () => {
-      if (selectedMediaIds.size === 0) return;
-      const count = selectedMediaIds.size;
-      showAdminToast(`Preparando archivo ZIP con ${count} ${count === 1 ? 'recuerdo' : 'recuerdos'}...`, 'info', 'Descarga iniciada');
-      const ids = Array.from(selectedMediaIds).join(',');
-      window.location.href = `/api/zip-download?ids=${encodeURIComponent(ids)}`;
     });
   }
 

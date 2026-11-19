@@ -38,6 +38,7 @@ class AuthController extends Controller {
         $_SESSION['guest_token'] = $guest['token'];
 
         $itemCount = Guest::getItemCount((int) $guest['id']);
+        $videoCount = Guest::getVideoCount((int) $guest['id']);
 
         Response::success('¡Bienvenido a la boda de Michelle & René!', [
             'guest' => [
@@ -46,6 +47,8 @@ class AuthController extends Controller {
                 'token' => $guest['token'],
                 'item_count' => $itemCount,
                 'max_items' => Guest::MAX_ITEMS,
+                'video_count' => $videoCount,
+                'max_videos' => Guest::MAX_VIDEOS,
             ]
         ]);
     }
@@ -58,6 +61,7 @@ class AuthController extends Controller {
         }
 
         $itemCount = Guest::getItemCount((int) $guest['id']);
+        $videoCount = Guest::getVideoCount((int) $guest['id']);
 
         Response::json([
             'success' => true,
@@ -67,6 +71,8 @@ class AuthController extends Controller {
                 'token' => $guest['token'],
                 'item_count' => $itemCount,
                 'max_items' => Guest::MAX_ITEMS,
+                'video_count' => $videoCount,
+                'max_videos' => Guest::MAX_VIDEOS,
             ]
         ]);
     }

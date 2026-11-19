@@ -134,6 +134,6 @@ $homeFloatingMenu = true;
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=17"></script>
+  <script src="/assets/js/app.js?v=19"></script>
 </body>
 </html>

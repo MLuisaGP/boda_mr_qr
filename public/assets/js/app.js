@@ -8,8 +8,12 @@
 (function () {
   'use strict';
 
-  const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB por archivo (límite del servidor)
-  const MAX_ITEMS = 24; // Menos de 25 recuerdos por invitado
+  const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB para foto optimizada
+  const MAX_THUMB_SIZE = 1 * 1024 * 1024; // 1 MB para thumbnail
+  const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30 MB máximo por video
+  const MAX_VIDEO_DURATION = 20; // 20 segundos máximo por video
+  const MAX_ITEMS = 24; // Máximo 24 recuerdos por invitado
+  const MAX_VIDEOS = 4; // Máximo 4 videos dentro de los 24 recuerdos
   const SIGNATURE_FONTS = ['qwigley', 'sacramento', 'indie_flower', 'la_luxes_script'];
 
   let currentGuest = null;
@@ -113,15 +117,9 @@
   const btnBookWriteTab = document.getElementById('btnBookWriteTab');
   const btnBookReadTab = document.getElementById('btnBookReadTab');
   const btnGoToReadSignatures = document.getElementById('btnGoToReadSignatures');
-  const btnBackToWrite = document.getElementById('btnBackToWrite');
   const bookWriteView = document.getElementById('bookWriteView');
   const bookReadView = document.getElementById('bookReadView');
   const gbBookCountPill = document.getElementById('gbBookCountPill');
-  const bookPagination = document.getElementById('bookPagination');
-  const btnBookPrevPage = document.getElementById('btnBookPrevPage');
-  const btnBookNextPage = document.getElementById('btnBookNextPage');
-  const bookPageIndicator = document.getElementById('bookPageIndicator');
-  const bookSwipeHint = document.getElementById('bookSwipeHint');
   const bookFlipStage = document.getElementById('bookFlipStage');
   const bookPagesStack = document.getElementById('bookPagesStack');
   const bookFlipHostWrap = document.getElementById('bookFlipHostWrap');
@@ -807,22 +805,53 @@
     return (currentGuest && currentGuest.max_items) ? Math.min(Number(currentGuest.max_items), MAX_ITEMS) : MAX_ITEMS;
   }
 
+  function getUploadedVideoCount() {
+    return currentGuest ? Number(currentGuest.video_count || 0) : 0;
+  }
+
+  function getMaxVideos() {
+    return (currentGuest && currentGuest.max_videos) ? Math.min(Number(currentGuest.max_videos), MAX_VIDEOS) : MAX_VIDEOS;
+  }
+
+  function getQueuedVideoCount() {
+    return capturedQueue.filter((entry) => entry.type === 'video').length;
+  }
+
+  function remainingVideoSlotsIncludingQueue() {
+    const byVideoCap = Math.max(0, getMaxVideos() - getUploadedVideoCount() - getQueuedVideoCount());
+    return Math.min(byVideoCap, remainingSlotsIncludingQueue());
+  }
+
   function updateQuotaUI() {
     const count = getUploadedCount();
     const max = getMaxItems();
     const remaining = Math.max(0, max - count);
+    const vidCount = getUploadedVideoCount();
+    const maxVids = getMaxVideos();
+    const vidRemaining = Math.min(remaining, Math.max(0, maxVids - vidCount));
     const pct = Math.min(100, Math.round((count / max) * 100));
 
-    if (guestQuotaText) guestQuotaText.textContent = `${count} de ${max} recuerdos`;
+    if (guestQuotaText) {
+      guestQuotaText.textContent = `${count} de ${max} recuerdos · ${vidCount}/${maxVids} videos`;
+    }
     if (guestQuotaRemaining) {
-      guestQuotaRemaining.textContent = remaining > 0
-        ? `Te quedan ${remaining} disponibles`
-        : 'Cupo completo (elimina alguno para subir más)';
+      if (remaining <= 0) {
+        guestQuotaRemaining.textContent = 'Cupo completo (elimina alguno para subir más)';
+      } else if (vidRemaining > 0) {
+        guestQuotaRemaining.textContent = `Te quedan ${remaining} (máx. ${vidRemaining} ${vidRemaining === 1 ? 'video' : 'videos'})`;
+      } else {
+        guestQuotaRemaining.textContent = `Te quedan ${remaining} disponibles (solo fotos)`;
+      }
     }
     if (quotaProgressFill) quotaProgressFill.style.width = `${pct}%`;
 
     const totalInCamera = count + capturedQueue.length;
-    if (liveCamQuotaChip) liveCamQuotaChip.textContent = `${totalInCamera} / ${max}`;
+    const totalVideosInCamera = vidCount + getQueuedVideoCount();
+    if (liveCamQuotaChip) {
+      liveCamQuotaChip.textContent = currentCameraMode === 'video'
+        ? `Vid ${totalVideosInCamera}/${maxVids} · ${totalInCamera}/${max}`
+        : `${totalInCamera} / ${max}`;
+    }
   }
 
   async function checkGuestSession() {
@@ -944,86 +973,373 @@
   }
 
   // =====================================================================
-  // 7. COMPRESIÓN INTELIGENTE DE IMÁGENES (< 2 MB GARANTIZADO)
+  // 7. OPTIMIZACIÓN FRONTEND (WebP 1920px + Thumb 400px) Y VALIDACIÓN VIDEO
   // =====================================================================
-  function compressImageIfNeeded(file) {
-    return new Promise((resolve) => {
-      if (!file) {
-        resolve(file);
-        return;
-      }
-      const mime = (file.type || '').toLowerCase();
-      const name = file.name || '';
-      const isGif = mime === 'image/gif' || /\.gif$/i.test(name);
-      const isImage = mime.startsWith('image/') || /\.(jpe?g|png|webp|bmp|heic|heif)$/i.test(name);
-      if (!isImage || isGif) {
-        resolve(file);
-        return;
-      }
+  let cachedWebPEncodeSupport = null;
 
-      const isStandardWebImage = mime === 'image/jpeg' || mime === 'image/png' || mime === 'image/webp';
-      if (isStandardWebImage && file.size <= 1.75 * 1024 * 1024) {
-        resolve(file);
-        return;
-      }
+  function supportsWebPEncoding() {
+    if (cachedWebPEncodeSupport !== null) return cachedWebPEncodeSupport;
+    try {
+      const c = document.createElement('canvas');
+      c.width = 1;
+      c.height = 1;
+      const dataUrl = c.toDataURL('image/webp');
+      cachedWebPEncodeSupport = typeof dataUrl === 'string' && dataUrl.startsWith('data:image/webp');
+    } catch (e) {
+      cachedWebPEncodeSupport = false;
+    }
+    return cachedWebPEncodeSupport;
+  }
 
+  function getTargetImageFormat() {
+    // WebP nativo en Android/Chrome/Firefox/Edge/Desktop; fallback automático a JPEG en iOS Safari
+    if (supportsWebPEncoding()) {
+      return { mime: 'image/webp', ext: 'webp' };
+    }
+    return { mime: 'image/jpeg', ext: 'jpg' };
+  }
+
+  function isVideoFile(file) {
+    if (!file) return false;
+    const mime = (file.type || '').toLowerCase();
+    const name = file.name || '';
+    return mime.startsWith('video/') || /\.(mp4|mov|webm|m4v|3gp|mkv)$/i.test(name);
+  }
+
+  function isImageFile(file) {
+    if (!file) return false;
+    const mime = (file.type || '').toLowerCase();
+    const name = file.name || '';
+    return mime.startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(name);
+  }
+
+  function normalizeVideoMime(file) {
+    const raw = ((file && file.type) || '').toLowerCase().split(';')[0].trim();
+    if (raw === 'video/mp4' || raw === 'video/webm' || raw === 'video/quicktime') {
+      return raw;
+    }
+    const name = ((file && file.name) || '').toLowerCase();
+    if (name.endsWith('.webm')) return 'video/webm';
+    if (name.endsWith('.mov')) return 'video/quicktime';
+    return 'video/mp4';
+  }
+
+  function encodeImageViaCanvas(file, maxDim, quality, targetMime, targetExt, suffix = '') {
+    return new Promise((resolve, reject) => {
       const img = new Image();
       const objUrl = URL.createObjectURL(file);
+
       img.onload = () => {
         URL.revokeObjectURL(objUrl);
         const origW = img.naturalWidth || img.width || 1280;
         const origH = img.naturalHeight || img.height || 720;
+        let w = origW;
+        let h = origH;
 
-        const passes = [
-          { maxDim: 1920, quality: 0.85 },
-          { maxDim: 1920, quality: 0.72 },
-          { maxDim: 1600, quality: 0.62 },
-          { maxDim: 1280, quality: 0.52 },
-          { maxDim: 1024, quality: 0.44 }
-        ];
-        let attempt = 0;
-
-        function tryEncode() {
-          const { maxDim, quality } = passes[attempt];
-          let w = origW;
-          let h = origH;
-          if (w > maxDim || h > maxDim) {
-            const ratio = Math.min(maxDim / w, maxDim / h);
-            w = Math.max(1, Math.round(w * ratio));
-            h = Math.max(1, Math.round(h * ratio));
-          }
-
-          const c = document.createElement('canvas');
-          c.width = w;
-          c.height = h;
-          const ctx = c.getContext('2d');
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, w, h);
-          ctx.drawImage(img, 0, 0, w, h);
-
-          c.toBlob((blob) => {
-            if (!blob) {
-              resolve(file);
-              return;
-            }
-            if (blob.size <= 1.85 * 1024 * 1024 || attempt >= passes.length - 1) {
-              const baseName = (name || 'foto_boda').replace(/\.[^/.]+$/, '');
-              resolve(new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' }));
-            } else {
-              attempt++;
-              tryEncode();
-            }
-          }, 'image/jpeg', quality);
+        if (w > maxDim || h > maxDim) {
+          const ratio = Math.min(maxDim / w, maxDim / h);
+          w = Math.max(1, Math.round(w * ratio));
+          h = Math.max(1, Math.round(h * ratio));
         }
 
-        tryEncode();
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext('2d');
+        if (!ctx) {
+          reject(new Error('No se pudo inicializar el lienzo para optimizar la imagen.'));
+          return;
+        }
+        if (targetMime === 'image/jpeg') {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, w, h);
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+
+        c.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error('No se pudo comprimir la imagen.'));
+            return;
+          }
+          // Protección extra contra fallback silencioso de Safari a image/png
+          if (targetMime === 'image/webp' && blob.type !== 'image/webp') {
+            c.toBlob((jpgBlob) => {
+              if (!jpgBlob) {
+                reject(new Error('No se pudo codificar la imagen en JPEG.'));
+                return;
+              }
+              const baseName = (file.name || 'foto_boda').replace(/\.[^/.]+$/, '');
+              resolve(new File([jpgBlob], `${baseName}${suffix}.jpg`, { type: 'image/jpeg' }));
+            }, 'image/jpeg', quality);
+            return;
+          }
+          const finalMime = blob.type || targetMime;
+          const finalExt = finalMime === 'image/webp' ? 'webp' : (finalMime === 'image/jpeg' ? 'jpg' : targetExt);
+          const baseName = (file.name || 'foto_boda').replace(/\.[^/.]+$/, '');
+          resolve(new File([blob], `${baseName}${suffix}.${finalExt}`, { type: finalMime }));
+        }, targetMime, quality);
       };
+
       img.onerror = () => {
         URL.revokeObjectURL(objUrl);
-        resolve(file);
+        reject(new Error('No se pudo leer la imagen seleccionada.'));
       };
+
       img.src = objUrl;
     });
+  }
+
+  async function compressImageVariant(file, maxDim, quality, maxSizeMB, suffix = '') {
+    const fmt = getTargetImageFormat();
+    const baseName = (file.name || 'foto_boda').replace(/\.[^/.]+$/, '');
+
+    if (typeof window.imageCompression === 'function') {
+      const baseOptions = {
+        maxWidthOrHeight: maxDim,
+        initialQuality: quality,
+        maxSizeMB,
+        fileType: fmt.mime,
+        alwaysKeepResolution: false,
+        maxIteration: 6,
+        libURL: '/assets/js/vendor/browser-image-compression.js'
+      };
+
+      let compressed = null;
+      try {
+        compressed = await window.imageCompression(file, { ...baseOptions, useWebWorker: true });
+      } catch (workerErr) {
+        try {
+          compressed = await window.imageCompression(file, { ...baseOptions, useWebWorker: false });
+        } catch (mainErr) {
+          compressed = null;
+        }
+      }
+
+      if (compressed && compressed.size > 0) {
+        const outMime = (compressed.type || '').toLowerCase();
+        // Verificar que la librería convirtió al formato objetivo (y no devolvió PNG ni el archivo original sin convertir)
+        if (outMime === fmt.mime) {
+          return new File([compressed], `${baseName}${suffix}.${fmt.ext}`, { type: fmt.mime });
+        }
+        // Si devolvió un formato distinto (p.ej. archivo pequeño sin recomprimir), forzar conversión vía canvas
+        return encodeImageViaCanvas(compressed, maxDim, quality, fmt.mime, fmt.ext, suffix);
+      }
+    }
+
+    return encodeImageViaCanvas(file, maxDim, quality, fmt.mime, fmt.ext, suffix);
+  }
+
+  async function processImageForUpload(file) {
+    // Genera 2 archivos en el navegador:
+    // 1) Optimizado principal: máx. 1920px, calidad 0.8 (WebP o JPEG en iOS Safari)
+    // 2) Thumbnail: máx. 400px, calidad 0.7 (WebP o JPEG en iOS Safari)
+    const mainFile = await compressImageVariant(file, 1920, 0.8, 2.5, '');
+    const thumbFile = await compressImageVariant(mainFile, 400, 0.7, 0.25, '_thumb');
+
+    if (mainFile.size > MAX_IMAGE_SIZE) {
+      throw new Error(`La foto optimizada supera el máximo de ${(MAX_IMAGE_SIZE / (1024 * 1024)).toFixed(0)} MB.`);
+    }
+    if (thumbFile.size > MAX_THUMB_SIZE) {
+      throw new Error('No se pudo generar una miniatura ligera para la foto.');
+    }
+
+    return {
+      mediaType: 'image',
+      mainFile,
+      mimeType: mainFile.type,
+      thumbFile,
+      thumbMimeType: thumbFile.type,
+      duration: null,
+      originalName: file.name || mainFile.name
+    };
+  }
+
+  function extractVideoMetadataAndThumb(file) {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      const objUrl = URL.createObjectURL(file);
+      let settled = false;
+      let timeoutId = null;
+
+      const cleanup = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        video.onloadedmetadata = null;
+        video.onloadeddata = null;
+        video.onseeked = null;
+        video.onerror = null;
+        try {
+          video.pause();
+          video.removeAttribute('src');
+          video.load();
+        } catch (e) {}
+        URL.revokeObjectURL(objUrl);
+      };
+
+      const fail = (message) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(new Error(message));
+      };
+
+      const finishWithFrame = (durationSec) => {
+        if (settled) return;
+        if (!Number.isFinite(durationSec) || durationSec <= 0) {
+          fail('No se pudo leer la duración del video. Intenta con un clip en formato MP4 o MOV.');
+          return;
+        }
+        if (durationSec > MAX_VIDEO_DURATION + 0.5) {
+          fail(`El video dura ${Math.ceil(durationSec)} s y el máximo permitido es de ${MAX_VIDEO_DURATION} segundos.`);
+          return;
+        }
+
+        const vw = video.videoWidth || 640;
+        const vh = video.videoHeight || 360;
+        const maxDim = 400;
+        let cw = vw;
+        let ch = vh;
+        if (cw > maxDim || ch > maxDim) {
+          const ratio = Math.min(maxDim / cw, maxDim / ch);
+          cw = Math.max(1, Math.round(cw * ratio));
+          ch = Math.max(1, Math.round(ch * ratio));
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          fail('No se pudo generar la portada del video.');
+          return;
+        }
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, cw, ch);
+        try {
+          ctx.drawImage(video, 0, 0, cw, ch);
+        } catch (drawErr) {
+          fail('No se pudo capturar el primer fotograma del video.');
+          return;
+        }
+
+        const fmt = getTargetImageFormat();
+        const baseName = (file.name || 'video_boda').replace(/\.[^/.]+$/, '');
+
+        const exportBlob = (mime, ext) => {
+          canvas.toBlob((blob) => {
+            if (settled) return;
+            if (!blob) {
+              fail('No se pudo convertir la portada del video.');
+              return;
+            }
+            if (mime === 'image/webp' && blob.type !== 'image/webp') {
+              exportBlob('image/jpeg', 'jpg');
+              return;
+            }
+            settled = true;
+            cleanup();
+            const finalMime = blob.type || mime;
+            const finalExt = finalMime === 'image/webp' ? 'webp' : 'jpg';
+            const thumbFile = new File([blob], `${baseName}_thumb.${finalExt}`, { type: finalMime });
+            resolve({ duration: Number(durationSec.toFixed(2)), thumbFile });
+          }, mime, 0.7);
+        };
+
+        exportBlob(fmt.mime, fmt.ext);
+      };
+
+      const seekForFirstFrame = (durationSec) => {
+        if (durationSec > MAX_VIDEO_DURATION + 0.5) {
+          fail(`El video dura ${Math.ceil(durationSec)} s y el máximo permitido es de ${MAX_VIDEO_DURATION} segundos.`);
+          return;
+        }
+
+        const targetTime = Math.min(0.1, durationSec > 0.2 ? 0.1 : 0);
+        let frameCaptured = false;
+        const captureOnce = () => {
+          if (frameCaptured || settled) return;
+          frameCaptured = true;
+          finishWithFrame(durationSec);
+        };
+
+        video.onseeked = captureOnce;
+        try {
+          video.currentTime = targetTime;
+        } catch (e) {
+          captureOnce();
+        }
+
+        // Respaldo si el navegador ya tenía el fotograma en 0 y no dispara seeked
+        setTimeout(() => {
+          if (!frameCaptured && !settled && video.readyState >= 2) {
+            captureOnce();
+          }
+        }, 700);
+      };
+
+      timeoutId = setTimeout(() => {
+        fail('Tiempo agotado al analizar el video. Verifica que no esté dañado.');
+      }, 15000);
+
+      video.muted = true;
+      video.playsInline = true;
+      video.setAttribute('playsinline', '');
+      video.preload = 'auto';
+
+      video.onloadedmetadata = () => {
+        if (settled) return;
+        const rawDur = video.duration;
+        if (Number.isFinite(rawDur) && rawDur > 0) {
+          seekForFirstFrame(rawDur);
+          return;
+        }
+
+        // Workaround para clips WebM grabados con MediaRecorder en Chrome/Android (duration === Infinity)
+        if (typeof file._recordedDuration === 'number' && file._recordedDuration > 0) {
+          seekForFirstFrame(file._recordedDuration);
+          return;
+        }
+
+        const onDurationResolve = () => {
+          video.removeEventListener('timeupdate', onDurationResolve);
+          const resolvedDur = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+          seekForFirstFrame(resolvedDur);
+        };
+        video.addEventListener('timeupdate', onDurationResolve);
+        try {
+          video.currentTime = 1e101;
+        } catch (e) {
+          fail('No se pudo determinar la duración del video.');
+        }
+      };
+
+      video.onerror = () => {
+        fail('Formato de video no compatible con tu navegador. Usa MP4, MOV o WEBM.');
+      };
+
+      video.src = objUrl;
+      video.load();
+    });
+  }
+
+  async function processVideoForUpload(file) {
+    if (file.size > MAX_VIDEO_SIZE) {
+      const mb = (file.size / (1024 * 1024)).toFixed(1);
+      throw new Error(`El video pesa ${mb} MB y el máximo permitido es de 30 MB.`);
+    }
+
+    const { duration, thumbFile } = await extractVideoMetadataAndThumb(file);
+    const mimeType = normalizeVideoMime(file);
+
+    return {
+      mediaType: 'video',
+      mainFile: file,
+      mimeType,
+      thumbFile,
+      thumbMimeType: thumbFile.type,
+      duration,
+      originalName: file.name || `boda_video_${Date.now()}.mp4`
+    };
   }
 
   // =====================================================================
@@ -1049,6 +1365,10 @@
   function openNativeCamera(mode = 'photo') {
     if (getUploadedCount() >= getMaxItems()) {
       showToast(`Ya alcanzaste tu límite de ${getMaxItems()} recuerdos. Puedes eliminar alguno abajo para subir nuevos.`, 'warning', 'Límite alcanzado');
+      return false;
+    }
+    if (mode === 'video' && getUploadedVideoCount() >= getMaxVideos()) {
+      showToast(`Ya alcanzaste el máximo de ${getMaxVideos()} videos por invitado. ¡Aún puedes seguir tomando fotos!`, 'warning', 'Límite de videos');
       return false;
     }
     const targetInput = mode === 'video' ? inputNativeVideoCamera : inputNativePhotoCamera;
@@ -1200,14 +1520,20 @@
       uploadBatchCount.textContent = String(count);
     }
 
-    const remaining = remainingSlotsIncludingQueue();
+    const remaining = currentCameraMode === 'video'
+      ? remainingVideoSlotsIncludingQueue()
+      : remainingSlotsIncludingQueue();
     if (liveCamHint) {
       if (remaining <= 0) {
-        liveCamHint.textContent = 'Límite alcanzado · Pulsa Subir';
+        liveCamHint.textContent = currentCameraMode === 'video'
+          ? 'Límite de videos · Pulsa Subir'
+          : 'Límite alcanzado · Pulsa Subir';
       } else if (count > 0) {
-        liveCamHint.textContent = `${count} ${count === 1 ? 'listo' : 'listos'} · Quedan ${remaining}`;
+        liveCamHint.textContent = currentCameraMode === 'video'
+          ? `${count} ${count === 1 ? 'listo' : 'listos'} · Quedan ${remaining} vid`
+          : `${count} ${count === 1 ? 'listo' : 'listos'} · Quedan ${remaining}`;
       } else {
-        liveCamHint.textContent = currentCameraMode === 'video' ? 'Pulsa para grabar' : 'Toca para capturar';
+        liveCamHint.textContent = currentCameraMode === 'video' ? 'Pulsa para grabar (máx. 20s)' : 'Toca para capturar';
       }
     }
 
@@ -1305,6 +1631,10 @@
     }
 
     currentCameraMode = mode === 'video' ? 'video' : 'photo';
+    if (currentCameraMode === 'video' && getUploadedVideoCount() >= getMaxVideos()) {
+      showToast(`Ya alcanzaste el máximo de ${getMaxVideos()} videos por invitado. ¡Aún puedes seguir tomando fotos!`, 'warning', 'Límite de videos');
+      return;
+    }
     clearCapturedQueue();
 
     if (liveCamModeText) {
@@ -1349,7 +1679,7 @@
 
     const vw = cameraVideo.videoWidth || 1280;
     const vh = cameraVideo.videoHeight || 720;
-    const maxDim = 1600;
+    const maxDim = 1920;
     let cw = vw;
     let ch = vh;
     if (cw > maxDim || ch > maxDim) {
@@ -1369,25 +1699,27 @@
     ctx.drawImage(cameraVideo, 0, 0, cw, ch);
     ctx.restore();
 
-    cameraCanvas.toBlob(async (blob) => {
+    cameraCanvas.toBlob((blob) => {
       if (!blob || remainingSlotsIncludingQueue() <= 0) return;
       const rawFile = new File([blob], `boda_foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
-      const finalFile = await compressImageIfNeeded(rawFile);
-      if (remainingSlotsIncludingQueue() <= 0) return;
       capturedQueue.push({
         id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        file: finalFile,
+        file: rawFile,
         type: 'image',
-        previewUrl: URL.createObjectURL(finalFile)
+        previewUrl: URL.createObjectURL(rawFile)
       });
       renderCaptureTray();
-    }, 'image/jpeg', 0.86);
+    }, 'image/jpeg', 0.92);
   }
 
   function startLiveRecording() {
     if (!cameraStream) return;
     if (remainingSlotsIncludingQueue() <= 0) {
       showToast(`Alcanzaste el máximo permitido de ${getMaxItems()} recuerdos. Pulsa "Subir" para guardar los videos.`, 'warning', 'Álbum lleno');
+      return;
+    }
+    if (remainingVideoSlotsIncludingQueue() <= 0) {
+      showToast(`Alcanzaste el máximo de ${getMaxVideos()} videos por invitado. Pulsa "Subir" para guardar los capturados.`, 'warning', 'Límite de videos');
       return;
     }
 
@@ -1408,8 +1740,8 @@
 
     try {
       const options = {
-        videoBitsPerSecond: 750000,
-        audioBitsPerSecond: 64000
+        videoBitsPerSecond: 2500000,
+        audioBitsPerSecond: 96000
       };
       if (chosenMime) options.mimeType = chosenMime;
 
@@ -1419,10 +1751,10 @@
         if (e.data && e.data.size > 0) {
           recordedChunks.push(e.data);
           recordedApproxBytes += e.data.size;
-          // Detener automáticamente antes de llegar a 2 MB para garantizar subida exitosa
-          if (recordedApproxBytes >= 1.75 * 1024 * 1024 && mediaRecorder.state === 'recording') {
+          // Detener automáticamente antes de llegar a 30 MB para garantizar subida exitosa
+          if (recordedApproxBytes >= 28 * 1024 * 1024 && mediaRecorder.state === 'recording') {
             stopRecording(true);
-            showToast('Clip listo en el tamaño óptimo para subir.', 'success', 'Video listo');
+            showToast('Clip listo en el tamaño óptimo (máx. 30 MB).', 'success', 'Video listo');
           }
         }
       };
@@ -1438,6 +1770,7 @@
 
         const ext = blobType.includes('mp4') ? 'mp4' : 'webm';
         const file = new File([blob], `boda_video_${Date.now()}.${ext}`, { type: blobType.split(';')[0] });
+        file._recordedDuration = Math.max(1, Math.min(recordSeconds || 1, MAX_VIDEO_DURATION));
         capturedQueue.push({
           id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           file,
@@ -1458,7 +1791,7 @@
         const mins = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
         const secs = String(recordSeconds % 60).padStart(2, '0');
         if (cameraRecTimer) cameraRecTimer.textContent = `${mins}:${secs}`;
-        if (recordSeconds >= 15) {
+        if (recordSeconds >= MAX_VIDEO_DURATION) {
           stopRecording(true);
         }
       }, 1000);
@@ -1501,6 +1834,10 @@
     btnLiveVideoCamera.addEventListener('click', () => {
       if (getUploadedCount() >= getMaxItems()) {
         showToast(`Ya alcanzaste tu límite de ${getMaxItems()} recuerdos. Puedes eliminar alguno abajo para subir nuevos.`, 'warning', 'Límite alcanzado');
+        return;
+      }
+      if (getUploadedVideoCount() >= getMaxVideos()) {
+        showToast(`Ya alcanzaste el máximo de ${getMaxVideos()} videos por invitado. ¡Aún puedes seguir tomando fotos!`, 'warning', 'Límite de videos');
         return;
       }
       if (!canUseLiveCamera() || typeof MediaRecorder === 'undefined') {
@@ -1609,19 +1946,17 @@
   }
 
   // =====================================================================
-  // 9. SUBIDA POR LOTES (> 1 Y < 25 ELEMENTOS) CON COMPRESIÓN AUTOMÁTICA
+  // 9. SUBIDA DIRECTA A CLOUDFLARE R2 (PRESIGNED PUT URLS) POR LOTES
   // =====================================================================
-  function uploadSingleFile(file, onProgress) {
+  function putBlobToPresignedUrl(url, blob, headers, onProgress) {
     return new Promise((resolve) => {
-      const formData = new FormData();
-      const fallbackExt = (file.type && file.type.includes('video')) ? 'mp4' : 'jpg';
-      const fileName = file.name || `recuerdo_${Date.now()}.${fallbackExt}`;
-      formData.append('file', file, fileName);
-
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', '/api/media', true);
-      if (currentGuest && currentGuest.token) {
-        xhr.setRequestHeader('X-Guest-Token', currentGuest.token);
+      xhr.open('PUT', url, true);
+
+      if (headers && typeof headers === 'object') {
+        Object.keys(headers).forEach((key) => {
+          xhr.setRequestHeader(key, headers[key]);
+        });
       }
 
       xhr.upload.onprogress = (e) => {
@@ -1631,17 +1966,91 @@
       };
 
       xhr.onload = () => {
-        try {
-          const res = JSON.parse(xhr.responseText);
-          resolve({ ok: xhr.status === 201 && res.success, res });
-        } catch (err) {
-          resolve({ ok: false, res: { error: 'Error inesperado al subir.' } });
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve({ ok: true });
+        } else {
+          resolve({ ok: false, error: `Error al subir a la nube (HTTP ${xhr.status}).` });
         }
       };
 
-      xhr.onerror = () => resolve({ ok: false, res: { error: 'Error de conexión.' } });
-      xhr.send(formData);
+      xhr.onerror = () => resolve({ ok: false, error: 'Error de conexión o CORS al subir a Cloudflare R2.' });
+      xhr.send(blob);
     });
+  }
+
+  async function uploadPreparedMediaToR2(prepared, onProgress) {
+    const authHeaders = { 'Content-Type': 'application/json' };
+    if (currentGuest && currentGuest.token) {
+      authHeaders['X-Guest-Token'] = currentGuest.token;
+    }
+
+    // Paso 1: Solicitar Presigned PUT URLs a PHP (metadatos pequeños)
+    let presignData;
+    try {
+      const presignRes = await fetch('/api/media/presign', {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({
+          media_type: prepared.mediaType,
+          mime_type: prepared.mimeType,
+          file_size: prepared.mainFile.size,
+          original_name: prepared.originalName,
+          thumb_mime_type: prepared.thumbMimeType,
+          thumb_size: prepared.thumbFile.size,
+          duration: prepared.duration
+        })
+      });
+      presignData = await presignRes.json();
+      if (!presignRes.ok || !presignData.success) {
+        return { ok: false, res: presignData || { error: 'No se pudo autorizar la subida.' } };
+      }
+    } catch (err) {
+      return { ok: false, res: { error: 'Error de conexión con el servidor al preparar la subida.' } };
+    }
+
+    if (onProgress) onProgress(0.05);
+
+    // Paso 2a: Subir thumbnail directamente a Cloudflare R2
+    const thumbPut = await putBlobToPresignedUrl(
+      presignData.thumb_upload.url,
+      prepared.thumbFile,
+      presignData.thumb_upload.headers,
+      (f) => {
+        if (onProgress) onProgress(0.05 + f * 0.10);
+      }
+    );
+    if (!thumbPut.ok) {
+      return { ok: false, res: { error: thumbPut.error || 'No se pudo subir la miniatura a la nube.' } };
+    }
+
+    // Paso 2b: Subir archivo principal directamente a Cloudflare R2
+    const mainPut = await putBlobToPresignedUrl(
+      presignData.main_upload.url,
+      prepared.mainFile,
+      presignData.main_upload.headers,
+      (f) => {
+        if (onProgress) onProgress(0.15 + f * 0.78);
+      }
+    );
+    if (!mainPut.ok) {
+      return { ok: false, res: { error: mainPut.error || 'No se pudo subir el archivo a la nube.' } };
+    }
+
+    if (onProgress) onProgress(0.95);
+
+    // Paso 3: Confirmar en PHP (HeadObject + INSERT en MySQL con URLs de R2)
+    try {
+      const confirmRes = await fetch('/api/media/confirm', {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ upload_token: presignData.upload_token })
+      });
+      const confirmData = await confirmRes.json();
+      if (onProgress) onProgress(1);
+      return { ok: confirmRes.status === 201 && confirmData.success, res: confirmData };
+    } catch (err) {
+      return { ok: false, res: { error: 'Error de conexión al confirmar tu recuerdo.' } };
+    }
   }
 
   async function uploadFilesBatch(rawFiles) {
@@ -1655,55 +2064,105 @@
       return;
     }
 
-    const max = getMaxItems();
-    const available = Math.max(0, max - getUploadedCount());
-    if (available <= 0) {
-      showToast(`Ya alcanzaste tu límite de ${max} recuerdos. Elimina alguno para subir más.`, 'warning', 'Límite alcanzado');
+    const maxItems = getMaxItems();
+    const maxVideos = getMaxVideos();
+    let remainingTotal = Math.max(0, maxItems - getUploadedCount());
+    let remainingVideos = Math.min(remainingTotal, Math.max(0, maxVideos - getUploadedVideoCount()));
+
+    if (remainingTotal <= 0) {
+      showToast(`Ya alcanzaste tu límite de ${maxItems} recuerdos. Elimina alguno para subir más.`, 'warning', 'Límite alcanzado');
       return;
     }
 
-    let toUpload = files;
-    if (files.length > available) {
-      toUpload = files.slice(0, available);
-      showToast(`Solo te quedan ${available} espacios de ${max}. Se subirán los primeros ${available} archivos.`, 'warning', 'Espacio limitado');
+    // Filtrar lote respetando el cupo combinado (máx. 24 totales y máx. 4 videos)
+    const toUpload = [];
+    let skippedByTotal = 0;
+    let skippedByVideos = 0;
+
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      if (remainingTotal <= 0) {
+        skippedByTotal++;
+        continue;
+      }
+      if (isVideoFile(f)) {
+        if (remainingVideos <= 0) {
+          skippedByVideos++;
+          continue;
+        }
+        remainingVideos--;
+        remainingTotal--;
+        toUpload.push(f);
+      } else {
+        remainingTotal--;
+        toUpload.push(f);
+      }
     }
 
+    if (skippedByVideos > 0) {
+      showToast(
+        `El máximo permitido es de ${maxVideos} videos por invitado. Se omitieron ${skippedByVideos} ${skippedByVideos === 1 ? 'video extra' : 'videos extra'} (aún puedes subir fotos hasta completar ${maxItems}).`,
+        'warning',
+        'Límite de videos'
+      );
+    }
+    if (skippedByTotal > 0) {
+      showToast(
+        `Solo te quedan espacios hasta completar ${maxItems} recuerdos. Se omitieron ${skippedByTotal} archivos adicionales.`,
+        'warning',
+        'Espacio limitado'
+      );
+    }
+    if (toUpload.length === 0) return;
+
     if (uploadProgress) uploadProgress.style.display = 'block';
-    if (progressBarFill) progressBarFill.style.width = '5%';
+    if (progressBarFill) progressBarFill.style.width = '4%';
 
     let uploadedOk = 0;
     let skippedErrors = [];
 
     for (let i = 0; i < toUpload.length; i++) {
+      const currentFile = toUpload[i];
       const idxLabel = `${i + 1} de ${toUpload.length}`;
-      if (progressText) progressText.textContent = `Optimizando y subiendo ${idxLabel}...`;
+      const isVid = isVideoFile(currentFile);
+      const isImg = isImageFile(currentFile);
 
-      const prepared = await compressImageIfNeeded(toUpload[i]);
-      if (prepared.size > MAX_FILE_SIZE) {
-        const mb = (prepared.size / (1024 * 1024)).toFixed(1);
-        const isVid = (prepared.type && prepared.type.startsWith('video/')) || /\.(mp4|mov|webm|m4v)$/i.test(prepared.name || '');
-        skippedErrors.push(
-          isVid
-            ? `El video pesa ${mb} MB (máx. 2 MB). Graba un clip más corto.`
-            : `${prepared.name || 'Archivo'} (${mb} MB supera 2 MB)`
-        );
+      if (!isVid && !isImg) {
+        skippedErrors.push(`${currentFile.name || 'Archivo'}: formato no compatible.`);
         continue;
       }
 
-      const { ok, res } = await uploadSingleFile(prepared, (fraction) => {
-        const overall = Math.round(((i + fraction) / toUpload.length) * 100);
+      if (progressText) {
+        progressText.textContent = isVid
+          ? `Validando video y portada ${idxLabel}...`
+          : `Optimizando foto a WebP ${idxLabel}...`;
+      }
+
+      let prepared;
+      try {
+        prepared = isVid
+          ? await processVideoForUpload(currentFile)
+          : await processImageForUpload(currentFile);
+      } catch (procErr) {
+        skippedErrors.push((procErr && procErr.message) || 'No se pudo procesar el archivo.');
+        continue;
+      }
+
+      const { ok, res } = await uploadPreparedMediaToR2(prepared, (fraction) => {
+        const overall = Math.min(100, Math.max(4, Math.round(((i + fraction) / toUpload.length) * 100)));
         if (progressBarFill) progressBarFill.style.width = `${overall}%`;
         if (progressText) progressText.textContent = `Subiendo ${idxLabel} · ${overall}%`;
       });
 
       if (ok) {
         uploadedOk++;
-        if (res.guest_item_count !== undefined && currentGuest) {
-          currentGuest.item_count = res.guest_item_count;
+        if (currentGuest) {
+          if (res.guest_item_count !== undefined) currentGuest.item_count = res.guest_item_count;
+          if (res.guest_video_count !== undefined) currentGuest.video_count = res.guest_video_count;
           updateQuotaUI();
         }
       } else {
-        skippedErrors.push(res.error || 'Error al subir archivo');
+        skippedErrors.push((res && res.error) || 'Error al subir archivo');
       }
     }
 
@@ -1747,8 +2206,11 @@
         myMediaCache = data.items;
         if (data.guest_item_count !== undefined) {
           currentGuest.item_count = data.guest_item_count;
-          updateQuotaUI();
         }
+        if (data.guest_video_count !== undefined) {
+          currentGuest.video_count = data.guest_video_count;
+        }
+        updateQuotaUI();
         renderMyUploads(myMediaCache);
       }
     } catch (e) {
@@ -1772,10 +2234,13 @@
       tile.style.animationDelay = `${Math.min(index * 40, 360)}ms`;
 
       const isVideo = item.media_type === 'video';
+      const thumbSrc = item.thumb_url || item.url;
       tile.innerHTML = `
         ${isVideo
-          ? `<video src="${item.url}" muted playsinline preload="metadata"></video><span class="my-upload-badge-vid">Video</span>`
-          : `<img src="${item.url}" alt="Mi recuerdo" loading="lazy" />`
+          ? (item.thumb_url
+              ? `<img src="${escapeHtml(item.thumb_url)}" alt="Portada de video" loading="lazy" /><span class="my-upload-badge-vid">Video</span>`
+              : `<video src="${escapeHtml(item.url)}" muted playsinline preload="metadata"></video><span class="my-upload-badge-vid">Video</span>`)
+          : `<img src="${escapeHtml(thumbSrc)}" alt="Mi recuerdo" loading="lazy" />`
         }
         <button type="button" class="my-upload-delete" title="Eliminar este recuerdo" aria-label="Eliminar recuerdo">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -1847,13 +2312,16 @@
 
       const isVideo = item.media_type === 'video';
       const isOwner = item.is_owner || (currentGuest && Number(item.guest_id) === Number(currentGuest.id));
+      const thumbSrc = item.thumb_url || item.url;
 
       tile.innerHTML = `
         <div class="gallery-item-aspect">
           ${isVideo
-            ? `<video src="${item.url}" class="gallery-item-media" muted playsinline preload="metadata"></video>
+            ? `${item.thumb_url
+                ? `<img src="${escapeHtml(item.thumb_url)}" alt="Video de ${escapeHtml(item.guest_name)}" class="gallery-item-media" loading="lazy" />`
+                : `<video src="${escapeHtml(item.url)}" class="gallery-item-media" muted playsinline preload="metadata"></video>`}
                <div class="gallery-video-indicator"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></div>`
-            : `<img src="${item.url}" alt="Recuerdo de ${escapeHtml(item.guest_name)}" class="gallery-item-media" loading="lazy" />`
+            : `<img src="${escapeHtml(thumbSrc)}" alt="Recuerdo de ${escapeHtml(item.guest_name)}" class="gallery-item-media" loading="lazy" />`
           }
           <div class="gallery-item-overlay">
             <div class="gallery-overlay-top">
@@ -1908,8 +2376,9 @@
       if (data.success && Array.isArray(data.items)) {
         allMediaCache = data.items;
         renderGallery(getFilteredItems(currentFilter, allMediaCache));
-        if (data.guest_item_count !== undefined && currentGuest) {
-          currentGuest.item_count = data.guest_item_count;
+        if (currentGuest) {
+          if (data.guest_item_count !== undefined) currentGuest.item_count = data.guest_item_count;
+          if (data.guest_video_count !== undefined) currentGuest.video_count = data.guest_video_count;
           updateQuotaUI();
         }
       }
@@ -1992,6 +2461,10 @@
     });
     if (!confirmed) return;
 
+    const targetItem = allMediaCache.find((i) => Number(i.id) === Number(mediaId)) ||
+                       myMediaCache.find((i) => Number(i.id) === Number(mediaId));
+    const wasVideo = Boolean(targetItem && targetItem.media_type === 'video');
+
     allMediaCache = allMediaCache.filter((i) => Number(i.id) !== Number(mediaId));
     myMediaCache = myMediaCache.filter((i) => Number(i.id) !== Number(mediaId));
     if (galleryGrid) renderGallery(getFilteredItems(currentFilter, allMediaCache));
@@ -2011,7 +2484,12 @@
       if (data.success) {
         showToast('Recuerdo eliminado del álbum.', 'info', 'Recuerdo eliminado');
         if (currentGuest) {
-          currentGuest.item_count = Math.max(0, getUploadedCount() - 1);
+          currentGuest.item_count = data.guest_item_count !== undefined
+            ? data.guest_item_count
+            : Math.max(0, getUploadedCount() - 1);
+          currentGuest.video_count = data.guest_video_count !== undefined
+            ? data.guest_video_count
+            : Math.max(0, getUploadedVideoCount() - (wasVideo ? 1 : 0));
           updateQuotaUI();
         }
         if (myUploadsGrid) loadMyUploads();
@@ -2060,6 +2538,7 @@
       if (lightboxImg) lightboxImg.style.display = 'none';
       if (lightboxVideo) {
         lightboxVideo.style.display = 'block';
+        lightboxVideo.poster = item.thumb_url || '';
         lightboxVideo.src = item.url;
         lightboxVideo.play().catch(() => {});
       }
@@ -2067,6 +2546,7 @@
       if (lightboxVideo) {
         lightboxVideo.pause();
         lightboxVideo.style.display = 'none';
+        lightboxVideo.poster = '';
         lightboxVideo.src = '';
       }
       if (lightboxImg) {
@@ -2090,7 +2570,10 @@
     }
     if (lightboxDownloadBtn) {
       lightboxDownloadBtn.href = item.url;
-      lightboxDownloadBtn.setAttribute('download', item.original_name || 'recuerdo_boda.jpg');
+      const fallbackName = isVideo ? 'recuerdo_boda.mp4' : 'recuerdo_boda.webp';
+      lightboxDownloadBtn.setAttribute('download', item.original_name || fallbackName);
+      lightboxDownloadBtn.dataset.downloadUrl = item.url;
+      lightboxDownloadBtn.dataset.downloadName = item.original_name || fallbackName;
     }
     if (lightboxDeleteBtn) {
       const isOwner = item.is_owner || (currentGuest && Number(item.guest_id) === Number(currentGuest.id));
@@ -2132,6 +2615,33 @@
       if (!item) return;
       closeLightbox();
       deleteMyMedia(item.id);
+    });
+  }
+
+  // Descarga directa compatible con URLs remotas cross-origin (Cloudflare R2)
+  if (lightboxDownloadBtn) {
+    lightboxDownloadBtn.addEventListener('click', async (e) => {
+      const url = lightboxDownloadBtn.dataset.downloadUrl || lightboxDownloadBtn.href;
+      const fileName = lightboxDownloadBtn.dataset.downloadName || 'recuerdo_boda';
+      if (!url || !/^https?:\/\//i.test(url) || url.startsWith(window.location.origin)) {
+        return;
+      }
+      e.preventDefault();
+      try {
+        const res = await fetch(url, { mode: 'cors' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 2500);
+      } catch (err) {
+        window.open(url, '_blank', 'noopener');
+      }
     });
   }
 
@@ -2216,13 +2726,54 @@
 
   function computeLineClamp(pageSize) {
     const stageH = bookFlipStage ? bookFlipStage.clientHeight : (window.innerHeight - 260);
-    const usableH = Math.max(220, stageH - 46);
+    const usableH = Math.max(220, stageH - 78);
     const slotH = usableH / pageSize;
     return slotH >= 132 ? 3 : 2;
   }
 
   function getTotalBookPages() {
     return Math.max(1, Math.ceil(guestbookEntries.length / currentBookPageSize));
+  }
+
+  function getBookPageSwipeHint(pageNum, totalPages, totalEntries) {
+    if (totalPages <= 1) {
+      return totalEntries > 0 ? 'Toca una firma para leerla completa' : 'Agrega la primera dedicatoria';
+    }
+    if (pageNum <= 1) {
+      return 'Desliza la esquina o la hoja ← con tu dedo';
+    }
+    if (pageNum >= totalPages) {
+      return 'Última hoja · Desliza → para regresar';
+    }
+    return 'Desliza ← o → con tu dedo para hojear';
+  }
+
+  function buildBookPageFooterHtml(pageNum, totalPages, totalEntries) {
+    const hintText = getBookPageSwipeHint(pageNum, totalPages, totalEntries);
+    const hideArrows = totalEntries === 0 || totalPages <= 1;
+    const prevDisabled = hideArrows || pageNum <= 1;
+    const nextDisabled = hideArrows || pageNum >= totalPages;
+    const hiddenClass = hideArrows ? ' is-hidden' : '';
+
+    return `
+      <div class="book-paper-footer">
+        <button
+          type="button"
+          class="book-paper-corner-btn book-corner-prev${hiddenClass}"
+          data-book-dir="prev"
+          aria-label="Hoja anterior"
+          ${prevDisabled ? 'disabled' : ''}
+        >←</button>
+        <span class="book-paper-swipe-hint">${escapeHtml(hintText)}</span>
+        <button
+          type="button"
+          class="book-paper-corner-btn book-corner-next${hiddenClass}"
+          data-book-dir="next"
+          aria-label="Hoja siguiente"
+          ${nextDisabled ? 'disabled' : ''}
+        >→</button>
+      </div>
+    `;
   }
 
   function buildBookPageHtml(pageNum) {
@@ -2233,7 +2784,7 @@
       return `
         <div class="book-paper-running-head">
           <span>Libro de Honor</span>
-          <span>Hoja 1 / 1</span>
+          <span>Hoja 1 de 1</span>
         </div>
         <div class="book-paper-empty">
           <p class="book-paper-empty-title">Sé el primero en estrenar este libro</p>
@@ -2241,6 +2792,7 @@
             Tus palabras quedarán escritas con tinta y cariño en el recuerdo de Michelle &amp; René.
           </p>
         </div>
+        ${buildBookPageFooterHtml(1, 1, 0)}
       `;
     }
 
@@ -2264,10 +2816,6 @@
       `;
     }).join('');
 
-    const cornerHintHtml = safePage < totalPages
-      ? '<span class="book-paper-corner-hint" aria-hidden="true"></span>'
-      : '';
-
     return `
       <div class="book-paper-running-head">
         <span>Libro de Honor · M &amp; R</span>
@@ -2276,7 +2824,7 @@
       <div class="book-paper-entries" data-slots="${currentBookPageSize}" style="--page-slots:${currentBookPageSize}; --sig-lines:${lineClamp};">
         ${entriesHtml}
       </div>
-      ${cornerHintHtml}
+      ${buildBookPageFooterHtml(safePage, totalPages, total)}
     `;
   }
 
@@ -2337,29 +2885,6 @@
     currentBookPage = Math.min(Math.max(1, currentBookPage), totalPages);
 
     if (gbBookCountPill) gbBookCountPill.textContent = String(total);
-    const counterBadge = document.getElementById('gbCounterBadge');
-    if (counterBadge) {
-      counterBadge.textContent = `${total} ${total === 1 ? 'Firma en el libro' : 'Firmas en el libro'}`;
-    }
-
-    if (bookPageIndicator) {
-      bookPageIndicator.textContent = total > 0 ? `Hoja ${currentBookPage} de ${totalPages}` : 'Libro listo';
-    }
-
-    if (bookSwipeHint) {
-      if (totalPages <= 1) {
-        bookSwipeHint.textContent = total > 0 ? 'Toca una firma para leerla completa' : 'Agrega la primera dedicatoria';
-      } else if (currentBookPage === 1) {
-        bookSwipeHint.textContent = 'Desliza la esquina o la hoja ← con tu dedo';
-      } else if (currentBookPage === totalPages) {
-        bookSwipeHint.textContent = 'Última hoja · Desliza → para regresar';
-      } else {
-        bookSwipeHint.textContent = 'Desliza ← o → con tu dedo para hojear';
-      }
-    }
-
-    if (btnBookPrevPage) btnBookPrevPage.disabled = currentBookPage <= 1 || total === 0;
-    if (btnBookNextPage) btnBookNextPage.disabled = currentBookPage >= totalPages || total === 0;
 
     if (bookPagesStack) {
       const remaining = Math.max(0, totalPages - currentBookPage);
@@ -2429,9 +2954,9 @@
         startPage: startIndex,
         drawShadow: true,
         maxShadowOpacity: 0.42,
-        flippingTime: 520,
+        flippingTime: 460,
         showPageCorners: false,
-        swipeDistance: 18,
+        swipeDistance: 999999,
         mobileScrollSupport: false,
         disableFlipByClick: true,
         useMouseEvents: true
@@ -2440,57 +2965,90 @@
       bookPageFlipInstance.loadFromHTML(pageNodes);
       lastMountedBookKey = nextKey;
 
-      // Mejorar sensibilidad táctil en modo 1 página (portrait):
-      // Por defecto StPageFlip exige arrastrar hasta el borde izquierdo (x <= 0, 100% de la pantalla).
-      // Aquí reducimos el umbral a ~20% del ancho para que cambiar de hoja sea suave y sin esfuerzo.
-      const ui = bookPageFlipInstance.getUI && bookPageFlipInstance.getUI();
-      if (ui && typeof ui.swipeTimeout === 'number') {
-        ui.swipeTimeout = 130;
-      }
-
       const fc = bookPageFlipInstance.getFlipController && bookPageFlipInstance.getFlipController();
-      if (fc && typeof fc.flipPrev === 'function') {
-        // Bug conocido de StPageFlip en modo portrait con disableFlipByClick:true:
-        // flipPrev() evalúa isPointOnCorners({x:10}) que cae al centro del libro virtual y cancela el giro.
-        const origFlipPrev = fc.flipPrev.bind(fc);
-        fc.flipPrev = function (corner) {
-          const settings = this.app.getSettings();
-          const prevDisable = settings.disableFlipByClick;
-          settings.disableFlipByClick = false;
-          try {
-            return origFlipPrev(corner);
-          } finally {
-            settings.disableFlipByClick = prevDisable;
-          }
-        };
-      }
-      if (fc && typeof fc.flipNext === 'function') {
-        const origFlipNext = fc.flipNext.bind(fc);
-        fc.flipNext = function (corner) {
-          const settings = this.app.getSettings();
-          const prevDisable = settings.disableFlipByClick;
-          settings.disableFlipByClick = false;
-          try {
-            return origFlipNext(corner);
-          } finally {
-            settings.disableFlipByClick = prevDisable;
-          }
-        };
-      }
-      if (fc && typeof fc.stopMove === 'function') {
-        fc.stopMove = function () {
-          if (this.calc === null) return;
-          const pos = this.calc.getPosition();
-          const rect = this.getBoundsRect();
-          const targetY = this.calc.getCorner() === 'bottom' ? rect.height : 0;
-          const dir = this.calc.getDirection(); // 0 = siguiente, 1 = anterior
-          const isPortrait = this.render.getOrientation() === 'portrait';
-          const isUserDrag = this.getState() === 'user_fold';
-          const dragDx = bookLastDragDx;
-          bookLastDragDx = 0;
+      const ui = bookPageFlipInstance.getUI && bookPageFlipInstance.getUI();
 
-          let shouldFlip = false;
-          if (isUserDrag) {
+      // Bloqueo atómico: garantiza que cada deslizamiento cambie EXACTAMENTE 1 hoja a la vez,
+      // evitando que StPageFlip dispare un doble giro en swipes rápidos o interrumpa una hoja en vuelo.
+      let allowProgrammaticFlip = false;
+
+      if (fc) {
+        const isFlipBusy = () => {
+          const state = typeof fc.getState === 'function' ? fc.getState() : 'read';
+          const hasAnim = Boolean(fc.render && fc.render.animation !== null);
+          return state === 'flipping' || hasAnim;
+        };
+
+        if (typeof fc.flip === 'function') {
+          const origFlip = fc.flip.bind(fc);
+          fc.flip = function (point) {
+            // Nunca interrumpir una animación activa (evita finishAnimation() + segundo giro = salto de 2+ hojas)
+            if (isFlipBusy()) return;
+            // Bloquear clics implícitos en esquinas de StPageFlip; solo permitir giros explícitos controlados
+            if (!allowProgrammaticFlip) return;
+            return origFlip(point);
+          };
+        }
+
+        if (typeof fc.fold === 'function') {
+          const origFold = fc.fold.bind(fc);
+          fc.fold = function (point) {
+            if (isFlipBusy()) return;
+            return origFold(point);
+          };
+        }
+
+        if (typeof fc.flipPrev === 'function') {
+          // Bug conocido de StPageFlip en modo portrait con disableFlipByClick:true:
+          // flipPrev() evalúa isPointOnCorners({x:10}) que cae al centro del libro virtual y cancela el giro.
+          const origFlipPrev = fc.flipPrev.bind(fc);
+          fc.flipPrev = function (corner) {
+            if (this.getState() !== 'read' || isFlipBusy()) return;
+            const settings = this.app.getSettings();
+            const prevDisable = settings.disableFlipByClick;
+            settings.disableFlipByClick = false;
+            allowProgrammaticFlip = true;
+            try {
+              return origFlipPrev(corner);
+            } finally {
+              allowProgrammaticFlip = false;
+              settings.disableFlipByClick = prevDisable;
+            }
+          };
+        }
+
+        if (typeof fc.flipNext === 'function') {
+          const origFlipNext = fc.flipNext.bind(fc);
+          fc.flipNext = function (corner) {
+            if (this.getState() !== 'read' || isFlipBusy()) return;
+            const settings = this.app.getSettings();
+            const prevDisable = settings.disableFlipByClick;
+            settings.disableFlipByClick = false;
+            allowProgrammaticFlip = true;
+            try {
+              return origFlipNext(corner);
+            } finally {
+              allowProgrammaticFlip = false;
+              settings.disableFlipByClick = prevDisable;
+            }
+          };
+        }
+
+        if (typeof fc.stopMove === 'function') {
+          fc.stopMove = function () {
+            if (this.calc === null) return;
+            if (this.getState() !== 'user_fold' || isFlipBusy()) return;
+
+            const pos = this.calc.getPosition();
+            const rect = this.getBoundsRect();
+            const corner = this.calc.getCorner() === 'bottom' ? 'bottom' : 'top';
+            const targetY = corner === 'bottom' ? rect.height : 0;
+            const dir = this.calc.getDirection(); // 0 = siguiente, 1 = anterior
+            const isPortrait = this.render.getOrientation() === 'portrait';
+            const dragDx = bookLastDragDx;
+            bookLastDragDx = 0;
+
+            let shouldFlip = false;
             if (isPortrait) {
               if (dir === 0) {
                 // Basta desplazar ~20% de la pantalla o 30px hacia la izquierda
@@ -2502,16 +3060,172 @@
             } else {
               shouldFlip = pos.x <= 0;
             }
-          }
 
-          if (shouldFlip) {
-            this.setState('flipping');
-            lastFlipCommitTs = performance.now();
-            this.animateFlippingTo(pos, { x: -rect.pageWidth, y: targetY }, true);
-          } else {
+            if (shouldFlip) {
+              this.setState('flipping');
+              bookIsFlipping = true;
+              lastFlipCommitTs = performance.now();
+              this.animateFlippingTo(pos, { x: -rect.pageWidth, y: targetY }, true);
+              return;
+            }
+
+            // Si el dedo empezó en zona contraria (ej. centro-derecha) pero deslizó claramente en la dirección opuesta,
+            // cancelar el micro-doblez y voltear exactamente 1 hoja en la dirección real del dedo.
+            const wantPrevInstead = isPortrait && dir === 0 && dragDx >= 34 && currentBookPage > 1;
+            const wantNextInstead = isPortrait && dir === 1 && dragDx <= -34 && currentBookPage < totalPages;
+            if (wantPrevInstead || wantNextInstead) {
+              this.render.setBottomPage(null);
+              this.render.setFlippingPage(null);
+              this.render.clearShadow();
+              this.setState('read');
+              this.reset();
+              bookIsFlipping = false;
+              triggerBookFlip(wantPrevInstead ? 'prev' : 'next', corner);
+              return;
+            }
+
             this.animateFlippingTo(pos, { x: rect.pageWidth, y: targetY }, false);
+          };
+        }
+      }
+
+      // Control limpio de eventos táctiles/ratón en StPageFlip:
+      // 1. Elimina el timer huérfano de onTouchStart y el detector de swipe duplicado de onTouchEnd.
+      // 2. Ignora nuevos toques/arrastres mientras una hoja está girando y filtra multi-touch.
+      if (ui && typeof ui.removeHandlers === 'function' && typeof ui.setHandlers === 'function') {
+        const origRemoveHandlers = ui.removeHandlers.bind(ui);
+        const origSetHandlers = ui.setHandlers.bind(ui);
+        let touchStartTimer = null;
+        let activeTouchId = null;
+
+        const clearTouchTimer = () => {
+          if (touchStartTimer !== null) {
+            clearTimeout(touchStartTimer);
+            touchStartTimer = null;
           }
         };
+
+        const isBusyForInput = () => {
+          if (bookIsFlipping) return true;
+          if (!fc) return false;
+          const st = typeof fc.getState === 'function' ? fc.getState() : 'read';
+          return st !== 'read' || Boolean(fc.render && fc.render.animation !== null);
+        };
+
+        const findTouchById = (touchList, id) => {
+          for (let i = 0; i < touchList.length; i++) {
+            if (touchList[i].identifier === id) return touchList[i];
+          }
+          return null;
+        };
+
+        origRemoveHandlers();
+        ui.swipeTimeout = 75;
+        ui.swipeDistance = 999999;
+
+        ui.onMouseDown = (e) => {
+          if (e.button !== 0 || !ui.checkTarget(e.target)) return;
+          if (isBusyForInput()) return;
+          const pos = ui.getMousePos(e.clientX, e.clientY);
+          ui.app.startUserTouch(pos);
+          e.preventDefault();
+        };
+
+        ui.onMouseMove = (e) => {
+          if (fc && fc.getState && fc.getState() === 'flipping') return;
+          const pos = ui.getMousePos(e.clientX, e.clientY);
+          ui.app.userMove(pos, false);
+        };
+
+        ui.onMouseUp = (e) => {
+          if (!ui.app.isUserTouch) return;
+          const pos = ui.getMousePos(e.clientX, e.clientY);
+          ui.app.userStop(pos, false);
+        };
+
+        ui.onTouchStart = (e) => {
+          if (!ui.checkTarget(e.target) || e.changedTouches.length === 0) return;
+          if (!ui.app.getSettings().mobileScrollSupport && e.cancelable) {
+            e.preventDefault();
+          }
+          if (activeTouchId !== null || isBusyForInput()) return;
+
+          const touch = e.changedTouches[0];
+          const pos = ui.getMousePos(touch.clientX, touch.clientY);
+          activeTouchId = touch.identifier;
+          ui.touchPoint = { point: pos, time: Date.now() };
+          clearTouchTimer();
+          touchStartTimer = setTimeout(() => {
+            touchStartTimer = null;
+            if (ui.touchPoint !== null && activeTouchId === touch.identifier && !isBusyForInput()) {
+              ui.app.startUserTouch(pos);
+            }
+          }, ui.swipeTimeout);
+        };
+
+        ui.onTouchMove = (e) => {
+          if (activeTouchId === null) return;
+          const touch = findTouchById(e.changedTouches, activeTouchId);
+          if (!touch) return;
+          if (fc && fc.getState && fc.getState() === 'flipping') return;
+
+          const pos = ui.getMousePos(touch.clientX, touch.clientY);
+          if (ui.touchPoint !== null && !ui.app.isUserTouch) {
+            const movedX = Math.abs(pos.x - ui.touchPoint.point.x);
+            const elapsedMs = Date.now() - ui.touchPoint.time;
+            if (movedX > 10 && elapsedMs >= 45 && !isBusyForInput()) {
+              clearTouchTimer();
+              ui.app.startUserTouch(ui.touchPoint.point);
+            }
+          }
+          if (ui.app.isUserTouch) {
+            ui.app.userMove(pos, true);
+          }
+        };
+
+        ui.onTouchEnd = (e) => {
+          if (activeTouchId === null) return;
+          const touch = findTouchById(e.changedTouches, activeTouchId);
+          if (!touch) return;
+
+          clearTouchTimer();
+          const pos = ui.getMousePos(touch.clientX, touch.clientY);
+          activeTouchId = null;
+          ui.touchPoint = null;
+          if (ui.app.isUserTouch) {
+            ui.app.userStop(pos, false);
+          }
+        };
+
+        ui.onTouchCancel = (e) => {
+          if (activeTouchId === null) return;
+          const touch = findTouchById(e.changedTouches, activeTouchId);
+          if (!touch) return;
+
+          clearTouchTimer();
+          activeTouchId = null;
+          ui.touchPoint = null;
+          if (ui.app.isUserTouch) {
+            ui.app.userStop({ x: 0, y: 0 }, true);
+          }
+        };
+
+        ui.removeHandlers = () => {
+          clearTouchTimer();
+          activeTouchId = null;
+          ui.touchPoint = null;
+          window.removeEventListener('touchcancel', ui.onTouchCancel);
+          origRemoveHandlers();
+        };
+
+        ui.setHandlers = () => {
+          origSetHandlers();
+          if (ui.app.getSettings().useMouseEvents) {
+            window.addEventListener('touchcancel', ui.onTouchCancel);
+          }
+        };
+
+        ui.setHandlers();
       }
 
       bookPageFlipInstance.on('flip', (e) => {
@@ -2535,29 +3249,50 @@
     }
   }
 
+  function isBookFlipBusy() {
+    if (!bookPageFlipInstance) return false;
+    const fc = bookPageFlipInstance.getFlipController && bookPageFlipInstance.getFlipController();
+    if (!fc) return bookIsFlipping;
+    const state = typeof fc.getState === 'function' ? fc.getState() : 'read';
+    return state !== 'read' || Boolean(fc.render && fc.render.animation !== null);
+  }
+
   function triggerBookFlip(dir, corner = 'bottom') {
     const totalPages = getTotalBookPages();
-    if (totalPages <= 1) return;
+    if (totalPages <= 1) return false;
 
     if (bookPageFlipInstance) {
+      // Bloquear si ya hay una hoja girando o regresando a su sitio (1 hoja por gesto)
+      if (isBookFlipBusy()) return false;
       try {
         if (dir === 'next' && currentBookPage < totalPages) {
           lastFlipCommitTs = performance.now();
+          bookIsFlipping = true;
           bookPageFlipInstance.flipNext(corner);
-        } else if (dir === 'prev' && currentBookPage > 1) {
-          lastFlipCommitTs = performance.now();
-          bookPageFlipInstance.flipPrev(corner);
+          return true;
         }
-        return;
-      } catch (err) {}
+        if (dir === 'prev' && currentBookPage > 1) {
+          lastFlipCommitTs = performance.now();
+          bookIsFlipping = true;
+          bookPageFlipInstance.flipPrev(corner);
+          return true;
+        }
+        return false;
+      } catch (err) {
+        bookIsFlipping = false;
+      }
     }
 
     // Respaldo si no hay instancia activa
     if (dir === 'next' && currentBookPage < totalPages) {
       renderGuestbookPage(currentBookPage + 1);
-    } else if (dir === 'prev' && currentBookPage > 1) {
-      renderGuestbookPage(currentBookPage - 1);
+      return true;
     }
+    if (dir === 'prev' && currentBookPage > 1) {
+      renderGuestbookPage(currentBookPage - 1);
+      return true;
+    }
+    return false;
   }
 
   function initBookSignatureTap() {
@@ -2570,7 +3305,22 @@
     let startTime = 0;
     let pageAtStart = 1;
     let tapEntryId = null;
+    let startedOnCornerBtn = false;
+    let lastSwipeHandledTs = 0;
     let hostRect = null;
+
+    // Clic/toque en las flechas integradas en las esquinas de cada hoja
+    bookFlipHostWrap.addEventListener('click', (e) => {
+      const navBtn = e.target && e.target.closest ? e.target.closest('.book-paper-corner-btn') : null;
+      if (!navBtn || navBtn.disabled) return;
+      e.stopPropagation();
+      if (performance.now() - lastSwipeHandledTs < 280) return;
+      if (isBookFlipBusy()) return;
+      const dir = navBtn.dataset.bookDir;
+      if (dir === 'prev' || dir === 'next') {
+        triggerBookFlip(dir, 'bottom');
+      }
+    });
 
     // Evitar que clics derechos/medios inicien arrastre en StPageFlip
     bookFlipHostWrap.addEventListener('mousedown', (e) => {
@@ -2583,6 +3333,7 @@
       gestureActive = false;
       pointerId = null;
       tapEntryId = null;
+      startedOnCornerBtn = false;
       bookLastDragDx = 0;
       if (bookPageFlipInstance && bookPageFlipInstance.isUserTouch) {
         bookPageFlipInstance.userStop({ x: 0, y: 0 }, true);
@@ -2592,6 +3343,8 @@
     bookFlipHostWrap.addEventListener('pointerdown', (e) => {
       if (guestbookEntries.length === 0) return;
       if (e.button !== undefined && e.button !== 0) return;
+      // Ignorar dedos adicionales (multi-touch) o gestos iniciados mientras una hoja aún está volando
+      if (gestureActive || isBookFlipBusy()) return;
 
       gestureActive = true;
       pointerId = e.pointerId;
@@ -2602,6 +3355,7 @@
       bookLastDragDx = 0;
       hostRect = bookFlipHostWrap.getBoundingClientRect();
 
+      startedOnCornerBtn = Boolean(e.target && e.target.closest && e.target.closest('.book-paper-corner-btn'));
       const entryEl = e.target && e.target.closest ? e.target.closest('.book-signature-entry') : null;
       tapEntryId = entryEl ? entryEl.dataset.entryId : null;
     }, true);
@@ -2628,22 +3382,36 @@
       const capturedStartTime = startTime;
       const capturedPageAtStart = pageAtStart;
       const capturedTapEntryId = tapEntryId;
+      const capturedStartedOnCornerBtn = startedOnCornerBtn;
 
       tapEntryId = null;
+      startedOnCornerBtn = false;
+
+      const commitSingleFlipIfStillIdle = (dir) => {
+        if (isBookFlipBusy()) return;
+        if (lastFlipCommitTs >= capturedStartTime || currentBookPage !== capturedPageAtStart) {
+          return;
+        }
+        triggerBookFlip(dir, corner);
+      };
 
       // 1. Deslizamiento horizontal suave (desde cualquier parte de la hoja, solo ~34px necesarios)
       if (totalPages > 1 && Math.abs(dx) >= 34 && Math.abs(dx) > Math.abs(dy) * 1.05 && elapsed < 1300) {
-        setTimeout(() => {
-          // Si StPageFlip ya confirmó el cambio de hoja por sí mismo, no duplicar
-          if (lastFlipCommitTs >= capturedStartTime || currentBookPage !== capturedPageAtStart) {
-            return;
-          }
-          if (dx < 0 && currentBookPage < totalPages) {
-            triggerBookFlip('next', corner);
-          } else if (dx > 0 && currentBookPage > 1) {
-            triggerBookFlip('prev', corner);
-          }
-        }, 16);
+        lastSwipeHandledTs = performance.now();
+        const dir = dx < 0 ? 'next' : 'prev';
+        const stfDragging = Boolean(bookPageFlipInstance && bookPageFlipInstance.isUserTouch);
+        if (!stfDragging) {
+          // Swipe rápido (sin arrastre activo de StPageFlip): girar inmediatamente EXACTAMENTE 1 hoja
+          commitSingleFlipIfStillIdle(dir);
+        } else {
+          // Si StPageFlip sí tenía arrastre activo, esperar un tick para que stopMove() lo resuelva primero
+          setTimeout(() => commitSingleFlipIfStillIdle(dir), 25);
+        }
+        return;
+      }
+
+      // Si inició sobre una flecha de esquina y fue toque corto, deja que su evento click lo maneje una sola vez
+      if (capturedStartedOnCornerBtn) {
         return;
       }
 
@@ -2651,22 +3419,14 @@
       if (dist < 10 && elapsed < 380) {
         const edgeZone = 42;
         if (totalPages > 1 && relX >= rect.width - edgeZone && currentBookPage < totalPages) {
-          setTimeout(() => {
-            if (lastFlipCommitTs < capturedStartTime && currentBookPage === capturedPageAtStart) {
-              triggerBookFlip('next', corner);
-            }
-          }, 16);
+          commitSingleFlipIfStillIdle('next');
           return;
         }
         if (totalPages > 1 && relX <= edgeZone && currentBookPage > 1) {
-          setTimeout(() => {
-            if (lastFlipCommitTs < capturedStartTime && currentBookPage === capturedPageAtStart) {
-              triggerBookFlip('prev', corner);
-            }
-          }, 16);
+          commitSingleFlipIfStillIdle('prev');
           return;
         }
-        if (capturedTapEntryId && !bookIsFlipping) {
+        if (capturedTapEntryId && !isBookFlipBusy()) {
           openSignatureModal(capturedTapEntryId);
         }
       }
@@ -2677,6 +3437,7 @@
       gestureActive = false;
       pointerId = null;
       tapEntryId = null;
+      startedOnCornerBtn = false;
       bookLastDragDx = 0;
     }, { passive: true });
   }
@@ -2700,14 +3461,6 @@
   if (btnBookWriteTab) btnBookWriteTab.addEventListener('click', () => setBookMode('write'));
   if (btnBookReadTab) btnBookReadTab.addEventListener('click', () => setBookMode('read'));
   if (btnGoToReadSignatures) btnGoToReadSignatures.addEventListener('click', () => setBookMode('read'));
-  if (btnBackToWrite) btnBackToWrite.addEventListener('click', () => setBookMode('write'));
-
-  if (btnBookPrevPage) {
-    btnBookPrevPage.addEventListener('click', () => triggerBookFlip('prev'));
-  }
-  if (btnBookNextPage) {
-    btnBookNextPage.addEventListener('click', () => triggerBookFlip('next'));
-  }
 
   // Recalcular 3 o 4 firmas por hoja y dimensiones de StPageFlip si cambia la pantalla
   let bookResizeTimer = null;

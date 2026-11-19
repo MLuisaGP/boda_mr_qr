@@ -12,6 +12,7 @@ use PDO;
 
 class Guest {
     public const MAX_ITEMS = 24;
+    public const MAX_VIDEOS = 4;
 
     public static function findByToken(string $token): ?array {
         $pdo = Database::getConnection();
@@ -48,6 +49,13 @@ class Guest {
     public static function getItemCount(int $guestId): int {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM `media` WHERE `guest_id` = :gid');
+        $stmt->execute([':gid' => $guestId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public static function getVideoCount(int $guestId): int {
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM `media` WHERE `guest_id` = :gid AND `media_type` = 'video'");
         $stmt->execute([':gid' => $guestId]);
         return (int) $stmt->fetchColumn();
     }

@@ -29,8 +29,7 @@ $navTransparent = false;
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
               <span></span>
             </div>
-            <p class="book-eyebrow">Libro de Honor</p>
-            <h1 class="book-main-title">Michelle <span>&amp;</span> René</h1>
+            <h1 class="book-eyebrow">Libro de Honor</h1>
 
             <!-- Selector de Vista: Escribir Firma / Ver Firmas de los Demás -->
             <div class="book-mode-bar">
@@ -90,13 +89,6 @@ $navTransparent = false;
 
           <!-- PÁGINA 2 DEL LIBRO: VER FIRMAS DE LOS INVITADOS (HOJA DE LIBRO INTERACTIVA 3D SIN SCROLL) -->
           <div class="book-view book-view-read" id="bookReadView">
-            <div class="book-read-topbar">
-              <span class="book-read-counter" id="gbCounterBadge">Cargando firmas...</span>
-              <button type="button" class="book-back-write-btn" id="btnBackToWrite">
-                ✍️ Escribir mi firma
-              </button>
-            </div>
-
             <!-- Escenario Interactivo del Libro (StPageFlip con doblado real de hoja, sin scroll vertical) -->
             <div class="book-flip-stage" id="bookFlipStage" aria-label="Hojas del libro de firmas, desliza con tu dedo para cambiar de página">
               <!-- Grosor visual de hojas apiladas a la derecha -->
@@ -104,16 +96,6 @@ $navTransparent = false;
 
               <!-- Contenedor donde StPageFlip monta las hojas reales -->
               <div class="book-flip-host-wrap" id="bookFlipHostWrap"></div>
-            </div>
-
-            <!-- Pie compacto de navegación del libro -->
-            <div class="book-pagination" id="bookPagination">
-              <button type="button" class="book-page-btn" id="btnBookPrevPage" aria-label="Hoja anterior">←</button>
-              <div class="book-page-meta">
-                <span class="book-page-indicator" id="bookPageIndicator">Hoja 1 de 1</span>
-                <span class="book-swipe-hint" id="bookSwipeHint">Desliza con tu dedo para cambiar de hoja</span>
-              </div>
-              <button type="button" class="book-page-btn" id="btnBookNextPage" aria-label="Hoja siguiente">→</button>
             </div>
           </div>
 
@@ -189,6 +171,6 @@ $navTransparent = false;
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
   <script src="/assets/js/vendor/page-flip.browser.min.js"></script>
-  <script src="/assets/js/app.js?v=17"></script>
+  <script src="/assets/js/app.js?v=19"></script>
 </body>
 </html>
