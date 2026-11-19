@@ -1,0 +1,556 @@
+/* =====================================================================
+   PANEL DE ADMINISTRACIÓN — BODA MICHELLE & RENÉ
+   Estilo Elegante, Profesional, No-Plano (Dark Velvet & Champagne Gold)
+   ===================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Alex+Brush&display=swap');
+
+:root {
+  --admin-bg: #1B0E14;
+  --admin-surface: #26141D;
+  --admin-surface-light: #341D28;
+  --admin-card-border: rgba(201, 160, 80, 0.25);
+  
+  --gold-primary: #D4AF37;
+  --gold-light: #F6E6C2;
+  --gold-gradient: linear-gradient(135deg, #DFBA73 0%, #C9A050 50%, #9C742D 100%);
+  --gold-glow: 0 0 25px rgba(212, 175, 55, 0.35);
+
+  --text-white: #FFFFFF;
+  --text-dim: #D4BAC4;
+  --text-muted: #8E737E;
+  
+  --shadow-dark: 0 16px 36px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 10px 28px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(201, 160, 80, 0.2);
+
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-script: 'Alex Brush', cursive;
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--admin-bg);
+  color: var(--text-white);
+  min-height: 100vh;
+  line-height: 1.5;
+  background-image: 
+    radial-gradient(circle at 80% 10%, rgba(201, 160, 80, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 15% 85%, rgba(74, 21, 37, 0.25) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Header de Administración */
+.admin-header {
+  background: rgba(38, 20, 29, 0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--admin-card-border);
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 500;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.admin-logo-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--gold-gradient);
+  display: grid;
+  place-items: center;
+  color: #241406;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1.25rem;
+  box-shadow: var(--gold-glow);
+}
+
+.admin-brand-title {
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  color: var(--gold-light);
+  line-height: 1.1;
+}
+
+.admin-brand-sub {
+  font-size: 0.76rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-user-menu {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.user-name-tag {
+  font-size: 0.88rem;
+  color: var(--gold-light);
+  font-weight: 600;
+}
+
+/* Layout del Dashboard */
+.admin-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 36px 24px 80px;
+}
+
+/* Tarjetas de Métricas Estadísticas */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 36px;
+}
+
+.stat-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-card-border);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.25s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(201, 160, 80, 0.45);
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--gold-gradient);
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-family: var(--font-serif);
+  font-size: 2.6rem;
+  font-weight: 700;
+  color: var(--gold-light);
+  line-height: 1;
+}
+
+.stat-desc {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+/* Barra de Acciones y Herramientas */
+.admin-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-card-border);
+  border-radius: var(--radius-md);
+  padding: 18px 24px;
+  margin-bottom: 32px;
+  box-shadow: var(--shadow-card);
+}
+
+.actions-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.actions-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Botones del Admin */
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border-radius: 9999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  transition: all 0.25s ease;
+}
+
+.admin-btn-gold {
+  background: var(--gold-gradient);
+  color: #241406;
+  box-shadow: 0 4px 14px rgba(201, 160, 80, 0.35);
+}
+
+.admin-btn-gold:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(201, 160, 80, 0.5);
+}
+
+.admin-btn-outline {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--admin-card-border);
+  color: var(--gold-light);
+}
+
+.admin-btn-outline:hover {
+  background: rgba(201, 160, 80, 0.15);
+  border-color: var(--gold-primary);
+  transform: translateY(-2px);
+}
+
+.admin-btn-danger {
+  background: #C62828;
+  color: #FFFFFF;
+}
+
+.admin-btn-danger:hover {
+  background: #D32F2F;
+}
+
+/* Pestañas del Panel */
+.admin-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid rgba(201, 160, 80, 0.2);
+  padding-bottom: 12px;
+}
+
+.admin-tab {
+  padding: 10px 24px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.94rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-tab:hover {
+  color: var(--gold-light);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-tab.active {
+  color: #241406;
+  background: var(--gold-gradient);
+  box-shadow: 0 4px 15px rgba(201, 160, 80, 0.3);
+}
+
+/* Grilla Multimedia de Gestión */
+.media-manager-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.admin-media-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-card-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.admin-media-card:hover {
+  border-color: var(--gold-primary);
+  transform: translateY(-4px);
+}
+
+.admin-media-card.selected {
+  border-color: var(--gold-primary);
+  box-shadow: 0 0 0 2px var(--gold-primary), var(--shadow-dark);
+}
+
+.admin-card-select-wrap {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+}
+
+.admin-checkbox {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  accent-color: var(--gold-primary);
+}
+
+.admin-media-preview {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+  cursor: pointer;
+  background: #15090F;
+}
+
+.admin-media-meta {
+  padding: 14px;
+}
+
+.admin-media-author {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--gold-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-media-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.admin-media-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Libro de Firmas en el Admin */
+.guestbook-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+}
+
+.guestbook-table tr {
+  background: var(--admin-surface);
+  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-sm);
+  transition: transform 0.2s ease;
+}
+
+.guestbook-table tr:hover {
+  transform: translateY(-2px);
+}
+
+.guestbook-table td, .guestbook-table th {
+  padding: 18px 20px;
+  text-align: left;
+}
+
+.guestbook-table th {
+  color: var(--gold-light);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding-bottom: 8px;
+  background: transparent;
+}
+
+.guestbook-table td:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  border-left: 3px solid var(--gold-primary);
+}
+
+.guestbook-table td:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.guestbook-msg-preview {
+  max-width: 480px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.guestbook-msg-preview:hover {
+  color: var(--gold-light);
+  text-decoration: underline;
+}
+
+/* =====================================================================
+   TARJETA IMPRIMIBLE DE MESA PARA EL CÓDIGO QR (Diseño Súper Elegante)
+   ===================================================================== */
+.qr-printable-card {
+  width: min(100%, 500px);
+  margin: 0 auto;
+  background: #FAF7F2;
+  color: #2B181E;
+  border-radius: var(--radius-lg);
+  padding: 42px 36px;
+  box-shadow: var(--shadow-dark);
+  text-align: center;
+  position: relative;
+  border: 8px double rgba(201, 160, 80, 0.6);
+}
+
+.qr-card-monogram {
+  font-family: var(--font-serif);
+  font-size: 2.2rem;
+  color: #2E3A28;
+  margin-bottom: 6px;
+}
+
+.qr-card-names {
+  font-family: var(--font-script);
+  font-size: 3.4rem;
+  color: #C9A050;
+  line-height: 0.95;
+  margin-bottom: 8px;
+}
+
+.qr-card-date {
+  font-size: 0.85rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #586353;
+  margin-bottom: 24px;
+}
+
+.qr-frame {
+  width: 240px;
+  height: 240px;
+  margin: 0 auto 24px;
+  padding: 12px;
+  background: #FFFFFF;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(46, 58, 40, 0.15);
+  border: 1px solid rgba(201, 160, 80, 0.4);
+}
+
+.qr-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.qr-card-instructions {
+  font-size: 1.05rem;
+  color: #2E3A28;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.qr-card-sub {
+  font-size: 0.88rem;
+  color: #705860;
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+/* Modales Emergentes Profesionales */
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 4, 7, 0.88);
+  backdrop-filter: blur(12px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.admin-modal-backdrop.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.admin-modal-content {
+  width: min(92%, 600px);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-card-border);
+  border-radius: var(--radius-lg);
+  padding: 34px;
+  box-shadow: var(--shadow-dark);
+  position: relative;
+  color: #FFFFFF;
+}
+
+.admin-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.6rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.admin-modal-close:hover {
+  color: #FFF;
+}
+
+/* Estilos de Impresión Limpios */
+@media print {
+  body {
+    background: #FFF !important;
+    color: #000 !important;
+  }
+  .admin-header, .admin-actions-bar, .admin-tabs, .admin-user-menu, .no-print {
+    display: none !important;
+  }
+  .admin-container {
+    padding: 0 !important;
+  }
+  .qr-printable-card {
+    box-shadow: none !important;
+    border: 4px double #C9A050 !important;
+    page-break-inside: avoid;
+    margin: 40px auto !important;
+  }
+}

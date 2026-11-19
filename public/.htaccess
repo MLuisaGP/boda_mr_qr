@@ -1,0 +1,27 @@
+# Front Controller .htaccess para Apache (HostGator compartido)
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Pasar encabezados de autorización y tokens personalizados
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+    RewriteCond %{HTTP:X-Guest-Token} .
+    RewriteRule .* - [E=HTTP_X_GUEST_TOKEN:%{HTTP:X-Guest-Token}]
+
+    # Redirigir diagonales finales si no es un directorio real
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Enviar cualquier petición que no sea archivo o directorio hacia index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# Seguridad adicional contra listado de directorios
+Options -Indexes

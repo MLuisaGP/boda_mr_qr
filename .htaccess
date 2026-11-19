@@ -1,0 +1,14 @@
+# Redirección transparente al directorio public/ para Apache (HostGator compartido)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^$ public/ [L]
+    RewriteRule (.*) public/$1 [L]
+</IfModule>
+
+# Denegar acceso directo a archivos sensibles y de configuración
+<FilesMatch "^\.(env|git|htaccess|gitignore)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+Options -Indexes

@@ -1,0 +1,40 @@
+# Composer
+/vendor/
+composer.phar
+
+# Variables de entorno y credenciales sensibles
+.env
+.env.*
+!.env.example
+
+# Archivos subidos por los invitados (galería / fotos / videos)
+/public/uploads/*
+!/public/uploads/.gitkeep
+!/public/uploads/.htaccess
+
+# Archivos temporales, zips y logs
+*.log
+*.zip
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# Directorio de node (si se usa en el futuro)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Configuración de editores e IDEs
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
