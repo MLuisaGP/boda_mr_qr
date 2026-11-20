@@ -2,20 +2,13 @@
 /**
  * Unified App Navigation Bar (Desktop + Mobile Hamburger)
  * Expects $activePage ('home' | 'camera' | 'gallery' | 'guestbook'),
- * optional $navTransparent (bool) and optional $homeFloatingMenu (bool: solo botón hamburguesa flotante sin barra superior)
+ * optional $navTransparent (bool) and optional $homeFloatingMenu (bool: portada sin barra superior ni botón de menú)
  */
 $activePage = $activePage ?? 'home';
 $navTransparent = !empty($navTransparent);
 $homeFloatingMenu = !empty($homeFloatingMenu);
 ?>
-<?php if ($homeFloatingMenu): ?>
-  <!-- BOTÓN HAMBURGUESA FLOTANTE EN HOME (SIN BARRA SUPERIOR) -->
-  <button type="button" class="nav-hamburger-btn home-floating-hamburger" id="navHamburgerBtn" aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="mobileDrawer">
-    <span class="hamburger-line"></span>
-    <span class="hamburger-line"></span>
-    <span class="hamburger-line"></span>
-  </button>
-<?php else: ?>
+<?php if (!$homeFloatingMenu): ?>
   <!-- BARRA DE NAVEGACIÓN APP (ESCRITORIO + MÓVIL CON HAMBURGUESA) -->
   <header class="site-nav<?= $navTransparent ? ' nav-over-hero' : '' ?>" id="siteNav">
     <a href="/" class="nav-brand app-nav-link" aria-label="Ir al inicio — Michelle y René">
