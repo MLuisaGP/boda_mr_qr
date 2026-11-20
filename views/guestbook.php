@@ -171,6 +171,6 @@ $navTransparent = false;
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
   <script src="/assets/js/vendor/page-flip.browser.min.js"></script>
-  <script src="/assets/js/app.js?v=19"></script>
+  <script src="/assets/js/app.js?v=22"></script>
 </body>
 </html>

@@ -1,16 +1,21 @@
 <?php
 $pageTitle = 'Cámara y Recuerdos · Boda Michelle & René';
-$pageDesc = 'Toma fotos, graba videos en vivo o sube tus recuerdos de la boda de Michelle y René.';
+$pageDesc = 'Toma fotos, graba videos en vivo o elige tus mejores recuerdos de la boda de Michelle y René.';
 $themeColor = '#FAF7F2';
 $activePage = 'camera';
 $navTransparent = false;
+$uploadsClosed = !empty($uploadsClosed);
+$uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00');
+$uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 2026');
 ?>
 <!DOCTYPE html>
 <html lang="es-MX">
 <head>
 <?php require __DIR__ . '/partials/pwa_head.php'; ?>
 </head>
-<body class="page-camera app-page-enter">
+<body class="page-camera app-page-enter<?= $uploadsClosed ? ' is-uploads-closed' : '' ?>"
+      data-uploads-closed="<?= $uploadsClosed ? '1' : '0' ?>"
+      data-upload-deadline="<?= htmlspecialchars($uploadDeadlineIso, ENT_QUOTES, 'UTF-8') ?>">
 
 <?php require __DIR__ . '/partials/navbar.php'; ?>
 
@@ -21,7 +26,7 @@ $navTransparent = false;
         <span class="section-tag">Álbum en Vivo</span>
         <h1 class="camera-hub-title">Comparte tus Momentos</h1>
         <p class="camera-hub-desc">
-          Elige cómo capturar el instante. Puedes subir hasta 24 recuerdos en total (máximo 4 videos de hasta 20 s).
+          Toma todas las fotos y videos que quieras: se guardarán en espera en tu dispositivo. Después selecciona tus mejores 24 recuerdos (máximo 4 videos de hasta 20 s) y pulsa <strong>Publicar</strong>. Disponible hasta el <?= htmlspecialchars($uploadDeadlineLabel, ENT_QUOTES, 'UTF-8') ?>.
         </p>
 
         <!-- Tarjeta de Estado y Cupo del Invitado -->
@@ -33,7 +38,7 @@ $navTransparent = false;
               </div>
               <div>
                 <div class="camera-quota-label">Tu Álbum Personal</div>
-                <div class="camera-quota-name" id="bannerGuestName">Identifícate para guardar tus recuerdos</div>
+                <div class="camera-quota-name" id="bannerGuestName">Identifícate al publicar tus recuerdos</div>
               </div>
             </div>
           </div>
@@ -41,51 +46,64 @@ $navTransparent = false;
           <div class="camera-quota-meter">
             <div class="camera-quota-bar">
               <div class="camera-quota-fill" id="quotaProgressFill" style="width: 0%;"></div>
+              <div class="camera-quota-fill-selected" id="quotaSelectedFill" style="left: 0%; width: 0%;"></div>
             </div>
             <div class="camera-quota-numbers">
-              <span id="guestQuotaText">0 de 24 recuerdos · 0/4 videos</span>
+              <span id="guestQuotaText">0 de 24 publicados · 0/4 videos</span>
               <span id="guestQuotaRemaining">Te quedan 24 (máx. 4 videos)</span>
             </div>
           </div>
         </div>
       </header>
 
-      <!-- LAS 3 OPCIONES PRINCIPALES DE CAPTURA Y SUBIDA -->
-      <div class="camera-options-grid">
+      <!-- AVISO DE CIERRE DE SUBIDAS (DESPUÉS DEL 21 DE DICIEMBRE DE 2026) -->
+      <div class="upload-closed-banner" id="uploadClosedBanner" style="display:<?= $uploadsClosed ? 'flex' : 'none' ?>;" role="status">
+        <div class="upload-closed-icon" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        </div>
+        <div class="upload-closed-body">
+          <h3>El periodo de subida cerró el <?= htmlspecialchars($uploadDeadlineLabel, ENT_QUOTES, 'UTF-8') ?></h3>
+          <p>Ya no es posible subir nuevas fotos ni videos al álbum, pero puedes seguir explorando y descargando todos los recuerdos compartidos.</p>
+          <a href="/galeria" class="btn-mini-gallery app-nav-link" style="display:inline-flex; margin-top:10px;">Explorar Galería ↗</a>
+        </div>
+      </div>
+
+      <!-- LAS 3 OPCIONES PRINCIPALES DE CAPTURA (GUARDAN EN ESPERA EN CACHÉ LOCAL) -->
+      <div class="camera-options-grid" id="cameraOptionsGrid" style="<?= $uploadsClosed ? 'display:none;' : '' ?>">
         <!-- Opción 1: Tomar Fotos (Abre cámara directamente) -->
-        <button type="button" class="camera-option-card option-photo" id="btnLivePhotoCamera">
+        <button type="button" class="camera-option-card option-photo" id="btnLivePhotoCamera"<?= $uploadsClosed ? ' disabled' : '' ?>>
           <div class="option-icon-wrap">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
           </div>
           <div class="option-body">
             <h3>Tomar Fotos</h3>
-            <p>Abre la cámara al instante y toma una o varias fotos seguidas.</p>
+            <p>Toma todas las fotos que quieras; se guardarán en espera para que elijas las mejores.</p>
           </div>
-          <span class="option-pill">Cámara Directa</span>
+          <span class="option-pill">Sin Límite</span>
         </button>
 
         <!-- Opción 2: Tomar Video (Abre cámara de video directamente) -->
-        <button type="button" class="camera-option-card option-video" id="btnLiveVideoCamera">
+        <button type="button" class="camera-option-card option-video" id="btnLiveVideoCamera"<?= $uploadsClosed ? ' disabled' : '' ?>>
           <div class="option-icon-wrap">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
           </div>
           <div class="option-body">
             <h3>Tomar Video</h3>
-            <p>Abre la cámara en modo video y graba uno o varios clips cortos.</p>
+            <p>Graba todos los clips que quieras (máx. 20 s) y luego elige hasta 4 para publicar.</p>
           </div>
-          <span class="option-pill">Video en Vivo</span>
+          <span class="option-pill">En Espera</span>
         </button>
 
         <!-- Opción 3: Subir de Galería (Selección múltiple de fotos y videos) -->
-        <button type="button" class="camera-option-card option-gallery" id="btnUploadFromDevice">
+        <button type="button" class="camera-option-card option-gallery" id="btnUploadFromDevice"<?= $uploadsClosed ? ' disabled' : '' ?>>
           <div class="option-icon-wrap">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
           </div>
           <div class="option-body">
             <h3>Subir de Galería</h3>
-            <p>Selecciona varias fotos o videos guardados en tu teléfono.</p>
+            <p>Agrega fotos o videos de tu teléfono a tu carrete temporal para preseleccionar.</p>
           </div>
-          <span class="option-pill">Selección Múltiple</span>
+          <span class="option-pill">Preselección</span>
         </button>
       </div>
 
@@ -94,20 +112,69 @@ $navTransparent = false;
       <input type="file" id="inputNativeVideoCamera" class="sr-only-file-input" accept="video/*" capture="environment" tabindex="-1" aria-hidden="true" />
       <input type="file" id="inputUploadDevice" class="sr-only-file-input" accept="image/*,video/*" multiple tabindex="-1" aria-hidden="true" />
 
-      <!-- Barra de Progreso de Subida (Por lotes) -->
+      <!-- Barra de Progreso de Publicación / Subida (Por lotes) -->
       <div class="upload-progress-wrapper camera-upload-progress" id="uploadProgress" style="display:none;">
         <div class="upload-progress-bar-bg">
           <div class="upload-progress-bar-fill" id="progressBarFill"></div>
         </div>
-        <div id="progressText" class="camera-progress-label">Subiendo recuerdos...</div>
+        <div id="progressText" class="camera-progress-label">Optimizando y publicando recuerdos...</div>
       </div>
 
-      <!-- GESTIÓN DE FOTOS Y VIDEOS SUBIDOS POR EL INVITADO -->
+      <!-- CARRETE EN ESPERA (CACHÉ LOCAL ANTES DE PUBLICAR A R2) -->
+      <section class="standby-section" id="standbySection" style="<?= $uploadsClosed ? 'display:none;' : '' ?>">
+        <div class="standby-head">
+          <div class="standby-title-group">
+            <div class="standby-title-row">
+              <h2 class="standby-title">En Espera · Carrete Temporal</h2>
+              <span class="standby-count-pill" id="standbyTotalBadge">0 guardados</span>
+            </div>
+            <p class="standby-sub">
+              Solo tú ves estas capturas. Toca para seleccionar tus mejores recuerdos (hasta 24 publicados en total, máx. 4 videos) y pulsa <strong>Publicar</strong> para compartirlos con todos.
+            </p>
+            <p class="standby-cache-note">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+              <span>Se guardan en la caché de tu navegador: si borras las cookies o datos del sitio antes de publicar, se eliminarán.</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Barra de Selección y Botón Publicar -->
+        <div class="standby-toolbar" id="standbyToolbar" style="display:none;">
+          <div class="standby-selection-info">
+            <span class="standby-sel-counter" id="standbySelectionSummary">0 seleccionados · 0/4 videos</span>
+            <div class="standby-quick-actions">
+              <button type="button" class="btn-standby-ghost" id="btnStandbyAutoSelect">Auto-elegir</button>
+              <button type="button" class="btn-standby-ghost" id="btnStandbyDeselectAll">Desmarcar</button>
+              <button type="button" class="btn-standby-ghost is-danger" id="btnStandbyClearAll">Vaciar</button>
+            </div>
+          </div>
+
+          <button type="button" class="btn-publish-standby" id="btnPublishStandby" disabled>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            <span id="btnPublishStandbyLabel">Publicar seleccionados</span>
+            <span class="publish-count-badge" id="btnPublishStandbyCount">0</span>
+          </button>
+        </div>
+
+        <div class="standby-grid" id="standbyGrid">
+          <!-- Renderizado dinámico por app.js -->
+        </div>
+
+        <div class="standby-empty" id="standbyEmpty">
+          <div class="standby-empty-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          </div>
+          <h3>Tu carrete en espera está vacío</h3>
+          <p>Toma fotos, graba videos o agrega desde tu galería. Aquí podrás revisarlos con calma y elegir los mejores antes de publicarlos.</p>
+        </div>
+      </section>
+
+      <!-- GESTIÓN DE FOTOS Y VIDEOS YA PUBLICADOS POR EL INVITADO -->
       <section class="my-uploads-section" id="myUploadsSection">
         <div class="my-uploads-head">
           <div>
-            <h2 class="my-uploads-title">Gestionar mis Fotos y Videos</h2>
-            <p class="my-uploads-sub">Revisa, descarga o elimina los recuerdos que has compartido.</p>
+            <h2 class="my-uploads-title">Mis Recuerdos Publicados</h2>
+            <p class="my-uploads-sub">Estos recuerdos ya están visibles en la galería para todos los invitados.</p>
           </div>
           <div class="my-uploads-actions">
             <a href="/galeria" class="btn-mini-gallery app-nav-link">Ver Galería ↗</a>
@@ -125,8 +192,8 @@ $navTransparent = false;
           <div class="my-uploads-empty-icon">
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
           </div>
-          <h3>Aún no has subido recuerdos</h3>
-          <p>Usa cualquiera de las tres opciones de arriba para empezar a llenar el álbum de Michelle &amp; René.</p>
+          <h3>Aún no has publicado recuerdos</h3>
+          <p>Captura tus momentos arriba, elige tus favoritos en espera y pulsa <strong>Publicar</strong> para compartirlos con Michelle &amp; René.</p>
         </div>
       </section>
     </section>
@@ -142,7 +209,7 @@ $navTransparent = false;
       </div>
 
       <div class="live-cam-top-right">
-        <span class="live-cam-quota-chip" id="liveCamQuotaChip">0 / 24</span>
+        <span class="live-cam-quota-chip" id="liveCamQuotaChip">En espera: 0</span>
         <button type="button" class="live-cam-icon-btn" id="btnCameraFlip" title="Cambiar cámara (Frontal / Trasera)" aria-label="Cambiar cámara">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M20 10c0-4.418-3.582-8-8-8s-8 3.582-8 8c0 1.954.703 3.743 1.87 5.13L4 17h6v-6L8.43 12.57C7.54 11.66 7 10.4 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.4-.54 2.66-1.43 3.57L14 11v6h6l-1.87-1.87C19.297 13.743 20 11.954 20 10z"></path></svg>
         </button>
@@ -201,7 +268,7 @@ $navTransparent = false;
       </div>
     </div>
 
-    <!-- Panel Inferior: Cola Multi-Captura + Disparador + Subir Lote -->
+    <!-- Panel Inferior: Cola Multi-Captura + Disparador + Ver Carrete -->
     <div class="live-cam-bottom">
       <!-- Carrete de Capturas Múltiples de la Sesión -->
       <div class="live-cam-tray-wrap" id="cameraCaptureTrayWrap" style="display:none;">
@@ -224,10 +291,10 @@ $navTransparent = false;
           </button>
         </div>
 
-        <!-- Botón Subir Lote Capturado -->
+        <!-- Botón Terminar y Elegir Mejores -->
         <div class="live-cam-right-slot">
           <button type="button" class="live-cam-upload-btn" id="btnUploadCapturedBatch" style="display:none;">
-            <span>Subir</span>
+            <span>Elegir</span>
             <span class="upload-batch-badge" id="uploadBatchCount">0</span>
           </button>
         </div>
@@ -238,6 +305,6 @@ $navTransparent = false;
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
   <script src="/assets/js/vendor/browser-image-compression.js?v=2.0.2"></script>
-  <script src="/assets/js/app.js?v=19"></script>
+  <script src="/assets/js/app.js?v=22"></script>
 </body>
 </html>

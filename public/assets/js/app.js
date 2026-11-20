@@ -12,14 +12,36 @@
   const MAX_THUMB_SIZE = 1 * 1024 * 1024; // 1 MB para thumbnail
   const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30 MB máximo por video
   const MAX_VIDEO_DURATION = 20; // 20 segundos máximo por video
-  const MAX_ITEMS = 24; // Máximo 24 recuerdos por invitado
-  const MAX_VIDEOS = 4; // Máximo 4 videos dentro de los 24 recuerdos
+  const MAX_ITEMS = 24; // Máximo 24 recuerdos publicados por invitado
+  const MAX_VIDEOS = 4; // Máximo 4 videos publicados dentro de los 24 recuerdos
+  const GALLERY_PAGE_SIZE = 24; // Recuerdos por página en /galeria
   const SIGNATURE_FONTS = ['qwigley', 'sacramento', 'indie_flower', 'la_luxes_script'];
+  const UPLOAD_DEADLINE_FALLBACK = '2026-12-21T23:59:59-06:00';
+  const UPLOAD_CLOSED_MSG = 'El periodo para subir fotos y videos cerró el 21 de diciembre de 2026. ¡Gracias por compartir tus recuerdos!';
+  const STANDBY_DB_NAME = 'boda_mr_standby_db';
+  const STANDBY_DB_VERSION = 1;
+  const STANDBY_COOKIE_NAME = 'mr_standby_sid';
+
+  let serverUploadsClosed = Boolean(document.body && document.body.dataset.uploadsClosed === '1');
+  let uploadDeadlineMs = Date.parse((document.body && document.body.dataset.uploadDeadline) || UPLOAD_DEADLINE_FALLBACK);
 
   let currentGuest = null;
   let currentFilter = 'all';
   let allMediaCache = [];
   let myMediaCache = [];
+  let standbyDb = null;
+  let standbyItems = []; // [{ id, file, name, mimeType, type, size, duration, previewBlob, selected, createdAt, thumbUrl, fullUrl }]
+  let isPublishingStandby = false;
+  let pendingPublishStandby = false;
+  let galleryCurrentPage = 0;
+  let galleryTotal = 0;
+  let galleryHasMore = false;
+  let galleryIsLoading = false;
+  let galleryRequestVersion = 0;
+  let galleryLoadedItemIds = new Set();
+  let galleryObserver = null;
+  let galleryLastGuestToken = null;
+  let galleryActiveLoadPromise = null;
   let guestbookEntries = [];
   let currentBookPage = 1;
   let currentBookPageSize = 3;
@@ -27,7 +49,9 @@
   let bookIsFlipping = false;
   let lastMountedBookKey = '';
   let lastFlipCommitTs = 0;
+  let lastFlipEndTs = 0;
   let bookLastDragDx = 0;
+  const BOOK_FLIP_SETTLE_MS = 120;
 
   // Estado de Cámara en Vivo y Multi-Captura
   let cameraStream = null;
@@ -59,6 +83,9 @@
   const guestQuotaText = document.getElementById('guestQuotaText');
   const guestQuotaRemaining = document.getElementById('guestQuotaRemaining');
   const quotaProgressFill = document.getElementById('quotaProgressFill');
+  const quotaSelectedFill = document.getElementById('quotaSelectedFill');
+  const uploadClosedBanner = document.getElementById('uploadClosedBanner');
+  const cameraOptionsGrid = document.getElementById('cameraOptionsGrid');
 
   const btnLivePhotoCamera = document.getElementById('btnLivePhotoCamera');
   const btnLiveVideoCamera = document.getElementById('btnLiveVideoCamera');
@@ -66,6 +93,19 @@
   const inputNativePhotoCamera = document.getElementById('inputNativePhotoCamera');
   const inputNativeVideoCamera = document.getElementById('inputNativeVideoCamera');
   const inputUploadDevice = document.getElementById('inputUploadDevice');
+
+  const standbySection = document.getElementById('standbySection');
+  const standbyTotalBadge = document.getElementById('standbyTotalBadge');
+  const standbyToolbar = document.getElementById('standbyToolbar');
+  const standbySelectionSummary = document.getElementById('standbySelectionSummary');
+  const btnStandbyAutoSelect = document.getElementById('btnStandbyAutoSelect');
+  const btnStandbyDeselectAll = document.getElementById('btnStandbyDeselectAll');
+  const btnStandbyClearAll = document.getElementById('btnStandbyClearAll');
+  const btnPublishStandby = document.getElementById('btnPublishStandby');
+  const btnPublishStandbyLabel = document.getElementById('btnPublishStandbyLabel');
+  const btnPublishStandbyCount = document.getElementById('btnPublishStandbyCount');
+  const standbyGrid = document.getElementById('standbyGrid');
+  const standbyEmpty = document.getElementById('standbyEmpty');
 
   const liveCameraModal = document.getElementById('liveCameraModal');
   const liveCamModeText = document.getElementById('liveCamModeText');
@@ -108,6 +148,10 @@
   const galleryGrid = document.getElementById('galleryGrid');
   const galleryEmpty = document.getElementById('galleryEmpty');
   const galleryLoadingState = document.getElementById('gallery-loading-state');
+  let galleryPaginationFooter = document.getElementById('galleryPaginationFooter');
+  let galleryLoadMoreIndicator = document.getElementById('galleryLoadMoreIndicator');
+  let btnLoadMoreGallery = document.getElementById('btnLoadMoreGallery');
+  let gallerySentinel = document.getElementById('gallerySentinel');
   const galleryTabs = document.querySelectorAll('.tab-btn');
   const btnRefreshGallery = document.getElementById('btnRefreshGallery');
 
@@ -145,12 +189,16 @@
   const lightboxAuthor = document.getElementById('lightboxAuthor');
   const lightboxTime = document.getElementById('lightboxTime');
   const lightboxLikeBtn = document.getElementById('lightboxLikeBtn');
+  const lightboxLikesWrap = document.getElementById('lightboxLikesWrap');
   const lightboxLikeCount = document.getElementById('lightboxLikeCount');
   const lightboxLikesLabel = document.getElementById('lightboxLikesLabel');
+  const lightboxStandbySelectBtn = document.getElementById('lightboxStandbySelectBtn');
+  const lightboxStandbySelectLabel = document.getElementById('lightboxStandbySelectLabel');
   const lightboxDownloadBtn = document.getElementById('lightboxDownloadBtn');
   const lightboxDeleteBtn = document.getElementById('lightboxDeleteBtn');
   let currentLightboxItems = [];
   let currentLightboxIndex = 0;
+  let currentLightboxSource = null;
 
   const toastContainer = document.getElementById('toastContainer');
   const orientationLockOverlay = document.getElementById('orientationLockOverlay');
@@ -795,8 +843,50 @@
   window.showConfirmDialog = showConfirmDialog;
 
   // =====================================================================
-  // 6. SESIÓN Y PERFIL DEL INVITADO (NO INTRUSIVO EN PORTADA)
+  // 6. SESIÓN, FECHA LÍMITE DE SUBIDA Y CUPO DEL INVITADO
   // =====================================================================
+  function isUploadClosed() {
+    if (serverUploadsClosed) return true;
+    if (Number.isFinite(uploadDeadlineMs) && Date.now() > uploadDeadlineMs) {
+      return true;
+    }
+    return false;
+  }
+
+  function applyUploadClosedUI() {
+    const closed = isUploadClosed();
+    if (!closed) return;
+
+    document.body.classList.add('is-uploads-closed');
+    if (uploadClosedBanner) uploadClosedBanner.style.display = 'flex';
+    if (cameraOptionsGrid) cameraOptionsGrid.style.display = 'none';
+    if (standbySection) standbySection.style.display = 'none';
+    if (btnLivePhotoCamera) btnLivePhotoCamera.disabled = true;
+    if (btnLiveVideoCamera) btnLiveVideoCamera.disabled = true;
+    if (btnUploadFromDevice) btnUploadFromDevice.disabled = true;
+    if (btnPublishStandby) btnPublishStandby.disabled = true;
+
+    document.querySelectorAll('[data-upload-cta="1"]').forEach((el) => {
+      el.style.display = 'none';
+    });
+
+    if (liveCameraModal && liveCameraModal.classList.contains('is-open')) {
+      closeLiveCamera();
+    }
+  }
+
+  function syncUploadDeadlineFromApi(data) {
+    if (!data || typeof data !== 'object') return;
+    if (typeof data.upload_deadline === 'string' && data.upload_deadline) {
+      const parsed = Date.parse(data.upload_deadline);
+      if (Number.isFinite(parsed)) uploadDeadlineMs = parsed;
+    }
+    if (data.uploads_closed === true) {
+      serverUploadsClosed = true;
+    }
+    applyUploadClosedUI();
+  }
+
   function getUploadedCount() {
     return currentGuest ? Number(currentGuest.item_count || 0) : 0;
   }
@@ -813,13 +903,20 @@
     return (currentGuest && currentGuest.max_videos) ? Math.min(Number(currentGuest.max_videos), MAX_VIDEOS) : MAX_VIDEOS;
   }
 
-  function getQueuedVideoCount() {
-    return capturedQueue.filter((entry) => entry.type === 'video').length;
+  function getRemainingPublishSlots() {
+    return Math.max(0, getMaxItems() - getUploadedCount());
   }
 
-  function remainingVideoSlotsIncludingQueue() {
-    const byVideoCap = Math.max(0, getMaxVideos() - getUploadedVideoCount() - getQueuedVideoCount());
-    return Math.min(byVideoCap, remainingSlotsIncludingQueue());
+  function getRemainingVideoPublishSlots() {
+    return Math.min(getRemainingPublishSlots(), Math.max(0, getMaxVideos() - getUploadedVideoCount()));
+  }
+
+  function getSelectedStandbyItems() {
+    return standbyItems.filter((item) => item.selected);
+  }
+
+  function getSelectedStandbyVideoCount() {
+    return standbyItems.filter((item) => item.selected && item.type === 'video').length;
   }
 
   function updateQuotaUI() {
@@ -829,29 +926,40 @@
     const vidCount = getUploadedVideoCount();
     const maxVids = getMaxVideos();
     const vidRemaining = Math.min(remaining, Math.max(0, maxVids - vidCount));
+    const selectedCount = getSelectedStandbyItems().length;
+    const selectedVids = getSelectedStandbyVideoCount();
     const pct = Math.min(100, Math.round((count / max) * 100));
+    const selPct = Math.min(100 - pct, Math.round((selectedCount / max) * 100));
 
     if (guestQuotaText) {
-      guestQuotaText.textContent = `${count} de ${max} recuerdos · ${vidCount}/${maxVids} videos`;
+      if (selectedCount > 0) {
+        guestQuotaText.textContent = `${count} publicados + ${selectedCount} elegidos (de ${max}) · ${vidCount + selectedVids}/${maxVids} videos`;
+      } else {
+        guestQuotaText.textContent = `${count} de ${max} publicados · ${vidCount}/${maxVids} videos`;
+      }
     }
     if (guestQuotaRemaining) {
-      if (remaining <= 0) {
-        guestQuotaRemaining.textContent = 'Cupo completo (elimina alguno para subir más)';
+      if (isUploadClosed()) {
+        guestQuotaRemaining.textContent = 'Subidas cerradas (21 dic 2026)';
+      } else if (remaining <= 0) {
+        guestQuotaRemaining.textContent = 'Cupo publicado completo (elimina alguno para publicar más)';
       } else if (vidRemaining > 0) {
-        guestQuotaRemaining.textContent = `Te quedan ${remaining} (máx. ${vidRemaining} ${vidRemaining === 1 ? 'video' : 'videos'})`;
+        guestQuotaRemaining.textContent = `Espacio para publicar: ${remaining} (máx. ${vidRemaining} ${vidRemaining === 1 ? 'video' : 'videos'})`;
       } else {
-        guestQuotaRemaining.textContent = `Te quedan ${remaining} disponibles (solo fotos)`;
+        guestQuotaRemaining.textContent = `Espacio para publicar: ${remaining} (solo fotos)`;
       }
     }
     if (quotaProgressFill) quotaProgressFill.style.width = `${pct}%`;
-
-    const totalInCamera = count + capturedQueue.length;
-    const totalVideosInCamera = vidCount + getQueuedVideoCount();
-    if (liveCamQuotaChip) {
-      liveCamQuotaChip.textContent = currentCameraMode === 'video'
-        ? `Vid ${totalVideosInCamera}/${maxVids} · ${totalInCamera}/${max}`
-        : `${totalInCamera} / ${max}`;
+    if (quotaSelectedFill) {
+      quotaSelectedFill.style.left = `${pct}%`;
+      quotaSelectedFill.style.width = `${selPct}%`;
     }
+
+    if (liveCamQuotaChip) {
+      liveCamQuotaChip.textContent = `En espera: ${standbyItems.length}`;
+    }
+
+    applyUploadClosedUI();
   }
 
   async function checkGuestSession() {
@@ -867,8 +975,9 @@
         headers: { 'X-Guest-Token': savedToken }
       });
       const data = await res.json();
+      syncUploadDeadlineFromApi(data);
       if (data.success && data.guest) {
-        setGuestSession(data.guest);
+        setGuestSession(data.guest, { isRestore: true });
       } else {
         updateQuotaUI();
         if (myUploadsGrid) renderMyUploads([]);
@@ -916,7 +1025,7 @@
     });
   }
 
-  function setGuestSession(guest) {
+  function setGuestSession(guest, options = {}) {
     currentGuest = guest;
     localStorage.setItem('mr_guest_token', guest.token);
     localStorage.setItem('mr_guest_name', guest.name);
@@ -930,16 +1039,24 @@
       guestbookAuthorInput.value = guest.name;
     }
 
+    reconcileStandbySelectionWithQuota();
     updateQuotaUI();
+    if (standbyGrid) renderStandbyGrid();
 
-    // Ejecutar subida pendiente si el usuario se identificó al subir un lote
-    if (pendingFilesBatch && pendingFilesBatch.length > 0) {
+    // Ejecutar publicación pendiente si el usuario se identificó al pulsar Publicar
+    if (pendingPublishStandby) {
+      pendingPublishStandby = false;
+      publishSelectedStandby();
+    } else if (pendingFilesBatch && pendingFilesBatch.length > 0) {
       const batch = pendingFilesBatch;
       pendingFilesBatch = null;
-      uploadFilesBatch(batch);
+      addFilesToStandby(batch, { scrollToStandby: true });
     }
 
-    if (galleryGrid) loadGallery(false);
+    const isRestore = Boolean(options && options.isRestore);
+    if (galleryGrid && (!isRestore || galleryLastGuestToken !== guest.token || currentFilter === 'my')) {
+      loadGallery(false);
+    }
     if (myUploadsGrid) loadMyUploads();
   }
 
@@ -960,6 +1077,7 @@
           body: JSON.stringify({ name, token: existingToken })
         });
         const data = await res.json();
+        syncUploadDeadlineFromApi(data);
         if (data.success && data.guest) {
           setGuestSession(data.guest);
           showToast(`¡Bienvenido, ${data.guest.name}!`, 'success', 'Perfil listo');
@@ -1343,7 +1461,7 @@
   }
 
   // =====================================================================
-  // 8. CÁMARA EN VIVO MULTI-CAPTURA + CÁMARA NATIVA DEL TELÉFONO
+  // 8. CÁMARA EN VIVO MULTI-CAPTURA + CÁMARA NATIVA DEL TELÉFONO (MODO STANDBY)
   // =====================================================================
   function isSecureCameraContext() {
     if (typeof window.isSecureContext === 'boolean') {
@@ -1363,12 +1481,9 @@
   }
 
   function openNativeCamera(mode = 'photo') {
-    if (getUploadedCount() >= getMaxItems()) {
-      showToast(`Ya alcanzaste tu límite de ${getMaxItems()} recuerdos. Puedes eliminar alguno abajo para subir nuevos.`, 'warning', 'Límite alcanzado');
-      return false;
-    }
-    if (mode === 'video' && getUploadedVideoCount() >= getMaxVideos()) {
-      showToast(`Ya alcanzaste el máximo de ${getMaxVideos()} videos por invitado. ¡Aún puedes seguir tomando fotos!`, 'warning', 'Límite de videos');
+    if (isUploadClosed()) {
+      showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
+      applyUploadClosedUI();
       return false;
     }
     const targetInput = mode === 'video' ? inputNativeVideoCamera : inputNativePhotoCamera;
@@ -1376,10 +1491,6 @@
     targetInput.value = '';
     targetInput.click();
     return true;
-  }
-
-  function remainingSlotsIncludingQueue() {
-    return Math.max(0, getMaxItems() - getUploadedCount() - capturedQueue.length);
   }
 
   function stopCameraStream() {
@@ -1520,20 +1631,11 @@
       uploadBatchCount.textContent = String(count);
     }
 
-    const remaining = currentCameraMode === 'video'
-      ? remainingVideoSlotsIncludingQueue()
-      : remainingSlotsIncludingQueue();
     if (liveCamHint) {
-      if (remaining <= 0) {
-        liveCamHint.textContent = currentCameraMode === 'video'
-          ? 'Límite de videos · Pulsa Subir'
-          : 'Límite alcanzado · Pulsa Subir';
-      } else if (count > 0) {
-        liveCamHint.textContent = currentCameraMode === 'video'
-          ? `${count} ${count === 1 ? 'listo' : 'listos'} · Quedan ${remaining} vid`
-          : `${count} ${count === 1 ? 'listo' : 'listos'} · Quedan ${remaining}`;
+      if (count > 0) {
+        liveCamHint.textContent = `${count} ${count === 1 ? 'guardado' : 'guardados'} en espera · Sigue o pulsa Elegir`;
       } else {
-        liveCamHint.textContent = currentCameraMode === 'video' ? 'Pulsa para grabar (máx. 20s)' : 'Toca para capturar';
+        liveCamHint.textContent = currentCameraMode === 'video' ? 'Graba todos los clips que quieras (máx. 20s)' : 'Toma todas las fotos que quieras';
       }
     }
 
@@ -1572,8 +1674,12 @@
   function removeCapturedItem(id) {
     const idx = capturedQueue.findIndex((x) => x.id === id);
     if (idx !== -1) {
-      try { URL.revokeObjectURL(capturedQueue[idx].previewUrl); } catch (e) {}
+      const entry = capturedQueue[idx];
+      try { URL.revokeObjectURL(entry.previewUrl); } catch (e) {}
       capturedQueue.splice(idx, 1);
+      if (entry.draftId) {
+        deleteStandbyItem(entry.draftId, { skipConfirm: true, silent: true });
+      }
     }
     if (previewingQueueId === id) closeCapturedItemPreview();
     renderCaptureTray();
@@ -1624,17 +1730,13 @@
 
   async function openLiveCamera(mode) {
     if (!liveCameraModal) return;
-
-    if (getUploadedCount() >= getMaxItems()) {
-      showToast(`Ya alcanzaste tu límite de ${getMaxItems()} recuerdos. Puedes eliminar alguno abajo para subir nuevos.`, 'warning', 'Límite alcanzado');
+    if (isUploadClosed()) {
+      showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
+      applyUploadClosedUI();
       return;
     }
 
     currentCameraMode = mode === 'video' ? 'video' : 'photo';
-    if (currentCameraMode === 'video' && getUploadedVideoCount() >= getMaxVideos()) {
-      showToast(`Ya alcanzaste el máximo de ${getMaxVideos()} videos por invitado. ¡Aún puedes seguir tomando fotos!`, 'warning', 'Límite de videos');
-      return;
-    }
     clearCapturedQueue();
 
     if (liveCamModeText) {
@@ -1663,12 +1765,13 @@
 
   function snapLivePhoto() {
     if (!cameraVideo || !cameraCanvas || !cameraStream) return;
-    if (cameraVideo.readyState < 2 || !cameraVideo.videoWidth) {
-      showToast('Espera un instante a que cargue la imagen de la cámara.', 'info', 'Iniciando cámara');
+    if (isUploadClosed()) {
+      closeLiveCamera();
+      showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
       return;
     }
-    if (remainingSlotsIncludingQueue() <= 0) {
-      showToast(`Alcanzaste el máximo permitido de ${getMaxItems()} recuerdos. Pulsa "Subir" para guardar los capturados.`, 'warning', 'Álbum lleno');
+    if (cameraVideo.readyState < 2 || !cameraVideo.videoWidth) {
+      showToast('Espera un instante a que cargue la imagen de la cámara.', 'info', 'Iniciando cámara');
       return;
     }
 
@@ -1699,11 +1802,14 @@
     ctx.drawImage(cameraVideo, 0, 0, cw, ch);
     ctx.restore();
 
-    cameraCanvas.toBlob((blob) => {
-      if (!blob || remainingSlotsIncludingQueue() <= 0) return;
+    cameraCanvas.toBlob(async (blob) => {
+      if (!blob) return;
       const rawFile = new File([blob], `boda_foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const { addedItems } = await addFilesToStandby([rawFile], { silent: true });
+      const savedDraft = addedItems[0] || null;
       capturedQueue.push({
         id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        draftId: savedDraft ? savedDraft.id : null,
         file: rawFile,
         type: 'image',
         previewUrl: URL.createObjectURL(rawFile)
@@ -1714,12 +1820,9 @@
 
   function startLiveRecording() {
     if (!cameraStream) return;
-    if (remainingSlotsIncludingQueue() <= 0) {
-      showToast(`Alcanzaste el máximo permitido de ${getMaxItems()} recuerdos. Pulsa "Subir" para guardar los videos.`, 'warning', 'Álbum lleno');
-      return;
-    }
-    if (remainingVideoSlotsIncludingQueue() <= 0) {
-      showToast(`Alcanzaste el máximo de ${getMaxVideos()} videos por invitado. Pulsa "Subir" para guardar los capturados.`, 'warning', 'Límite de videos');
+    if (isUploadClosed()) {
+      closeLiveCamera();
+      showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
       return;
     }
 
@@ -1759,7 +1862,7 @@
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         clearInterval(recordTimerInterval);
         if (cameraRecBadge) cameraRecBadge.style.display = 'none';
         if (btnCameraRecord) btnCameraRecord.classList.remove('recording');
@@ -1771,8 +1874,15 @@
         const ext = blobType.includes('mp4') ? 'mp4' : 'webm';
         const file = new File([blob], `boda_video_${Date.now()}.${ext}`, { type: blobType.split(';')[0] });
         file._recordedDuration = Math.max(1, Math.min(recordSeconds || 1, MAX_VIDEO_DURATION));
+        const { addedItems, errors } = await addFilesToStandby([file], { silent: true });
+        if (errors.length > 0) {
+          showToast(errors[0], 'warning', 'Video no guardado');
+          return;
+        }
+        const savedDraft = addedItems[0] || null;
         capturedQueue.push({
           id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          draftId: savedDraft ? savedDraft.id : null,
           file,
           type: 'video',
           previewUrl: URL.createObjectURL(file)
@@ -1816,8 +1926,9 @@
   // Listeners de los 3 botones principales en /camara
   if (btnLivePhotoCamera) {
     btnLivePhotoCamera.addEventListener('click', () => {
-      if (getUploadedCount() >= getMaxItems()) {
-        showToast(`Ya alcanzaste tu límite de ${getMaxItems()} recuerdos. Puedes eliminar alguno abajo para subir nuevos.`, 'warning', 'Límite alcanzado');
+      if (isUploadClosed()) {
+        showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
+        applyUploadClosedUI();
         return;
       }
       // Si la conexión no soporta cámara web en vivo (ej. HTTP en teléfono), abrir cámara nativa al instante
@@ -1832,12 +1943,9 @@
   }
   if (btnLiveVideoCamera) {
     btnLiveVideoCamera.addEventListener('click', () => {
-      if (getUploadedCount() >= getMaxItems()) {
-        showToast(`Ya alcanzaste tu límite de ${getMaxItems()} recuerdos. Puedes eliminar alguno abajo para subir nuevos.`, 'warning', 'Límite alcanzado');
-        return;
-      }
-      if (getUploadedVideoCount() >= getMaxVideos()) {
-        showToast(`Ya alcanzaste el máximo de ${getMaxVideos()} videos por invitado. ¡Aún puedes seguir tomando fotos!`, 'warning', 'Límite de videos');
+      if (isUploadClosed()) {
+        showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
+        applyUploadClosedUI();
         return;
       }
       if (!canUseLiveCamera() || typeof MediaRecorder === 'undefined') {
@@ -1850,22 +1958,23 @@
     });
   }
 
-  // Captura directa desde cámara nativa del teléfono (foto y video)
+  // Captura directa desde cámara nativa del teléfono (foto y video) -> guarda en espera (caché local)
   [inputNativePhotoCamera, inputNativeVideoCamera].forEach((nativeInput) => {
     if (!nativeInput) return;
     nativeInput.addEventListener('change', () => {
       const files = Array.from(nativeInput.files || []);
       nativeInput.value = '';
       if (files.length > 0) {
-        uploadFilesBatch(files);
+        addFilesToStandby(files, { scrollToStandby: true });
       }
     });
   });
 
   if (btnUploadFromDevice && inputUploadDevice) {
     btnUploadFromDevice.addEventListener('click', () => {
-      if (getUploadedCount() >= getMaxItems()) {
-        showToast(`Ya alcanzaste tu límite de ${getMaxItems()} recuerdos. Elimina alguno abajo para subir nuevos.`, 'warning', 'Límite alcanzado');
+      if (isUploadClosed()) {
+        showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
+        applyUploadClosedUI();
         return;
       }
       inputUploadDevice.click();
@@ -1875,7 +1984,7 @@
       const files = Array.from(inputUploadDevice.files || []);
       inputUploadDevice.value = '';
       if (files.length > 0) {
-        uploadFilesBatch(files);
+        addFilesToStandby(files, { scrollToStandby: true });
       }
     });
   }
@@ -1938,15 +2047,628 @@
   }
   if (btnUploadCapturedBatch) {
     btnUploadCapturedBatch.addEventListener('click', () => {
-      if (capturedQueue.length === 0) return;
-      const files = capturedQueue.map((item) => item.file);
+      const count = capturedQueue.length;
       closeLiveCamera();
-      uploadFilesBatch(files);
+      if (count > 0) {
+        showToast(
+          count === 1
+            ? 'Tu captura está en espera. Selecciónala y pulsa Publicar cuando estés listo.'
+            : `${count} capturas guardadas en espera. Elige tus mejores y pulsa Publicar.`,
+          'info',
+          'Guardado en espera'
+        );
+      }
+      if (standbySection) {
+        standbySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
   }
 
   // =====================================================================
-  // 9. SUBIDA DIRECTA A CLOUDFLARE R2 (PRESIGNED PUT URLS) POR LOTES
+  // 8B. CARRETE TEMPORAL EN ESPERA (INDEXEDDB + VINCULACIÓN A COOKIES)
+  // =====================================================================
+  function getCookieValue(name) {
+    const encodedName = `${encodeURIComponent(name)}=`;
+    const parts = (document.cookie || '').split(';');
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i].trim();
+      if (part.indexOf(encodedName) === 0) {
+        return decodeURIComponent(part.slice(encodedName.length));
+      }
+    }
+    return '';
+  }
+
+  function setCookieValue(name, value, days = 30) {
+    try {
+      const expires = new Date(Date.now() + days * 86400 * 1000).toUTCString();
+      document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+    } catch (e) {}
+  }
+
+  function openStandbyDB() {
+    if (standbyDb) return Promise.resolve(standbyDb);
+    if (typeof window.indexedDB === 'undefined') {
+      return Promise.resolve(null);
+    }
+    return new Promise((resolve) => {
+      try {
+        const req = window.indexedDB.open(STANDBY_DB_NAME, STANDBY_DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('drafts')) {
+            db.createObjectStore('drafts', { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains('meta')) {
+            db.createObjectStore('meta', { keyPath: 'key' });
+          }
+        };
+        req.onsuccess = (e) => {
+          standbyDb = e.target.result;
+          resolve(standbyDb);
+        };
+        req.onerror = () => resolve(null);
+      } catch (err) {
+        resolve(null);
+      }
+    });
+  }
+
+  function idbRequest(storeName, mode, operation) {
+    return openStandbyDB().then((db) => {
+      if (!db) return null;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction(storeName, mode);
+          const store = tx.objectStore(storeName);
+          const req = operation(store);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+        } catch (err) {
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  async function ensureStandbyCookieSession() {
+    let sid = getCookieValue(STANDBY_COOKIE_NAME);
+    if (!sid) {
+      sid = `sid_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      setCookieValue(STANDBY_COOKIE_NAME, sid, 30);
+    }
+    const verified = getCookieValue(STANDBY_COOKIE_NAME) === sid;
+    await idbRequest('meta', 'readwrite', (s) => s.put({ key: 'session', sid, cookieBound: verified }));
+  }
+
+  function toSerializableDraft(item) {
+    return {
+      id: item.id,
+      file: item.file,
+      name: item.name,
+      mimeType: item.mimeType,
+      type: item.type,
+      size: item.size,
+      duration: item.duration,
+      previewBlob: item.previewBlob || null,
+      selected: Boolean(item.selected),
+      createdAt: item.createdAt
+    };
+  }
+
+  async function persistStandbyItem(item) {
+    await ensureStandbyCookieSession();
+    await idbRequest('drafts', 'readwrite', (s) => s.put(toSerializableDraft(item)));
+  }
+
+  async function removeStandbyRecordFromDB(id) {
+    await idbRequest('drafts', 'readwrite', (s) => s.delete(id));
+  }
+
+  async function clearStandbyDB() {
+    await idbRequest('drafts', 'readwrite', (s) => s.clear());
+  }
+
+  function revokeStandbyItemUrls(item) {
+    if (!item) return;
+    if (item.thumbUrl) {
+      try { URL.revokeObjectURL(item.thumbUrl); } catch (e) {}
+      item.thumbUrl = '';
+    }
+    if (item.fullUrl) {
+      try { URL.revokeObjectURL(item.fullUrl); } catch (e) {}
+      item.fullUrl = '';
+    }
+  }
+
+  function createLightImagePreviewBlob(file) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const objUrl = URL.createObjectURL(file);
+      const cleanup = () => {
+        try { URL.revokeObjectURL(objUrl); } catch (e) {}
+      };
+      img.onload = () => {
+        cleanup();
+        try {
+          const maxDim = 320;
+          let w = img.naturalWidth || img.width || 320;
+          let h = img.naturalHeight || img.height || 320;
+          if (w > maxDim || h > maxDim) {
+            const r = Math.min(maxDim / w, maxDim / h);
+            w = Math.max(1, Math.round(w * r));
+            h = Math.max(1, Math.round(h * r));
+          }
+          const c = document.createElement('canvas');
+          c.width = w;
+          c.height = h;
+          const ctx = c.getContext('2d');
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, w, h);
+          c.toBlob((blob) => resolve(blob || null), 'image/jpeg', 0.68);
+        } catch (err) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => {
+        cleanup();
+        resolve(null);
+      };
+      img.src = objUrl;
+    });
+  }
+
+  async function loadStandbyFromCache() {
+    if (!standbyGrid) return;
+    const db = await openStandbyDB();
+    if (!db) {
+      renderStandbyGrid();
+      return;
+    }
+
+    const sessionMeta = await idbRequest('meta', 'readonly', (s) => s.get('session'));
+    const cookieSid = getCookieValue(STANDBY_COOKIE_NAME);
+
+    // Si el usuario eliminó las cookies del navegador, limpiar también las fotos/videos en caché local
+    if (sessionMeta && sessionMeta.cookieBound && (!cookieSid || cookieSid !== sessionMeta.sid)) {
+      await clearStandbyDB();
+      await idbRequest('meta', 'readwrite', (s) => s.delete('session'));
+      standbyItems = [];
+      updateQuotaUI();
+      renderStandbyGrid();
+      return;
+    }
+
+    const records = await idbRequest('drafts', 'readonly', (s) => s.getAll());
+    standbyItems.forEach(revokeStandbyItemUrls);
+    standbyItems = [];
+
+    if (Array.isArray(records) && records.length > 0) {
+      records.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+      standbyItems = records
+        .filter((rec) => rec && rec.id && rec.file)
+        .map((rec) => {
+          const thumbSource = rec.previewBlob || (rec.type === 'image' ? rec.file : null);
+          return {
+            id: String(rec.id),
+            file: rec.file,
+            name: rec.name || 'recuerdo',
+            mimeType: rec.mimeType || (rec.file && rec.file.type) || '',
+            type: rec.type === 'video' ? 'video' : 'image',
+            size: Number(rec.size || (rec.file && rec.file.size) || 0),
+            duration: typeof rec.duration === 'number' ? rec.duration : null,
+            previewBlob: rec.previewBlob || null,
+            selected: Boolean(rec.selected),
+            createdAt: Number(rec.createdAt || Date.now()),
+            thumbUrl: thumbSource ? URL.createObjectURL(thumbSource) : '',
+            fullUrl: ''
+          };
+        });
+    }
+
+    reconcileStandbySelectionWithQuota();
+    updateQuotaUI();
+    renderStandbyGrid();
+  }
+
+  function reconcileStandbySelectionWithQuota() {
+    const remainingTotal = getRemainingPublishSlots();
+    const remainingVideos = getRemainingVideoPublishSlots();
+    let keptTotal = 0;
+    let keptVideos = 0;
+    const changed = [];
+
+    standbyItems.forEach((item) => {
+      if (!item.selected) return;
+      if (keptTotal >= remainingTotal || (item.type === 'video' && keptVideos >= remainingVideos)) {
+        item.selected = false;
+        changed.push(item);
+      } else {
+        keptTotal++;
+        if (item.type === 'video') keptVideos++;
+      }
+    });
+
+    changed.forEach((item) => {
+      persistStandbyItem(item).catch(() => {});
+    });
+  }
+
+  async function addFilesToStandby(rawFiles, options = {}) {
+    const files = Array.from(rawFiles || []);
+    if (files.length === 0) return { addedItems: [], errors: [] };
+
+    if (isUploadClosed()) {
+      if (!options.silent) {
+        showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
+      }
+      applyUploadClosedUI();
+      return { addedItems: [], errors: [UPLOAD_CLOSED_MSG] };
+    }
+
+    const addedItems = [];
+    const errors = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const isVid = isVideoFile(f);
+      const isImg = isImageFile(f);
+
+      if (!isVid && !isImg) {
+        errors.push(`${f.name || 'Archivo'}: formato no compatible.`);
+        continue;
+      }
+
+      let duration = null;
+      let previewBlob = null;
+
+      if (isVid) {
+        if (f.size > MAX_VIDEO_SIZE) {
+          const mb = (f.size / (1024 * 1024)).toFixed(1);
+          errors.push(`"${f.name || 'Video'}" pesa ${mb} MB y el máximo permitido es de 30 MB.`);
+          continue;
+        }
+        try {
+          const meta = await extractVideoMetadataAndThumb(f);
+          duration = meta.duration;
+          previewBlob = meta.thumbFile;
+        } catch (vidErr) {
+          errors.push((vidErr && vidErr.message) || 'No se pudo validar el video seleccionado.');
+          continue;
+        }
+      } else {
+        previewBlob = await createLightImagePreviewBlob(f);
+      }
+
+      // Auto-seleccionar si todavía hay espacio disponible dentro de los 24 (máx. 4 videos)
+      const remainingTotal = getRemainingPublishSlots();
+      const remainingVideos = getRemainingVideoPublishSlots();
+      const currentSelTotal = getSelectedStandbyItems().length;
+      const currentSelVideos = getSelectedStandbyVideoCount();
+      const canAutoSelect =
+        currentSelTotal < remainingTotal &&
+        (!isVid || currentSelVideos < remainingVideos);
+
+      const thumbSource = previewBlob || (isImg ? f : null);
+      const item = {
+        id: `draft_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        file: f,
+        name: f.name || (isVid ? `boda_video_${Date.now()}.mp4` : `boda_foto_${Date.now()}.jpg`),
+        mimeType: f.type || (isVid ? normalizeVideoMime(f) : 'image/jpeg'),
+        type: isVid ? 'video' : 'image',
+        size: Number(f.size || 0),
+        duration,
+        previewBlob,
+        selected: canAutoSelect,
+        createdAt: Date.now() + i,
+        thumbUrl: thumbSource ? URL.createObjectURL(thumbSource) : '',
+        fullUrl: ''
+      };
+
+      standbyItems.unshift(item);
+      addedItems.push(item);
+      await persistStandbyItem(item);
+    }
+
+    updateQuotaUI();
+    renderStandbyGrid();
+
+    if (!options.silent) {
+      if (addedItems.length > 0) {
+        showToast(
+          addedItems.length === 1
+            ? '1 recuerdo guardado en espera. Elige tus favoritos y pulsa Publicar.'
+            : `${addedItems.length} recuerdos guardados en espera. Selecciona tus mejores y pulsa Publicar.`,
+          'success',
+          'En espera'
+        );
+        if (options.scrollToStandby && standbySection) {
+          standbySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+      if (errors.length > 0) {
+        showToast(errors[0], 'warning', 'Algunos archivos no se agregaron');
+      }
+    }
+
+    return { addedItems, errors };
+  }
+
+  function toggleStandbySelection(id) {
+    const item = standbyItems.find((x) => x.id === id);
+    if (!item || isPublishingStandby) return false;
+
+    if (item.selected) {
+      item.selected = false;
+      persistStandbyItem(item).catch(() => {});
+      updateQuotaUI();
+      renderStandbyGrid();
+      return true;
+    }
+
+    const remainingTotal = getRemainingPublishSlots();
+    const remainingVideos = getRemainingVideoPublishSlots();
+    const selectedTotal = getSelectedStandbyItems().length;
+    const selectedVideos = getSelectedStandbyVideoCount();
+
+    if (remainingTotal <= 0) {
+      showToast(
+        `Ya tienes ${getMaxItems()} recuerdos publicados. Elimina alguno abajo si deseas publicar nuevos.`,
+        'warning',
+        'Cupo publicado lleno'
+      );
+      return false;
+    }
+
+    if (selectedTotal >= remainingTotal) {
+      showToast(
+        `Solo puedes elegir hasta ${remainingTotal} ${remainingTotal === 1 ? 'recuerdo' : 'recuerdos'} (máximo ${getMaxItems()} publicados en total). Desmarca alguno para seleccionar este.`,
+        'warning',
+        'Límite de selección'
+      );
+      return false;
+    }
+
+    if (item.type === 'video') {
+      if (remainingVideos <= 0) {
+        showToast(
+          `Ya tienes el máximo de ${getMaxVideos()} videos publicados. ¡Aún puedes seleccionar fotos!`,
+          'warning',
+          'Límite de videos'
+        );
+        return false;
+      }
+      if (selectedVideos >= remainingVideos) {
+        showToast(
+          `Solo puedes elegir hasta ${remainingVideos} ${remainingVideos === 1 ? 'video' : 'videos'} (máximo ${getMaxVideos()} en total). Desmarca otro video para elegir este.`,
+          'warning',
+          'Límite de videos'
+        );
+        return false;
+      }
+    }
+
+    item.selected = true;
+    persistStandbyItem(item).catch(() => {});
+    updateQuotaUI();
+    renderStandbyGrid();
+    return true;
+  }
+
+  async function deleteStandbyItem(id, options = {}) {
+    const idx = standbyItems.findIndex((x) => x.id === id);
+    if (idx === -1) return;
+
+    if (!options.skipConfirm) {
+      const confirmed = await showConfirmDialog({
+        title: '¿Quitar de espera?',
+        message: 'Esta captura se eliminará de tu carrete temporal en este dispositivo.',
+        confirmText: 'Sí, quitar',
+        cancelText: 'Conservar',
+        variant: 'danger'
+      });
+      if (!confirmed) return;
+    }
+
+    const [removed] = standbyItems.splice(idx, 1);
+    revokeStandbyItemUrls(removed);
+    await removeStandbyRecordFromDB(id);
+
+    updateQuotaUI();
+    renderStandbyGrid();
+
+    if (!options.silent) {
+      showToast('Captura quitada del carrete en espera.', 'info', 'Eliminada');
+    }
+  }
+
+  function autoSelectStandbyItems() {
+    if (isPublishingStandby || standbyItems.length === 0) return;
+    const remainingTotal = getRemainingPublishSlots();
+    const remainingVideos = getRemainingVideoPublishSlots();
+
+    if (remainingTotal <= 0) {
+      showToast(`Ya tienes ${getMaxItems()} recuerdos publicados. Elimina alguno abajo para liberar espacio.`, 'warning', 'Cupo lleno');
+      return;
+    }
+
+    let selTotal = getSelectedStandbyItems().length;
+    let selVideos = getSelectedStandbyVideoCount();
+    const changed = [];
+
+    for (let i = 0; i < standbyItems.length; i++) {
+      const item = standbyItems[i];
+      if (item.selected) continue;
+      if (selTotal >= remainingTotal) break;
+      if (item.type === 'video' && selVideos >= remainingVideos) continue;
+      item.selected = true;
+      selTotal++;
+      if (item.type === 'video') selVideos++;
+      changed.push(item);
+    }
+
+    changed.forEach((item) => persistStandbyItem(item).catch(() => {}));
+    updateQuotaUI();
+    renderStandbyGrid();
+  }
+
+  function deselectAllStandbyItems() {
+    if (isPublishingStandby) return;
+    standbyItems.forEach((item) => {
+      if (item.selected) {
+        item.selected = false;
+        persistStandbyItem(item).catch(() => {});
+      }
+    });
+    updateQuotaUI();
+    renderStandbyGrid();
+  }
+
+  async function clearAllStandbyItems() {
+    if (isPublishingStandby || standbyItems.length === 0) return;
+    const confirmed = await showConfirmDialog({
+      title: '¿Vaciar carrete en espera?',
+      message: `Se eliminarán las ${standbyItems.length} capturas temporales guardadas en este navegador. Tus recuerdos ya publicados no se verán afectados.`,
+      confirmText: 'Sí, vaciar todo',
+      cancelText: 'Cancelar',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
+
+    standbyItems.forEach(revokeStandbyItemUrls);
+    standbyItems = [];
+    await clearStandbyDB();
+    updateQuotaUI();
+    renderStandbyGrid();
+    showToast('Se vació tu carrete en espera.', 'info', 'Carrete vacío');
+  }
+
+  function renderStandbyGrid() {
+    if (!standbyGrid) return;
+    standbyGrid.innerHTML = '';
+
+    const total = standbyItems.length;
+    const selectedItems = getSelectedStandbyItems();
+    const selectedCount = selectedItems.length;
+    const selectedVideos = getSelectedStandbyVideoCount();
+    const remainingTotal = getRemainingPublishSlots();
+    const remainingVideos = getRemainingVideoPublishSlots();
+
+    if (standbyTotalBadge) {
+      standbyTotalBadge.textContent = `${total} ${total === 1 ? 'guardado' : 'guardados'}`;
+    }
+
+    if (total === 0) {
+      if (standbyEmpty) standbyEmpty.style.display = 'block';
+      if (standbyToolbar) standbyToolbar.style.display = 'none';
+      return;
+    }
+
+    if (standbyEmpty) standbyEmpty.style.display = 'none';
+    if (standbyToolbar) standbyToolbar.style.display = 'flex';
+
+    if (standbySelectionSummary) {
+      if (remainingTotal <= 0) {
+        standbySelectionSummary.textContent = `Cupo lleno (${getMaxItems()}/${getMaxItems()} publicados)`;
+      } else {
+        standbySelectionSummary.textContent = `${selectedCount} de ${remainingTotal} elegidos · ${selectedVideos}/${remainingVideos} videos`;
+      }
+    }
+
+    if (btnPublishStandby) {
+      btnPublishStandby.disabled = isPublishingStandby || selectedCount === 0 || isUploadClosed();
+    }
+    if (btnPublishStandbyCount) {
+      btnPublishStandbyCount.textContent = String(selectedCount);
+    }
+    if (btnPublishStandbyLabel) {
+      btnPublishStandbyLabel.textContent = isPublishingStandby
+        ? 'Publicando...'
+        : (selectedCount === 1 ? 'Publicar recuerdo' : 'Publicar seleccionados');
+    }
+
+    // Asignar número de orden a los elementos seleccionados
+    const selectionOrderMap = new Map();
+    let orderIdx = 1;
+    standbyItems.forEach((item) => {
+      if (item.selected) {
+        selectionOrderMap.set(item.id, orderIdx++);
+      }
+    });
+
+    standbyItems.forEach((item, index) => {
+      const tile = document.createElement('div');
+      const isSelected = Boolean(item.selected);
+      const selNum = selectionOrderMap.get(item.id);
+      tile.className = `standby-tile${isSelected ? ' is-selected' : ''}`;
+      tile.style.animationDelay = `${Math.min(index * 28, 280)}ms`;
+      tile.setAttribute('role', 'button');
+      tile.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+
+      const isVideo = item.type === 'video';
+      const durLabel = isVideo && item.duration ? ` · ${Math.round(item.duration)}s` : '';
+
+      tile.innerHTML = `
+        ${item.thumbUrl
+          ? `<img src="${escapeHtml(item.thumbUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async" />`
+          : `<video muted playsinline preload="metadata"></video>`
+        }
+        <span class="standby-select-badge" aria-hidden="true">${isSelected ? selNum : ''}</span>
+        <button type="button" class="standby-delete-btn" title="Quitar de espera" aria-label="Quitar captura">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+        ${isVideo ? `<span class="standby-vid-pill">VID${escapeHtml(durLabel)}</span>` : ''}
+        <button type="button" class="standby-preview-btn" title="Ver en pantalla completa" aria-label="Ver en pantalla completa">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        </button>
+      `;
+
+      if (!item.thumbUrl && isVideo) {
+        const vEl = tile.querySelector('video');
+        if (vEl) {
+          if (!item.fullUrl) item.fullUrl = URL.createObjectURL(item.file);
+          vEl.src = item.fullUrl;
+        }
+      }
+
+      tile.addEventListener('click', (e) => {
+        if (e.target.closest('.standby-delete-btn')) {
+          e.stopPropagation();
+          deleteStandbyItem(item.id);
+          return;
+        }
+        if (e.target.closest('.standby-preview-btn')) {
+          e.stopPropagation();
+          openLightboxAtIndex(index, standbyItems, 'standby');
+          return;
+        }
+        toggleStandbySelection(item.id);
+      });
+
+      standbyGrid.appendChild(tile);
+    });
+  }
+
+  if (btnStandbyAutoSelect) {
+    btnStandbyAutoSelect.addEventListener('click', autoSelectStandbyItems);
+  }
+  if (btnStandbyDeselectAll) {
+    btnStandbyDeselectAll.addEventListener('click', deselectAllStandbyItems);
+  }
+  if (btnStandbyClearAll) {
+    btnStandbyClearAll.addEventListener('click', clearAllStandbyItems);
+  }
+  if (btnPublishStandby) {
+    btnPublishStandby.addEventListener('click', () => {
+      publishSelectedStandby();
+    });
+  }
+
+  // =====================================================================
+  // 9. PUBLICACIÓN DIRECTA A CLOUDFLARE R2 (CONVERSIÓN FRONTEND + PRESIGNED PUT)
   // =====================================================================
   function putBlobToPresignedUrl(url, blob, headers, onProgress) {
     return new Promise((resolve) => {
@@ -2001,6 +2723,7 @@
         })
       });
       presignData = await presignRes.json();
+      syncUploadDeadlineFromApi(presignData);
       if (!presignRes.ok || !presignData.success) {
         return { ok: false, res: presignData || { error: 'No se pudo autorizar la subida.' } };
       }
@@ -2046,6 +2769,7 @@
         body: JSON.stringify({ upload_token: presignData.upload_token })
       });
       const confirmData = await confirmRes.json();
+      syncUploadDeadlineFromApi(confirmData);
       if (onProgress) onProgress(1);
       return { ok: confirmRes.status === 201 && confirmData.success, res: confirmData };
     } catch (err) {
@@ -2053,83 +2777,69 @@
     }
   }
 
-  async function uploadFilesBatch(rawFiles) {
-    const files = Array.from(rawFiles || []);
-    if (files.length === 0) return;
+  async function publishSelectedStandby() {
+    if (isPublishingStandby) return;
+
+    if (isUploadClosed()) {
+      showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
+      applyUploadClosedUI();
+      return;
+    }
+
+    reconcileStandbySelectionWithQuota();
+    const selected = getSelectedStandbyItems();
+
+    if (selected.length === 0) {
+      showToast('Selecciona al menos un recuerdo de tu carrete en espera para publicar.', 'warning', 'Nada seleccionado');
+      return;
+    }
 
     if (!currentGuest) {
-      pendingFilesBatch = files;
+      pendingPublishStandby = true;
       promptGuestName(true);
-      showToast('Escribe tu nombre para guardar tus recuerdos en el álbum.', 'info', 'Identifícate');
+      showToast('Escribe tu nombre para publicar tus recuerdos en el álbum.', 'info', 'Identifícate');
       return;
     }
 
-    const maxItems = getMaxItems();
-    const maxVideos = getMaxVideos();
-    let remainingTotal = Math.max(0, maxItems - getUploadedCount());
-    let remainingVideos = Math.min(remainingTotal, Math.max(0, maxVideos - getUploadedVideoCount()));
+    const vidCount = selected.filter((i) => i.type === 'video').length;
+    const summaryText = selected.length === 1
+      ? 'Se optimizará y publicará 1 recuerdo en la galería para que Michelle, René y todos los invitados puedan verlo.'
+      : `Se optimizarán y publicarán ${selected.length} recuerdos${vidCount > 0 ? ` (incluyendo ${vidCount} ${vidCount === 1 ? 'video' : 'videos'})` : ''} en la galería pública de la boda.`;
 
-    if (remainingTotal <= 0) {
-      showToast(`Ya alcanzaste tu límite de ${maxItems} recuerdos. Elimina alguno para subir más.`, 'warning', 'Límite alcanzado');
-      return;
+    const confirmed = await showConfirmDialog({
+      title: selected.length === 1 ? '¿Publicar este recuerdo?' : `¿Publicar ${selected.length} recuerdos?`,
+      message: summaryText,
+      confirmText: 'Sí, publicar ahora',
+      cancelText: 'Seguir eligiendo',
+      variant: 'success'
+    });
+    if (!confirmed) return;
+
+    isPublishingStandby = true;
+    renderStandbyGrid();
+
+    if (uploadProgress) {
+      uploadProgress.style.display = 'block';
+      uploadProgress.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-
-    // Filtrar lote respetando el cupo combinado (máx. 24 totales y máx. 4 videos)
-    const toUpload = [];
-    let skippedByTotal = 0;
-    let skippedByVideos = 0;
-
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      if (remainingTotal <= 0) {
-        skippedByTotal++;
-        continue;
-      }
-      if (isVideoFile(f)) {
-        if (remainingVideos <= 0) {
-          skippedByVideos++;
-          continue;
-        }
-        remainingVideos--;
-        remainingTotal--;
-        toUpload.push(f);
-      } else {
-        remainingTotal--;
-        toUpload.push(f);
-      }
-    }
-
-    if (skippedByVideos > 0) {
-      showToast(
-        `El máximo permitido es de ${maxVideos} videos por invitado. Se omitieron ${skippedByVideos} ${skippedByVideos === 1 ? 'video extra' : 'videos extra'} (aún puedes subir fotos hasta completar ${maxItems}).`,
-        'warning',
-        'Límite de videos'
-      );
-    }
-    if (skippedByTotal > 0) {
-      showToast(
-        `Solo te quedan espacios hasta completar ${maxItems} recuerdos. Se omitieron ${skippedByTotal} archivos adicionales.`,
-        'warning',
-        'Espacio limitado'
-      );
-    }
-    if (toUpload.length === 0) return;
-
-    if (uploadProgress) uploadProgress.style.display = 'block';
     if (progressBarFill) progressBarFill.style.width = '4%';
 
     let uploadedOk = 0;
-    let skippedErrors = [];
+    const skippedErrors = [];
 
-    for (let i = 0; i < toUpload.length; i++) {
-      const currentFile = toUpload[i];
-      const idxLabel = `${i + 1} de ${toUpload.length}`;
-      const isVid = isVideoFile(currentFile);
-      const isImg = isImageFile(currentFile);
+    for (let i = 0; i < selected.length; i++) {
+      const draftItem = selected[i];
+      const idxLabel = `${i + 1} de ${selected.length}`;
+      const isVid = draftItem.type === 'video';
 
-      if (!isVid && !isImg) {
-        skippedErrors.push(`${currentFile.name || 'Archivo'}: formato no compatible.`);
-        continue;
+      // Reconstruir objeto File limpio desde IndexedDB (preservando nombre, tipo y duración grabada)
+      const fileForUpload = new File(
+        [draftItem.file],
+        draftItem.name || (isVid ? `boda_video_${Date.now()}.mp4` : `boda_foto_${Date.now()}.jpg`),
+        { type: draftItem.mimeType || (draftItem.file && draftItem.file.type) || (isVid ? 'video/mp4' : 'image/jpeg') }
+      );
+      if (isVid && typeof draftItem.duration === 'number' && draftItem.duration > 0) {
+        fileForUpload._recordedDuration = draftItem.duration;
       }
 
       if (progressText) {
@@ -2141,53 +2851,69 @@
       let prepared;
       try {
         prepared = isVid
-          ? await processVideoForUpload(currentFile)
-          : await processImageForUpload(currentFile);
+          ? await processVideoForUpload(fileForUpload)
+          : await processImageForUpload(fileForUpload);
       } catch (procErr) {
         skippedErrors.push((procErr && procErr.message) || 'No se pudo procesar el archivo.');
         continue;
       }
 
       const { ok, res } = await uploadPreparedMediaToR2(prepared, (fraction) => {
-        const overall = Math.min(100, Math.max(4, Math.round(((i + fraction) / toUpload.length) * 100)));
+        const overall = Math.min(100, Math.max(4, Math.round(((i + fraction) / selected.length) * 100)));
         if (progressBarFill) progressBarFill.style.width = `${overall}%`;
-        if (progressText) progressText.textContent = `Subiendo ${idxLabel} · ${overall}%`;
+        if (progressText) progressText.textContent = `Publicando ${idxLabel} · ${overall}%`;
       });
 
       if (ok) {
         uploadedOk++;
+        // Quitar del caché en espera solo cuando se confirmó exitosamente en R2 y MySQL
+        const liveIdx = standbyItems.findIndex((x) => x.id === draftItem.id);
+        if (liveIdx !== -1) {
+          const [removed] = standbyItems.splice(liveIdx, 1);
+          revokeStandbyItemUrls(removed);
+        }
+        await removeStandbyRecordFromDB(draftItem.id);
+
         if (currentGuest) {
           if (res.guest_item_count !== undefined) currentGuest.item_count = res.guest_item_count;
           if (res.guest_video_count !== undefined) currentGuest.video_count = res.guest_video_count;
           updateQuotaUI();
         }
       } else {
-        skippedErrors.push((res && res.error) || 'Error al subir archivo');
+        skippedErrors.push((res && res.error) || 'Error al publicar archivo');
+        if (res && res.uploads_closed) {
+          break;
+        }
       }
     }
 
+    isPublishingStandby = false;
     if (uploadProgress) uploadProgress.style.display = 'none';
     if (progressBarFill) progressBarFill.style.width = '0%';
+
+    reconcileStandbySelectionWithQuota();
+    updateQuotaUI();
+    renderStandbyGrid();
 
     if (uploadedOk > 0) {
       showToast(
         uploadedOk === 1
-          ? '¡Tu recuerdo se compartió en el álbum!'
-          : `¡${uploadedOk} recuerdos compartidos en el álbum!`,
+          ? '¡Tu recuerdo se publicó en el álbum de la boda! Ya todos pueden verlo.'
+          : `¡${uploadedOk} recuerdos publicados en el álbum! Ya todos los invitados pueden verlos.`,
         'success',
-        uploadedOk === 1 ? 'Recuerdo compartido' : 'Recuerdos compartidos'
+        uploadedOk === 1 ? 'Recuerdo publicado' : 'Recuerdos publicados'
       );
       if (myUploadsGrid) loadMyUploads();
       if (galleryGrid) loadGallery(false);
     }
 
     if (skippedErrors.length > 0) {
-      showToast(skippedErrors[0], 'error', 'Algunos archivos no se subieron');
+      showToast(skippedErrors[0], 'error', 'Algunos archivos no se publicaron');
     }
   }
 
   // =====================================================================
-  // 10. GESTIÓN DE MIS FOTOS Y VIDEOS SUBIDOS (EN /camara)
+  // 10. GESTIÓN DE MIS FOTOS Y VIDEOS PUBLICADOS (EN /camara)
   // =====================================================================
   async function loadMyUploads() {
     if (!myUploadsGrid) return;
@@ -2202,6 +2928,7 @@
         headers: currentGuest.token ? { 'X-Guest-Token': currentGuest.token } : {}
       });
       const data = await res.json();
+      syncUploadDeadlineFromApi(data);
       if (data.success && Array.isArray(data.items)) {
         myMediaCache = data.items;
         if (data.guest_item_count !== undefined) {
@@ -2210,7 +2937,9 @@
         if (data.guest_video_count !== undefined) {
           currentGuest.video_count = data.guest_video_count;
         }
+        reconcileStandbySelectionWithQuota();
         updateQuotaUI();
+        renderStandbyGrid();
         renderMyUploads(myMediaCache);
       }
     } catch (e) {
@@ -2238,9 +2967,9 @@
       tile.innerHTML = `
         ${isVideo
           ? (item.thumb_url
-              ? `<img src="${escapeHtml(item.thumb_url)}" alt="Portada de video" loading="lazy" /><span class="my-upload-badge-vid">Video</span>`
-              : `<video src="${escapeHtml(item.url)}" muted playsinline preload="metadata"></video><span class="my-upload-badge-vid">Video</span>`)
-          : `<img src="${escapeHtml(thumbSrc)}" alt="Mi recuerdo" loading="lazy" />`
+              ? `<img src="${escapeHtml(item.thumb_url)}" alt="Portada de video" loading="lazy" decoding="async" /><span class="my-upload-badge-vid">Video</span>`
+              : `<video src="${escapeHtml(item.url)}" muted playsinline preload="none"></video><span class="my-upload-badge-vid">Video</span>`)
+          : `<img src="${escapeHtml(thumbSrc)}" alt="Mi recuerdo" loading="lazy" decoding="async" />`
         }
         <button type="button" class="my-upload-delete" title="Eliminar este recuerdo" aria-label="Eliminar recuerdo">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -2253,7 +2982,7 @@
           deleteMyMedia(item.id);
           return;
         }
-        openLightboxAtIndex(index, items);
+        openLightboxAtIndex(index, myMediaCache, 'myUploads');
       });
 
       myUploadsGrid.appendChild(tile);
@@ -2268,7 +2997,7 @@
   }
 
   // =====================================================================
-  // 11. GALERÍA DE ALTA GAMA CON ANIMACIONES EN CASCADA (/galeria)
+  // 11. GALERÍA DE ALTA GAMA CON PAGINACIÓN Y SCROLL INFINITO (/galeria)
   // =====================================================================
   function formatTimeAgo(dateString) {
     if (!dateString) return 'Recién subido';
@@ -2281,118 +3010,326 @@
     return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
   }
 
-  function getFilteredItems(filter, items) {
-    if (!items || !Array.isArray(items)) return [];
-    if (filter === 'my') {
-      return items.filter((item) => item.is_owner || (currentGuest && Number(item.guest_id) === Number(currentGuest.id)));
+  function ensureGalleryPaginationElements() {
+    if (!galleryGrid) return;
+    if (!galleryPaginationFooter) {
+      galleryPaginationFooter = document.createElement('div');
+      galleryPaginationFooter.id = 'galleryPaginationFooter';
+      galleryPaginationFooter.className = 'gallery-pagination-footer';
+      galleryPaginationFooter.style.display = 'none';
+      galleryPaginationFooter.innerHTML = `
+        <div id="galleryLoadMoreIndicator" class="gallery-load-more-indicator" style="display:none;" role="status" aria-live="polite">
+          <span class="gallery-spinner gallery-spinner-sm" aria-hidden="true"></span>
+          <span>Cargando más recuerdos...</span>
+        </div>
+        <button type="button" id="btnLoadMoreGallery" class="btn-gallery-action btn-gallery-load-more" style="display:none;">
+          Cargar más recuerdos
+        </button>
+        <div id="gallerySentinel" class="gallery-sentinel" aria-hidden="true"></div>
+      `;
+      galleryGrid.insertAdjacentElement('afterend', galleryPaginationFooter);
+      galleryLoadMoreIndicator = document.getElementById('galleryLoadMoreIndicator');
+      btnLoadMoreGallery = document.getElementById('btnLoadMoreGallery');
+      gallerySentinel = document.getElementById('gallerySentinel');
     }
-    if (filter === 'popular') {
-      return items
-        .filter((item) => Number(item.likes_count) > 0)
-        .sort((a, b) => Number(b.likes_count) - Number(a.likes_count));
-    }
-    return items;
   }
 
-  function renderGallery(items) {
-    if (!galleryGrid) return;
-    galleryGrid.innerHTML = '';
-    if (galleryLoadingState) galleryLoadingState.style.display = 'none';
+  function createGalleryTile(item, batchIndex) {
+    const tile = document.createElement('div');
+    tile.className = 'gallery-grid-item';
+    tile.dataset.mediaId = String(item.id);
+    tile.style.transitionDelay = `${Math.min(batchIndex * 35, 320)}ms`;
 
-    if (!items || items.length === 0) {
-      if (galleryEmpty) galleryEmpty.style.display = 'flex';
-      return;
-    }
-    if (galleryEmpty) galleryEmpty.style.display = 'none';
+    const isVideo = item.media_type === 'video';
+    const isOwner = item.is_owner || (currentGuest && Number(item.guest_id) === Number(currentGuest.id));
+    const thumbSrc = item.thumb_url || item.url;
 
-    items.forEach((item, index) => {
-      const tile = document.createElement('div');
-      tile.className = 'gallery-grid-item';
-      tile.style.transitionDelay = `${Math.min(index * 45, 420)}ms`;
-
-      const isVideo = item.media_type === 'video';
-      const isOwner = item.is_owner || (currentGuest && Number(item.guest_id) === Number(currentGuest.id));
-      const thumbSrc = item.thumb_url || item.url;
-
-      tile.innerHTML = `
-        <div class="gallery-item-aspect">
-          ${isVideo
-            ? `${item.thumb_url
-                ? `<img src="${escapeHtml(item.thumb_url)}" alt="Video de ${escapeHtml(item.guest_name)}" class="gallery-item-media" loading="lazy" />`
-                : `<video src="${escapeHtml(item.url)}" class="gallery-item-media" muted playsinline preload="metadata"></video>`}
-               <div class="gallery-video-indicator"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></div>`
-            : `<img src="${escapeHtml(thumbSrc)}" alt="Recuerdo de ${escapeHtml(item.guest_name)}" class="gallery-item-media" loading="lazy" />`
-          }
-          <div class="gallery-item-overlay">
-            <div class="gallery-overlay-top">
-              ${isOwner ? `<button type="button" class="gallery-owner-badge" title="Eliminar mi foto"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : ''}
-            </div>
-            <div class="gallery-overlay-bottom">
-              <span class="gallery-item-author">${escapeHtml(item.guest_name || 'Invitado')}</span>
-              <button type="button" class="gallery-item-like${item.has_liked ? ' liked' : ''}" title="Me gusta">
-                <span class="like-heart">${item.has_liked ? '♥' : '♡'}</span>
-                <span class="like-cnt">${item.likes_count || 0}</span>
-              </button>
-            </div>
+    tile.innerHTML = `
+      <div class="gallery-item-aspect">
+        ${isVideo
+          ? `${item.thumb_url
+              ? `<img src="${escapeHtml(item.thumb_url)}" alt="Video de ${escapeHtml(item.guest_name)}" class="gallery-item-media" loading="lazy" decoding="async" />`
+              : `<video src="${escapeHtml(item.url)}" class="gallery-item-media" muted playsinline preload="none"></video>`}
+             <div class="gallery-video-indicator"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></div>`
+          : `<img src="${escapeHtml(thumbSrc)}" alt="Recuerdo de ${escapeHtml(item.guest_name)}" class="gallery-item-media" loading="lazy" decoding="async" />`
+        }
+        <div class="gallery-item-overlay">
+          <div class="gallery-overlay-top">
+            ${isOwner ? `<button type="button" class="gallery-owner-badge" title="Eliminar mi foto"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>` : ''}
+          </div>
+          <div class="gallery-overlay-bottom">
+            <span class="gallery-item-author">${escapeHtml(item.guest_name || 'Invitado')}</span>
+            <button type="button" class="gallery-item-like${item.has_liked ? ' liked' : ''}" title="Me gusta">
+              <span class="like-heart">${item.has_liked ? '♥' : '♡'}</span>
+              <span class="like-cnt">${item.likes_count || 0}</span>
+            </button>
           </div>
         </div>
-      `;
+      </div>
+    `;
 
-      tile.addEventListener('click', (e) => {
-        const likeBtn = e.target.closest('.gallery-item-like');
-        if (likeBtn) {
-          e.stopPropagation();
-          toggleLike(item.id, likeBtn);
-          return;
-        }
-        const delBtn = e.target.closest('.gallery-owner-badge');
-        if (delBtn) {
-          e.stopPropagation();
-          deleteMyMedia(item.id);
-          return;
-        }
-        openLightboxAtIndex(index, items);
-      });
+    tile.addEventListener('click', (e) => {
+      const likeBtn = e.target.closest('.gallery-item-like');
+      if (likeBtn) {
+        e.stopPropagation();
+        toggleLike(item.id, likeBtn);
+        return;
+      }
+      const delBtn = e.target.closest('.gallery-owner-badge');
+      if (delBtn) {
+        e.stopPropagation();
+        deleteMyMedia(item.id);
+        return;
+      }
+      const liveIndex = allMediaCache.findIndex((entry) => Number(entry.id) === Number(item.id));
+      openLightboxAtIndex(liveIndex >= 0 ? liveIndex : 0, allMediaCache, 'gallery');
+    });
 
-      galleryGrid.appendChild(tile);
+    return tile;
+  }
+
+  function appendGalleryItems(items) {
+    if (!galleryGrid || !Array.isArray(items) || items.length === 0) return;
+
+    const fragment = document.createDocumentFragment();
+    const newTiles = [];
+
+    items.forEach((item, batchIndex) => {
+      const tile = createGalleryTile(item, batchIndex);
+      newTiles.push(tile);
+      fragment.appendChild(tile);
+    });
+
+    galleryGrid.appendChild(fragment);
+
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => tile.classList.add('visible'));
+        newTiles.forEach((tile) => tile.classList.add('visible'));
       });
     });
   }
 
-  async function loadGallery(silent = false) {
+  function syncGalleryTileLike(mediaId, hasLiked, likesCount) {
     if (!galleryGrid) return;
-    if (!silent && allMediaCache.length === 0 && galleryLoadingState) {
-      galleryLoadingState.style.display = 'flex';
+    const tile = galleryGrid.querySelector(`.gallery-grid-item[data-media-id="${String(mediaId)}"]`);
+    if (!tile) return;
+    const likeBtn = tile.querySelector('.gallery-item-like');
+    if (!likeBtn) return;
+    likeBtn.classList.toggle('liked', Boolean(hasLiked));
+    const heart = likeBtn.querySelector('.like-heart');
+    const cnt = likeBtn.querySelector('.like-cnt');
+    if (heart) heart.textContent = hasLiked ? '♥' : '♡';
+    if (cnt) cnt.textContent = String(likesCount);
+  }
+
+  function resetGalleryState() {
+    allMediaCache = [];
+    galleryLoadedItemIds.clear();
+    galleryCurrentPage = 0;
+    galleryTotal = 0;
+    galleryHasMore = false;
+    if (galleryGrid) galleryGrid.innerHTML = '';
+    if (galleryEmpty) galleryEmpty.style.display = 'none';
+    if (currentLightboxSource === 'gallery') {
+      currentLightboxItems = allMediaCache;
+    }
+  }
+
+  function updateGalleryPaginationUI(shouldObserve = true) {
+    if (!galleryGrid) return;
+    ensureGalleryPaginationElements();
+
+    const hasItems = allMediaCache.length > 0;
+    const showFooter = hasItems && (galleryHasMore || galleryIsLoading);
+    const showSpinner = hasItems && galleryIsLoading;
+    const showButton = hasItems && galleryHasMore && !galleryIsLoading;
+
+    if (galleryPaginationFooter) {
+      galleryPaginationFooter.style.display = showFooter ? 'flex' : 'none';
+    }
+    if (galleryLoadMoreIndicator) {
+      galleryLoadMoreIndicator.style.display = showSpinner ? 'inline-flex' : 'none';
+    }
+    if (btnLoadMoreGallery) {
+      btnLoadMoreGallery.style.display = showButton ? 'inline-flex' : 'none';
+      btnLoadMoreGallery.disabled = galleryIsLoading;
     }
 
-    try {
-      const token = currentGuest ? currentGuest.token : (localStorage.getItem('mr_guest_token') || '');
-      const res = await fetch('/api/media?filter=all&limit=80', {
-        headers: token ? { 'X-Guest-Token': token } : {}
-      });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.items)) {
-        allMediaCache = data.items;
-        renderGallery(getFilteredItems(currentFilter, allMediaCache));
-        if (currentGuest) {
-          if (data.guest_item_count !== undefined) currentGuest.item_count = data.guest_item_count;
-          if (data.guest_video_count !== undefined) currentGuest.video_count = data.guest_video_count;
-          updateQuotaUI();
+    if (galleryObserver && gallerySentinel) {
+      if (shouldObserve && galleryHasMore && !galleryIsLoading) {
+        galleryObserver.observe(gallerySentinel);
+      } else {
+        galleryObserver.unobserve(gallerySentinel);
+      }
+    }
+  }
+
+  async function fetchGalleryPage(page = 1, options = {}) {
+    if (!galleryGrid) return false;
+    ensureGalleryPaginationElements();
+
+    const reset = Boolean(options.reset);
+    const silent = Boolean(options.silent);
+
+    if (!reset) {
+      if (galleryIsLoading) {
+        return galleryActiveLoadPromise || false;
+      }
+      if (!galleryHasMore) return false;
+    }
+
+    const reqVersion = reset ? ++galleryRequestVersion : galleryRequestVersion;
+    const token = currentGuest ? currentGuest.token : (localStorage.getItem('mr_guest_token') || '');
+
+    if (reset) {
+      resetGalleryState();
+      galleryLastGuestToken = token;
+      if (!silent && galleryLoadingState) {
+        galleryLoadingState.style.display = 'flex';
+      }
+    }
+
+    galleryIsLoading = true;
+    updateGalleryPaginationUI(false);
+
+    const loadPromise = (async () => {
+      let loadedOk = false;
+      try {
+        const params = new URLSearchParams({
+          filter: currentFilter,
+          page: String(page),
+          limit: String(GALLERY_PAGE_SIZE)
+        });
+        const res = await fetch(`/api/media?${params.toString()}`, {
+          headers: token ? { 'X-Guest-Token': token } : {}
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        syncUploadDeadlineFromApi(data);
+
+        // Ignorar respuestas obsoletas si el usuario cambió de pestaña o refrescó
+        if (reqVersion !== galleryRequestVersion) {
+          return false;
+        }
+
+        if (data.success && Array.isArray(data.items)) {
+          const uniqueNewItems = [];
+          data.items.forEach((item) => {
+            const idKey = Number(item.id);
+            if (!galleryLoadedItemIds.has(idKey)) {
+              galleryLoadedItemIds.add(idKey);
+              allMediaCache.push(item);
+              uniqueNewItems.push(item);
+            }
+          });
+
+          galleryCurrentPage = Number(data.page || page);
+          galleryTotal = Number(data.total !== undefined ? data.total : allMediaCache.length);
+          galleryHasMore = Boolean(data.has_more);
+
+          if (galleryLoadingState) galleryLoadingState.style.display = 'none';
+
+          if (uniqueNewItems.length > 0) {
+            if (galleryEmpty) galleryEmpty.style.display = 'none';
+            appendGalleryItems(uniqueNewItems);
+          } else if (allMediaCache.length === 0) {
+            if (galleryEmpty) galleryEmpty.style.display = 'flex';
+          }
+
+          if (currentLightboxSource === 'gallery') {
+            currentLightboxItems = allMediaCache;
+            syncOpenLightboxChrome();
+          }
+
+          if (currentGuest) {
+            if (data.guest_item_count !== undefined) currentGuest.item_count = data.guest_item_count;
+            if (data.guest_video_count !== undefined) currentGuest.video_count = data.guest_video_count;
+            updateQuotaUI();
+          }
+
+          loadedOk = true;
+        }
+      } catch (e) {
+        if (reqVersion === galleryRequestVersion) {
+          if (galleryLoadingState) galleryLoadingState.style.display = 'none';
+          if (reset && allMediaCache.length === 0 && galleryEmpty) {
+            galleryEmpty.style.display = 'flex';
+          } else if (!reset) {
+            showToast('No se pudieron cargar más recuerdos. Toca "Cargar más recuerdos" para reintentar.', 'error', 'Error de conexión');
+          }
+        }
+      } finally {
+        if (reqVersion === galleryRequestVersion) {
+          galleryIsLoading = false;
+          galleryActiveLoadPromise = null;
+          updateGalleryPaginationUI(loadedOk);
+
+          // Re-evaluar intersección tras renderizar (útil en pantallas muy altas)
+          if (loadedOk && galleryHasMore && galleryObserver && gallerySentinel) {
+            requestAnimationFrame(() => {
+              if (reqVersion === galleryRequestVersion && galleryHasMore && !galleryIsLoading && galleryObserver && gallerySentinel) {
+                galleryObserver.unobserve(gallerySentinel);
+                galleryObserver.observe(gallerySentinel);
+              }
+            });
+          }
         }
       }
-    } catch (e) {
-      if (galleryLoadingState) galleryLoadingState.style.display = 'none';
+      return loadedOk;
+    })();
+
+    galleryActiveLoadPromise = loadPromise;
+    return loadPromise;
+  }
+
+  function loadGallery(silent = false) {
+    return fetchGalleryPage(1, { reset: true, silent });
+  }
+
+  function loadNextGalleryPage() {
+    if (!galleryHasMore || galleryIsLoading) return Promise.resolve(false);
+    return fetchGalleryPage(galleryCurrentPage + 1, { reset: false, silent: true });
+  }
+
+  function initGalleryInfiniteScroll() {
+    if (!galleryGrid) return;
+    ensureGalleryPaginationElements();
+
+    if (btnLoadMoreGallery) {
+      btnLoadMoreGallery.addEventListener('click', () => {
+        loadNextGalleryPage();
+      });
+    }
+
+    if ('IntersectionObserver' in window && gallerySentinel) {
+      galleryObserver = new IntersectionObserver(
+        (entries) => {
+          for (let i = 0; i < entries.length; i++) {
+            if (entries[i].isIntersecting && galleryHasMore && !galleryIsLoading) {
+              loadNextGalleryPage();
+              break;
+            }
+          }
+        },
+        {
+          root: null,
+          rootMargin: '250px 0px',
+          threshold: 0.01
+        }
+      );
     }
   }
 
   galleryTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
+      const nextFilter = tab.dataset.filter || 'all';
+      if (nextFilter === currentFilter) return;
       galleryTabs.forEach((t) => t.classList.remove('active'));
       tab.classList.add('active');
-      currentFilter = tab.dataset.filter || 'all';
-      renderGallery(getFilteredItems(currentFilter, allMediaCache));
+      currentFilter = nextFilter;
+      loadGallery(false);
     });
   });
 
@@ -2429,8 +3366,9 @@
       if (cnt) cnt.textContent = newCount;
     }
 
-    if (btnElement === lightboxLikeBtn && galleryGrid) {
-      renderGallery(getFilteredItems(currentFilter, allMediaCache));
+    // Actualizar solo el mosaico afectado sin re-renderizar toda la cuadrícula
+    if (galleryGrid) {
+      syncGalleryTileLike(mediaId, newHasLiked, newCount);
     }
 
     try {
@@ -2447,6 +3385,14 @@
       if (data.success && target) {
         target.has_liked = data.has_liked;
         target.likes_count = data.likes_count;
+        if (galleryGrid) {
+          syncGalleryTileLike(mediaId, data.has_liked, data.likes_count);
+        }
+        const activeLightboxItem = currentLightboxItems[currentLightboxIndex];
+        if (lightbox && lightbox.classList.contains('active') && activeLightboxItem && Number(activeLightboxItem.id) === Number(mediaId)) {
+          if (lightboxLikeBtn) lightboxLikeBtn.classList.toggle('liked', Boolean(data.has_liked));
+          if (lightboxLikeCount) lightboxLikeCount.textContent = String(data.likes_count);
+        }
       }
     } catch (e) {}
   }
@@ -2465,9 +3411,31 @@
                        myMediaCache.find((i) => Number(i.id) === Number(mediaId));
     const wasVideo = Boolean(targetItem && targetItem.media_type === 'video');
 
-    allMediaCache = allMediaCache.filter((i) => Number(i.id) !== Number(mediaId));
+    const galleryIdx = allMediaCache.findIndex((i) => Number(i.id) === Number(mediaId));
+    if (galleryIdx >= 0) {
+      allMediaCache.splice(galleryIdx, 1);
+      galleryLoadedItemIds.delete(Number(mediaId));
+      galleryTotal = Math.max(0, galleryTotal - 1);
+    }
     myMediaCache = myMediaCache.filter((i) => Number(i.id) !== Number(mediaId));
-    if (galleryGrid) renderGallery(getFilteredItems(currentFilter, allMediaCache));
+
+    // Eliminar solo el nodo afectado sin re-renderizar toda la cuadrícula
+    if (galleryGrid) {
+      const tileToRemove = galleryGrid.querySelector(`.gallery-grid-item[data-media-id="${String(mediaId)}"]`);
+      if (tileToRemove) tileToRemove.remove();
+      if (allMediaCache.length === 0) {
+        if (galleryHasMore) {
+          loadNextGalleryPage();
+        } else {
+          if (galleryEmpty) galleryEmpty.style.display = 'flex';
+          updateGalleryPaginationUI(false);
+        }
+      }
+      if (currentLightboxSource === 'gallery') {
+        currentLightboxItems = allMediaCache;
+        syncOpenLightboxChrome();
+      }
+    }
     if (myUploadsGrid) renderMyUploads(myMediaCache);
 
     try {
@@ -2490,7 +3458,9 @@
           currentGuest.video_count = data.guest_video_count !== undefined
             ? data.guest_video_count
             : Math.max(0, getUploadedVideoCount() - (wasVideo ? 1 : 0));
+          reconcileStandbySelectionWithQuota();
           updateQuotaUI();
+          if (standbyGrid) renderStandbyGrid();
         }
         if (myUploadsGrid) loadMyUploads();
       } else {
@@ -2523,9 +3493,44 @@
     lightboxHeartBurst.classList.add('is-bursting');
   }
 
-  function openLightboxAtIndex(index, itemsList) {
+  function resetLightboxVideoElement() {
+    if (!lightboxVideo) return;
+    lightboxVideo.pause();
+    lightboxVideo.preload = 'none';
+    lightboxVideo.poster = '';
+    lightboxVideo.removeAttribute('src');
+    lightboxVideo.load();
+  }
+
+  function syncOpenLightboxChrome() {
+    if (!lightbox || !lightbox.classList.contains('active')) return;
+    const totalLoaded = currentLightboxItems.length;
+    if (totalLoaded === 0) return;
+
+    if (currentLightboxIndex >= totalLoaded) {
+      currentLightboxIndex = totalLoaded - 1;
+    }
+
+    const canNavigate = totalLoaded > 1 || (currentLightboxSource === 'gallery' && galleryHasMore);
+    if (lightboxCounter) {
+      lightboxCounter.textContent = `${currentLightboxIndex + 1} / ${totalLoaded}`;
+      lightboxCounter.style.display = canNavigate ? 'inline-flex' : 'none';
+    }
+    if (lightboxPrev) lightboxPrev.style.display = canNavigate ? 'flex' : 'none';
+    if (lightboxNext) lightboxNext.style.display = canNavigate ? 'flex' : 'none';
+  }
+
+  function openLightboxAtIndex(index, itemsList, source = null) {
     if (!lightbox || !itemsList || itemsList.length === 0) return;
     currentLightboxItems = itemsList;
+    if (source !== null) {
+      currentLightboxSource = source;
+    } else if (itemsList === allMediaCache) {
+      currentLightboxSource = 'gallery';
+    } else if (itemsList === myMediaCache) {
+      currentLightboxSource = 'myUploads';
+    }
+
     if (index < 0) index = itemsList.length - 1;
     if (index >= itemsList.length) index = 0;
     currentLightboxIndex = index;
@@ -2533,88 +3538,155 @@
     const item = currentLightboxItems[currentLightboxIndex];
     if (!item) return;
 
-    const isVideo = item.media_type === 'video';
+    const isStandby = currentLightboxSource === 'standby';
+    const isVideo = isStandby ? item.type === 'video' : item.media_type === 'video';
+    const mediaUrl = isStandby
+      ? (item.fullUrl || (item.fullUrl = URL.createObjectURL(item.file)))
+      : item.url;
+    const posterUrl = isStandby ? (item.thumbUrl || '') : (item.thumb_url || '');
+
     if (isVideo) {
-      if (lightboxImg) lightboxImg.style.display = 'none';
-      if (lightboxVideo) {
-        lightboxVideo.style.display = 'block';
-        lightboxVideo.poster = item.thumb_url || '';
-        lightboxVideo.src = item.url;
-        lightboxVideo.play().catch(() => {});
+      if (lightboxImg) {
+        lightboxImg.style.display = 'none';
+        lightboxImg.removeAttribute('src');
       }
-    } else {
       if (lightboxVideo) {
         lightboxVideo.pause();
-        lightboxVideo.style.display = 'none';
-        lightboxVideo.poster = '';
-        lightboxVideo.src = '';
+        lightboxVideo.preload = isStandby ? 'metadata' : 'none';
+        lightboxVideo.poster = posterUrl;
+        lightboxVideo.src = mediaUrl;
+        lightboxVideo.style.display = 'block';
       }
+    } else {
+      resetLightboxVideoElement();
+      if (lightboxVideo) lightboxVideo.style.display = 'none';
       if (lightboxImg) {
         lightboxImg.style.display = 'block';
-        lightboxImg.src = item.url;
+        lightboxImg.src = mediaUrl;
       }
     }
 
-    const authorName = item.guest_name || 'Invitado';
-    if (lightboxAvatar) lightboxAvatar.textContent = getAuthorInitials(authorName);
-    if (lightboxAuthor) lightboxAuthor.textContent = authorName;
-    if (lightboxTime) lightboxTime.textContent = formatTimeAgo(item.created_at);
-    if (lightboxCounter) {
-      lightboxCounter.textContent = `${currentLightboxIndex + 1} / ${currentLightboxItems.length}`;
-      lightboxCounter.style.display = currentLightboxItems.length > 1 ? 'inline-flex' : 'none';
+    if (isStandby) {
+      if (lightboxAvatar) lightboxAvatar.textContent = '✦';
+      if (lightboxAuthor) {
+        lightboxAuthor.textContent = item.selected ? 'Seleccionado para publicar' : 'En espera (sin publicar)';
+      }
+      if (lightboxTime) lightboxTime.textContent = 'Guardado en tu dispositivo';
+      if (lightboxLikeBtn) lightboxLikeBtn.style.display = 'none';
+      if (lightboxLikesWrap) lightboxLikesWrap.style.display = 'none';
+      if (lightboxStandbySelectBtn) {
+        lightboxStandbySelectBtn.style.display = 'inline-flex';
+        lightboxStandbySelectBtn.classList.toggle('is-selected', Boolean(item.selected));
+      }
+      if (lightboxStandbySelectLabel) {
+        lightboxStandbySelectLabel.textContent = item.selected ? 'Seleccionado' : 'Seleccionar para publicar';
+      }
+      if (lightboxDeleteBtn) lightboxDeleteBtn.style.display = 'inline-flex';
+    } else {
+      const authorName = item.guest_name || 'Invitado';
+      if (lightboxAvatar) lightboxAvatar.textContent = getAuthorInitials(authorName);
+      if (lightboxAuthor) lightboxAuthor.textContent = authorName;
+      if (lightboxTime) lightboxTime.textContent = formatTimeAgo(item.created_at);
+      if (lightboxLikeCount) lightboxLikeCount.textContent = item.likes_count || 0;
+      if (lightboxLikesLabel) lightboxLikesLabel.textContent = 'me gusta';
+      if (lightboxLikeBtn) {
+        lightboxLikeBtn.style.display = 'inline-flex';
+        lightboxLikeBtn.classList.toggle('liked', Boolean(item.has_liked));
+      }
+      if (lightboxLikesWrap) lightboxLikesWrap.style.display = 'flex';
+      if (lightboxStandbySelectBtn) lightboxStandbySelectBtn.style.display = 'none';
+      if (lightboxDeleteBtn) {
+        const isOwner = item.is_owner || (currentGuest && Number(item.guest_id) === Number(currentGuest.id));
+        lightboxDeleteBtn.style.display = isOwner ? 'inline-flex' : 'none';
+      }
     }
-    if (lightboxLikeCount) lightboxLikeCount.textContent = item.likes_count || 0;
-    if (lightboxLikesLabel) lightboxLikesLabel.textContent = 'me gusta';
-    if (lightboxLikeBtn) {
-      lightboxLikeBtn.classList.toggle('liked', Boolean(item.has_liked));
-    }
+
     if (lightboxDownloadBtn) {
-      lightboxDownloadBtn.href = item.url;
+      lightboxDownloadBtn.href = mediaUrl;
       const fallbackName = isVideo ? 'recuerdo_boda.mp4' : 'recuerdo_boda.webp';
-      lightboxDownloadBtn.setAttribute('download', item.original_name || fallbackName);
-      lightboxDownloadBtn.dataset.downloadUrl = item.url;
-      lightboxDownloadBtn.dataset.downloadName = item.original_name || fallbackName;
+      const downloadName = isStandby ? (item.name || fallbackName) : (item.original_name || fallbackName);
+      lightboxDownloadBtn.setAttribute('download', downloadName);
+      lightboxDownloadBtn.dataset.downloadUrl = mediaUrl;
+      lightboxDownloadBtn.dataset.downloadName = downloadName;
     }
-    if (lightboxDeleteBtn) {
-      const isOwner = item.is_owner || (currentGuest && Number(item.guest_id) === Number(currentGuest.id));
-      lightboxDeleteBtn.style.display = isOwner ? 'inline-flex' : 'none';
-    }
-    if (lightboxPrev) lightboxPrev.style.display = currentLightboxItems.length > 1 ? 'flex' : 'none';
-    if (lightboxNext) lightboxNext.style.display = currentLightboxItems.length > 1 ? 'flex' : 'none';
 
     lightbox.classList.add('active');
+    syncOpenLightboxChrome();
     document.body.style.overflow = 'hidden';
     updateLandscapeAllowance();
+  }
+
+  async function navigateLightbox(step) {
+    if (!lightbox || !lightbox.classList.contains('active')) return;
+    if (!currentLightboxItems || currentLightboxItems.length === 0) return;
+
+    const nextIndex = currentLightboxIndex + step;
+    if (
+      step > 0 &&
+      nextIndex >= currentLightboxItems.length &&
+      currentLightboxSource === 'gallery' &&
+      galleryHasMore
+    ) {
+      const prevLength = currentLightboxItems.length;
+      await loadNextGalleryPage();
+      currentLightboxItems = allMediaCache;
+      if (currentLightboxItems.length > prevLength) {
+        openLightboxAtIndex(prevLength, currentLightboxItems, 'gallery');
+        return;
+      }
+    }
+
+    openLightboxAtIndex(nextIndex, currentLightboxItems, currentLightboxSource);
   }
 
   function closeLightbox() {
     if (!lightbox) return;
     lightbox.classList.remove('active');
+    currentLightboxSource = null;
     document.body.style.overflow = '';
-    if (lightboxVideo) {
-      lightboxVideo.pause();
-      lightboxVideo.src = '';
-    }
-    if (lightboxImg) lightboxImg.src = '';
+    resetLightboxVideoElement();
+    if (lightboxVideo) lightboxVideo.style.display = 'none';
+    if (lightboxImg) lightboxImg.removeAttribute('src');
     updateLandscapeAllowance();
   }
 
   if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
-  if (lightboxPrev) lightboxPrev.addEventListener('click', () => openLightboxAtIndex(currentLightboxIndex - 1, currentLightboxItems));
-  if (lightboxNext) lightboxNext.addEventListener('click', () => openLightboxAtIndex(currentLightboxIndex + 1, currentLightboxItems));
+  if (lightboxPrev) lightboxPrev.addEventListener('click', () => navigateLightbox(-1));
+  if (lightboxNext) lightboxNext.addEventListener('click', () => navigateLightbox(1));
 
   if (lightboxLikeBtn) {
     lightboxLikeBtn.addEventListener('click', () => {
+      if (currentLightboxSource === 'standby') return;
       const item = currentLightboxItems[currentLightboxIndex];
       if (item) toggleLike(item.id, lightboxLikeBtn);
     });
   }
-  if (lightboxDeleteBtn) {
-    lightboxDeleteBtn.addEventListener('click', () => {
+  if (lightboxStandbySelectBtn) {
+    lightboxStandbySelectBtn.addEventListener('click', () => {
+      if (currentLightboxSource !== 'standby') return;
       const item = currentLightboxItems[currentLightboxIndex];
       if (!item) return;
+      toggleStandbySelection(item.id);
+      lightboxStandbySelectBtn.classList.toggle('is-selected', Boolean(item.selected));
+      if (lightboxStandbySelectLabel) {
+        lightboxStandbySelectLabel.textContent = item.selected ? 'Seleccionado' : 'Seleccionar para publicar';
+      }
+      if (lightboxAuthor) {
+        lightboxAuthor.textContent = item.selected ? 'Seleccionado para publicar' : 'En espera (sin publicar)';
+      }
+    });
+  }
+  if (lightboxDeleteBtn) {
+    lightboxDeleteBtn.addEventListener('click', async () => {
+      const item = currentLightboxItems[currentLightboxIndex];
+      if (!item) return;
+      const source = currentLightboxSource;
       closeLightbox();
-      deleteMyMedia(item.id);
+      if (source === 'standby') {
+        await deleteStandbyItem(item.id);
+      } else {
+        deleteMyMedia(item.id);
+      }
     });
   }
 
@@ -2649,6 +3721,7 @@
   if (lightboxImg) {
     let lastTapAt = 0;
     const handleDoubleLike = () => {
+      if (currentLightboxSource === 'standby') return;
       const item = currentLightboxItems[currentLightboxIndex];
       if (!item) return;
       triggerLightboxHeartBurst();
@@ -2680,9 +3753,10 @@
     }, { passive: true });
     lightbox.addEventListener('touchend', (e) => {
       const dx = e.changedTouches[0].screenX - touchStartX;
-      if (Math.abs(dx) > 50 && currentLightboxItems.length > 1) {
-        if (dx > 0) openLightboxAtIndex(currentLightboxIndex - 1, currentLightboxItems);
-        else openLightboxAtIndex(currentLightboxIndex + 1, currentLightboxItems);
+      const canNav = currentLightboxItems.length > 1 || (currentLightboxSource === 'gallery' && galleryHasMore);
+      if (Math.abs(dx) > 50 && canNav) {
+        if (dx > 0) navigateLightbox(-1);
+        else navigateLightbox(1);
       }
     }, { passive: true });
   }
@@ -2696,8 +3770,8 @@
       closeSignatureModal();
     }
     if (lightbox && lightbox.classList.contains('active')) {
-      if (e.key === 'ArrowLeft') openLightboxAtIndex(currentLightboxIndex - 1, currentLightboxItems);
-      if (e.key === 'ArrowRight') openLightboxAtIndex(currentLightboxIndex + 1, currentLightboxItems);
+      if (e.key === 'ArrowLeft') navigateLightbox(-1);
+      if (e.key === 'ArrowRight') navigateLightbox(1);
       return;
     }
     if (bookReadView && bookReadView.classList.contains('is-active') && !(bookSigModal && bookSigModal.classList.contains('is-open'))) {
@@ -2954,7 +4028,7 @@
         startPage: startIndex,
         drawShadow: true,
         maxShadowOpacity: 0.42,
-        flippingTime: 460,
+        flippingTime: 500,
         showPageCorners: false,
         swipeDistance: 999999,
         mobileScrollSupport: false,
@@ -2991,10 +4065,18 @@
         }
 
         if (typeof fc.fold === 'function') {
-          const origFold = fc.fold.bind(fc);
           fc.fold = function (point) {
             if (isFlipBusy()) return;
-            return origFold(point);
+            if (this.calc === null) {
+              // Evitar bug de StPageFlip: si start() falla (ej. última hoja hacia adelante
+              // o primera hoja hacia atrás), nunca dejar el estado atascado en 'user_fold'.
+              if (!this.start(point)) {
+                if (this.getState() !== 'read') this.setState('read');
+                return;
+              }
+            }
+            this.setState('user_fold');
+            this.do(this.render.convertToPage(point));
           };
         }
 
@@ -3036,7 +4118,12 @@
 
         if (typeof fc.stopMove === 'function') {
           fc.stopMove = function () {
-            if (this.calc === null) return;
+            if (this.calc === null) {
+              if (this.getState() === 'user_fold') {
+                this.setState('read');
+              }
+              return;
+            }
             if (this.getState() !== 'user_fold' || isFlipBusy()) return;
 
             const pos = this.calc.getPosition();
@@ -3051,10 +4138,10 @@
             let shouldFlip = false;
             if (isPortrait) {
               if (dir === 0) {
-                // Basta desplazar ~20% de la pantalla o 30px hacia la izquierda
-                shouldFlip = pos.x <= rect.pageWidth * 0.80 || dragDx <= -30;
+                // Solo avanzar si arrastró al menos 28px a la izquierda (o sin dragDx conocido, cruzó >55% de la hoja)
+                shouldFlip = dragDx <= -28 || (dragDx === 0 && pos.x <= rect.pageWidth * 0.45);
               } else {
-                // Regresar hoja: basta desplazar ~28px hacia la derecha o cruzar 14%
+                // Solo regresar si arrastró al menos 28px a la derecha (o sin dragDx conocido, cruzó 14%)
                 shouldFlip = dragDx >= 28 || (dragDx === 0 && pos.x <= -rect.pageWidth * 0.14);
               }
             } else {
@@ -3069,7 +4156,7 @@
               return;
             }
 
-            // Si el dedo empezó en zona contraria (ej. centro-derecha) pero deslizó claramente en la dirección opuesta,
+            // Si el dedo empezó en zona contraria pero deslizó claramente en la dirección opuesta,
             // cancelar el micro-doblez y voltear exactamente 1 hoja en la dirección real del dedo.
             const wantPrevInstead = isPortrait && dir === 0 && dragDx >= 34 && currentBookPage > 1;
             const wantNextInstead = isPortrait && dir === 1 && dragDx <= -34 && currentBookPage < totalPages;
@@ -3106,7 +4193,7 @@
         };
 
         const isBusyForInput = () => {
-          if (bookIsFlipping) return true;
+          if (bookIsFlipping || (performance.now() - lastFlipEndTs < BOOK_FLIP_SETTLE_MS)) return true;
           if (!fc) return false;
           const st = typeof fc.getState === 'function' ? fc.getState() : 'read';
           return st !== 'read' || Boolean(fc.render && fc.render.animation !== null);
@@ -3171,11 +4258,20 @@
 
           const pos = ui.getMousePos(touch.clientX, touch.clientY);
           if (ui.touchPoint !== null && !ui.app.isUserTouch) {
-            const movedX = Math.abs(pos.x - ui.touchPoint.point.x);
+            const dxMove = pos.x - ui.touchPoint.point.x;
+            const dyMove = Math.abs(pos.y - ui.touchPoint.point.y);
             const elapsedMs = Date.now() - ui.touchPoint.time;
-            if (movedX > 10 && elapsedMs >= 45 && !isBusyForInput()) {
+            if (Math.abs(dxMove) > 10 && Math.abs(dxMove) > dyMove && elapsedMs >= 55 && !isBusyForInput()) {
               clearTouchTimer();
-              ui.app.startUserTouch(ui.touchPoint.point);
+              if (dxMove < 0 && currentBookPage < totalPages) {
+                const startPt = { x: Math.max(pos.x, hostW * 0.72), y: ui.touchPoint.point.y };
+                if (fc && fc.calc === null && typeof fc.start === 'function') fc.start(startPt);
+                ui.app.startUserTouch(ui.touchPoint.point);
+              } else if (dxMove > 0 && currentBookPage > 1) {
+                const startPt = { x: 10, y: ui.touchPoint.point.y };
+                if (fc && fc.calc === null && typeof fc.start === 'function') fc.start(startPt);
+                ui.app.startUserTouch(ui.touchPoint.point);
+              }
             }
           }
           if (ui.app.isUserTouch) {
@@ -3229,7 +4325,9 @@
       }
 
       bookPageFlipInstance.on('flip', (e) => {
-        lastFlipCommitTs = performance.now();
+        const now = performance.now();
+        lastFlipCommitTs = now;
+        lastFlipEndTs = now;
         const nextIndex = Number(e && e.data !== undefined ? e.data : 0);
         currentBookPage = Math.min(Math.max(1, nextIndex + 1), totalPages);
         updateBookChrome();
@@ -3257,24 +4355,36 @@
     return state !== 'read' || Boolean(fc.render && fc.render.animation !== null);
   }
 
+  function isBookFlipLocked() {
+    return isBookFlipBusy() || (performance.now() - lastFlipEndTs < BOOK_FLIP_SETTLE_MS);
+  }
+
   function triggerBookFlip(dir, corner = 'bottom') {
     const totalPages = getTotalBookPages();
     if (totalPages <= 1) return false;
 
     if (bookPageFlipInstance) {
-      // Bloquear si ya hay una hoja girando o regresando a su sitio (1 hoja por gesto)
-      if (isBookFlipBusy()) return false;
+      // Bloquear si ya hay una hoja girando o recién aterrizando (1 hoja por gesto)
+      if (isBookFlipLocked()) return false;
       try {
         if (dir === 'next' && currentBookPage < totalPages) {
           lastFlipCommitTs = performance.now();
           bookIsFlipping = true;
           bookPageFlipInstance.flipNext(corner);
+          if (!isBookFlipBusy()) {
+            bookIsFlipping = false;
+            return false;
+          }
           return true;
         }
         if (dir === 'prev' && currentBookPage > 1) {
           lastFlipCommitTs = performance.now();
           bookIsFlipping = true;
           bookPageFlipInstance.flipPrev(corner);
+          if (!isBookFlipBusy()) {
+            bookIsFlipping = false;
+            return false;
+          }
           return true;
         }
         return false;
@@ -3306,6 +4416,7 @@
     let pageAtStart = 1;
     let tapEntryId = null;
     let startedOnCornerBtn = false;
+    let swipeLockedAtStart = false;
     let lastSwipeHandledTs = 0;
     let hostRect = null;
 
@@ -3315,7 +4426,7 @@
       if (!navBtn || navBtn.disabled) return;
       e.stopPropagation();
       if (performance.now() - lastSwipeHandledTs < 280) return;
-      if (isBookFlipBusy()) return;
+      if (isBookFlipLocked()) return;
       const dir = navBtn.dataset.bookDir;
       if (dir === 'prev' || dir === 'next') {
         triggerBookFlip(dir, 'bottom');
@@ -3334,6 +4445,7 @@
       pointerId = null;
       tapEntryId = null;
       startedOnCornerBtn = false;
+      swipeLockedAtStart = false;
       bookLastDragDx = 0;
       if (bookPageFlipInstance && bookPageFlipInstance.isUserTouch) {
         bookPageFlipInstance.userStop({ x: 0, y: 0 }, true);
@@ -3356,6 +4468,7 @@
       hostRect = bookFlipHostWrap.getBoundingClientRect();
 
       startedOnCornerBtn = Boolean(e.target && e.target.closest && e.target.closest('.book-paper-corner-btn'));
+      swipeLockedAtStart = isBookFlipLocked();
       const entryEl = e.target && e.target.closest ? e.target.closest('.book-signature-entry') : null;
       tapEntryId = entryEl ? entryEl.dataset.entryId : null;
     }, true);
@@ -3383,12 +4496,14 @@
       const capturedPageAtStart = pageAtStart;
       const capturedTapEntryId = tapEntryId;
       const capturedStartedOnCornerBtn = startedOnCornerBtn;
+      const capturedSwipeLockedAtStart = swipeLockedAtStart;
 
       tapEntryId = null;
       startedOnCornerBtn = false;
+      swipeLockedAtStart = false;
 
       const commitSingleFlipIfStillIdle = (dir) => {
-        if (isBookFlipBusy()) return;
+        if (capturedSwipeLockedAtStart || isBookFlipLocked()) return;
         if (lastFlipCommitTs >= capturedStartTime || currentBookPage !== capturedPageAtStart) {
           return;
         }
@@ -3438,6 +4553,7 @@
       pointerId = null;
       tapEntryId = null;
       startedOnCornerBtn = false;
+      swipeLockedAtStart = false;
       bookLastDragDx = 0;
     }, { passive: true });
   }
@@ -3643,8 +4759,11 @@
   initFallingPetals();
   initGuestbookChips();
   initBookSignatureTap();
+  initGalleryInfiniteScroll();
+  applyUploadClosedUI();
   checkGuestSession();
 
+  if (standbyGrid) loadStandbyFromCache();
   if (galleryGrid) loadGallery(false);
   if (bookFlipHostWrap) loadGuestbook();
 })();

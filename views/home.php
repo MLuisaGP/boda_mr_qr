@@ -4,13 +4,17 @@ $pageDesc = 'Celebra con nosotros la boda de Michelle y René. Comparte tus foto
 $themeColor = '#171E14';
 $activePage = 'home';
 $homeFloatingMenu = true;
+$uploadsClosed = !empty($uploadsClosed);
+$uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00');
 ?>
 <!DOCTYPE html>
 <html lang="es-MX" class="home-no-scroll">
 <head>
 <?php require __DIR__ . '/partials/pwa_head.php'; ?>
 </head>
-<body class="page-home app-page-enter">
+<body class="page-home app-page-enter<?= $uploadsClosed ? ' is-uploads-closed' : '' ?>"
+      data-uploads-closed="<?= $uploadsClosed ? '1' : '0' ?>"
+      data-upload-deadline="<?= htmlspecialchars($uploadDeadlineIso, ENT_QUOTES, 'UTF-8') ?>">
 
   <!-- PRELOADER ELEGANTE (SOLO PRIMERA ENTRADA DE LA SESIÓN) -->
   <div id="interactive-preloader" aria-label="Cargando experiencia de boda" style="display:none;">
@@ -105,12 +109,14 @@ $homeFloatingMenu = true;
 
         <!-- 3 BOTONES PRINCIPALES SOBRE LA IMAGEN -->
         <div class="hero-action-buttons">
-          <a href="/camara" class="hero-btn hero-btn-moments app-nav-link">
+          <?php if (!$uploadsClosed): ?>
+          <a href="/camara" class="hero-btn hero-btn-moments app-nav-link" data-upload-cta="1">
             <span class="hero-btn-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
             </span>
             <span>Comparte tus momentos</span>
           </a>
+          <?php endif; ?>
 
           <div class="hero-btn-secondary-row">
             <a href="/firmas" class="hero-btn hero-btn-glass app-nav-link">
@@ -134,6 +140,6 @@ $homeFloatingMenu = true;
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=19"></script>
+  <script src="/assets/js/app.js?v=22"></script>
 </body>
 </html>

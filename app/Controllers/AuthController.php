@@ -10,6 +10,7 @@ namespace App\Controllers;
 use App\Helpers\Response;
 use App\Helpers\AuthHelper;
 use App\Models\Guest;
+use App\Models\Media;
 use App\Models\User;
 
 class AuthController extends Controller {
@@ -39,6 +40,7 @@ class AuthController extends Controller {
 
         $itemCount = Guest::getItemCount((int) $guest['id']);
         $videoCount = Guest::getVideoCount((int) $guest['id']);
+        $deadlineInfo = Media::getUploadDeadlineInfo();
 
         Response::success('¡Bienvenido a la boda de Michelle & René!', [
             'guest' => [
@@ -49,7 +51,9 @@ class AuthController extends Controller {
                 'max_items' => Guest::MAX_ITEMS,
                 'video_count' => $videoCount,
                 'max_videos' => Guest::MAX_VIDEOS,
-            ]
+            ],
+            'uploads_closed' => $deadlineInfo['uploads_closed'],
+            'upload_deadline' => $deadlineInfo['upload_deadline'],
         ]);
     }
 
@@ -62,6 +66,7 @@ class AuthController extends Controller {
 
         $itemCount = Guest::getItemCount((int) $guest['id']);
         $videoCount = Guest::getVideoCount((int) $guest['id']);
+        $deadlineInfo = Media::getUploadDeadlineInfo();
 
         Response::json([
             'success' => true,
@@ -73,7 +78,9 @@ class AuthController extends Controller {
                 'max_items' => Guest::MAX_ITEMS,
                 'video_count' => $videoCount,
                 'max_videos' => Guest::MAX_VIDEOS,
-            ]
+            ],
+            'uploads_closed' => $deadlineInfo['uploads_closed'],
+            'upload_deadline' => $deadlineInfo['upload_deadline'],
         ]);
     }
 

@@ -8,7 +8,10 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Config\Database;
+use DateTimeImmutable;
+use DateTimeZone;
 use PDO;
+use Throwable;
 
 class Media {
     public const MAX_BYTES = 2097152; // Legacy fallback (2 MB)
@@ -16,6 +19,45 @@ class Media {
     public const MAX_THUMB_BYTES = 1048576; // 1 MB para thumbnail (400px q=0.7)
     public const MAX_VIDEO_BYTES = 31457280; // 30 MB máximo por video
     public const MAX_VIDEO_DURATION = 20.5; // 20 segundos (+0.5s tolerancia de contenedor móvil)
+    public const UPLOAD_DEADLINE_LOCAL = '2026-12-21 23:59:59';
+    public const DEFAULT_TIMEZONE = 'America/Mexico_City';
+    public const UPLOAD_CLOSED_MESSAGE = 'El periodo para subir fotos y videos cerró el 21 de diciembre de 2026. ¡Gracias por compartir tus recuerdos!';
+
+    public static function getUploadTimezone(): DateTimeZone {
+        $env = Database::loadEnv();
+        $tzName = trim((string) ($env['APP_TIMEZONE'] ?? self::DEFAULT_TIMEZONE));
+        try {
+            return new DateTimeZone($tzName !== '' ? $tzName : self::DEFAULT_TIMEZONE);
+        } catch (Throwable $e) {
+            return new DateTimeZone(self::DEFAULT_TIMEZONE);
+        }
+    }
+
+    public static function getUploadDeadline(): DateTimeImmutable {
+        $env = Database::loadEnv();
+        $tz = self::getUploadTimezone();
+        $rawDeadline = trim((string) ($env['UPLOAD_DEADLINE'] ?? self::UPLOAD_DEADLINE_LOCAL));
+        try {
+            return new DateTimeImmutable($rawDeadline !== '' ? $rawDeadline : self::UPLOAD_DEADLINE_LOCAL, $tz);
+        } catch (Throwable $e) {
+            return new DateTimeImmutable(self::UPLOAD_DEADLINE_LOCAL, $tz);
+        }
+    }
+
+    public static function isUploadClosed(?DateTimeImmutable $now = null): bool {
+        $tz = self::getUploadTimezone();
+        $current = $now ?? new DateTimeImmutable('now', $tz);
+        return $current > self::getUploadDeadline();
+    }
+
+    public static function getUploadDeadlineInfo(): array {
+        $deadline = self::getUploadDeadline();
+        return [
+            'uploads_closed' => self::isUploadClosed(),
+            'upload_deadline' => $deadline->format(DATE_ATOM),
+            'upload_deadline_label' => '21 de diciembre de 2026',
+        ];
+    }
 
     public static function listItems(string $filter = 'all', int $limit = 24, int $offset = 0, int $currentGuestId = 0, string $currentGuestToken = ''): array {
         $pdo = Database::getConnection();
@@ -36,7 +78,9 @@ class Media {
         }
 
         $whereSql = implode(' AND ', $where);
-        $orderBy = $filter === 'popular' ? '`likes_count` DESC, `id` DESC' : '`id` DESC';
+        $orderBy = $filter === 'popular'
+            ? 'm.`likes_count` DESC, m.`created_at` DESC, m.`id` DESC'
+            : 'm.`created_at` DESC, m.`id` DESC';
 
         $cntStmt = $pdo->prepare("SELECT COUNT(*) FROM `media` WHERE {$whereSql}");
         $cntStmt->execute($params);

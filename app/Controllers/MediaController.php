@@ -53,9 +53,13 @@ class MediaController extends Controller {
         $guestId = $guest ? (int) $guest['id'] : 0;
         $guestToken = $guest ? $guest['token'] : '';
 
-        $filter = trim($_GET['filter'] ?? 'all');
+        $filter = trim((string) ($_GET['filter'] ?? 'all'));
         $page = max(1, (int) ($_GET['page'] ?? 1));
-        $limit = min(150, max(6, (int) ($_GET['limit'] ?? 24)));
+        $rawLimit = isset($_GET['limit']) ? (int) $_GET['limit'] : 24;
+        if ($rawLimit <= 0) {
+            $rawLimit = 24;
+        }
+        $limit = min(48, max(1, $rawLimit));
         $offset = ($page - 1) * $limit;
 
         $result = Media::listItems($filter, $limit, $offset, $guestId, $guestToken);
@@ -82,26 +86,39 @@ class MediaController extends Controller {
             ];
         }, $result['items']);
 
-        $pages = ceil($result['total'] / $limit) ?: 1;
+        $total = (int) $result['total'];
+        $hasMore = count($formatted) > 0 && ($offset + count($formatted)) < $total;
+        $pages = $total > 0 ? (int) ceil($total / $limit) : 1;
+
+        $deadlineInfo = Media::getUploadDeadlineInfo();
 
         Response::json([
             'success' => true,
             'items' => $formatted,
-            'total' => $result['total'],
             'page' => $page,
-            'pages' => (int) $pages,
+            'limit' => $limit,
+            'total' => $total,
+            'pages' => $pages,
+            'has_more' => $hasMore,
             'guest_item_count' => $guestId ? Guest::getItemCount($guestId) : 0,
             'guest_max_items' => Guest::MAX_ITEMS,
             'guest_video_count' => $guestId ? Guest::getVideoCount($guestId) : 0,
             'guest_max_videos' => Guest::MAX_VIDEOS,
+            'uploads_closed' => $deadlineInfo['uploads_closed'],
+            'upload_deadline' => $deadlineInfo['upload_deadline'],
         ]);
     }
 
     /**
-     * Paso 1: Valida cupo, formato, tamaño y duración y entrega Presigned PUT URLs para R2.
+     * Paso 1: Valida fecha límite, cupo, formato, tamaño y duración y entrega Presigned PUT URLs para R2.
      */
     public function presign(): void {
         AuthHelper::startSession();
+
+        if (Media::isUploadClosed()) {
+            Response::error(Media::UPLOAD_CLOSED_MESSAGE, 403, Media::getUploadDeadlineInfo());
+        }
+
         $guest = AuthHelper::getGuest();
         $admin = AuthHelper::getAdminUser();
 
@@ -274,6 +291,11 @@ class MediaController extends Controller {
             R2StorageService::deleteObject($thumbKey);
         };
 
+        if (Media::isUploadClosed()) {
+            $cleanupR2();
+            Response::error(Media::UPLOAD_CLOSED_MESSAGE, 403, Media::getUploadDeadlineInfo());
+        }
+
         // Revalidar cupo antes de persistir (protección contra subidas concurrentes)
         if ($guest && !$admin) {
             $currentCount = Guest::getItemCount($uploaderId);
@@ -354,6 +376,10 @@ class MediaController extends Controller {
      * Endpoint legacy mantenido solo como respaldo si R2 no estuviera activo.
      */
     public function store(): void {
+        if (Media::isUploadClosed()) {
+            Response::error(Media::UPLOAD_CLOSED_MESSAGE, 403, Media::getUploadDeadlineInfo());
+        }
+
         if (R2StorageService::isConfigured()) {
             Response::error('Usa el flujo optimizado de subida directa a Cloudflare R2 (/api/media/presign). Recarga la página.', 426);
         }
