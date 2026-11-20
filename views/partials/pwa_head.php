@@ -31,4 +31,4 @@ $themeColor = $themeColor ?? '#4A5842';
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Alex+Brush&family=Corinthia:wght@400&family=Montserrat:wght@400;500&family=Qwigley&family=Sacramento&family=Indie+Flower&family=Luxurious+Script&family=Tangerine:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/app.css?v=31">
+  <link rel="stylesheet" href="/assets/css/app.css?v=48">

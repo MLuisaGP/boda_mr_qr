@@ -18,14 +18,14 @@
   --color-surface: #FFFFFF;
   --color-surface-glass: rgba(255, 255, 255, 0.78);
   --color-card-border: rgba(212, 175, 55, 0.28);
-  
+
   --color-olive: #4A5842;
   --color-olive-light: #6A7B61;
   --color-olive-dark: #2D3A27;
   --color-burgundy: var(--color-olive);
   --color-burgundy-light: var(--color-olive-light);
   --color-burgundy-dark: var(--color-olive-dark);
-  
+
   --color-gold: #C9A050;
   --color-gold-light: #F4E2B7;
   --color-gold-dark: #8F6B28;
@@ -1311,7 +1311,7 @@ textarea.form-control {
 }
 
 .modal-dialog {
-  width: min(92%, 480px);
+  width: min(92%, 400px);
   background: #FFFFFF;
   border-radius: var(--radius-lg);
   padding: 36px 30px;
@@ -1382,7 +1382,7 @@ textarea.form-control {
 .modal-title {
   font-size: 2rem;
   color: var(--color-burgundy);
-  margin-bottom: 8px;
+  line-height: 1;
 }
 
 .modal-subtitle {
@@ -4727,8 +4727,8 @@ body.loading {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: rgba(74, 88, 66, 0.1);
-  border: 1px solid rgba(201, 160, 80, 0.32);
+  background: rgba(74, 88, 66, 0);
+  border: 1px solid rgba(201, 160, 80, 0);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4748,7 +4748,7 @@ body.loading {
   width: 20px;
   height: 2px;
   border-radius: 999px;
-  background: var(--color-olive-dark);
+  background: rgba(201, 160, 80, 1);
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
 }
 
@@ -4939,7 +4939,7 @@ body.loading {
   text-decoration: none;
   box-shadow: 0 10px 26px rgba(201, 160, 80, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.55);
-  margin-bottom: 18px;
+
   transition: transform 0.22s ease;
 }
 
@@ -5042,11 +5042,11 @@ body.loading {
   top: calc(16px + env(safe-area-inset-top, 0px));
   right: 16px;
   z-index: 10020;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 14px;
   background: rgba(18, 24, 15, 0.45);
-  border: 1px solid rgba(244, 226, 183, 0.42);
+  border: 1px solid rgba(244, 226, 183, 0);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
@@ -5251,7 +5251,7 @@ html.home-no-scroll {
   align-items: center;
   justify-content: center;
   gap: 9px;
-  padding: 14px 22px;
+  padding: 8px 14px;
   border-radius: 999px;
   font-family: var(--font-sans);
   font-size: 0.88rem;
@@ -5422,7 +5422,7 @@ html.home-no-scroll {
 .camera-hub-desc {
   font-size: 0.92rem;
   color: var(--color-text-secondary);
-  max-width: 520px;
+  max-width: 900px;
   margin: 0 auto 20px;
 }
 
@@ -5610,7 +5610,7 @@ html.home-no-scroll {
   text-align: center;
   gap: 12px;
   padding: 26px 20px 22px;
-  border-radius: 22px;
+  border-radius: 12px;
   border: 1.5px solid rgba(201, 160, 80, 0.35);
   background: #FFFFFF;
   cursor: pointer;
@@ -5754,7 +5754,7 @@ html.home-no-scroll {
   background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(201, 160, 80, 0.28);
-  border-radius: 24px;
+  border-radius: 12px;
   padding: 22px 20px;
   box-shadow: var(--shadow-sm);
 }
@@ -5931,7 +5931,7 @@ html.home-no-scroll {
   background: linear-gradient(160deg, rgba(255, 253, 248, 0.96) 0%, rgba(250, 244, 232, 0.92) 100%);
   backdrop-filter: blur(14px);
   border: 1.5px solid rgba(201, 160, 80, 0.44);
-  border-radius: 24px;
+  border-radius: 12px;
   padding: 22px 20px;
   margin-bottom: 24px;
   box-shadow: 0 14px 34px rgba(31, 40, 27, 0.08);
@@ -6071,13 +6071,12 @@ html.home-no-scroll {
   font-weight: 700;
   letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(36, 48, 30, 0.26);
   transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
 .btn-publish-standby:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(36, 48, 30, 0.34);
+  box-shadow: 0 12px 24px rgba(12, 16, 10, 0.2);
 }
 
 .btn-publish-standby:active:not(:disabled) {
@@ -6626,11 +6625,7 @@ html.home-no-scroll {
 .live-cam-tray-wrap {
   width: 100%;
   overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.live-cam-tray-wrap::-webkit-scrollbar {
-  display: none;
+  scrollbar-width: thin;
 }
 
 .live-cam-tray {
@@ -6847,7 +6842,7 @@ html:has(body.page-guestbook) {
   background:
     linear-gradient(90deg, rgba(45, 58, 39, 0.08) 0%, rgba(255, 253, 248, 0) 5%),
     linear-gradient(180deg, #FFFDF9 0%, #FBF5E9 100%);
-  border-radius: 4px 15px 15px 4px;
+  border-radius: 4px;
   border: 1px solid rgba(201, 160, 80, 0.42);
   padding: 14px 16px 12px;
   box-shadow: inset 0 0 0 3px rgba(255, 253, 248, 0.88), inset 0 0 0 4px rgba(201, 160, 80, 0.2);
@@ -6985,11 +6980,7 @@ html:has(body.page-guestbook) {
 
 .book-view-write.is-active {
   overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.book-view-write.is-active::-webkit-scrollbar {
-  display: none;
+  scrollbar-width: thin;
 }
 
 .book-view-read.is-active {
@@ -7021,13 +7012,9 @@ html:has(body.page-guestbook) {
   overflow-x: auto;
   padding-bottom: 4px;
   margin-bottom: 10px;
-  scrollbar-width: none;
+  scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
   flex-shrink: 0;
-}
-
-.book-chips-strip::-webkit-scrollbar {
-  display: none;
 }
 
 .book-chips-strip .gb-chip-btn {
@@ -7192,7 +7179,7 @@ html:has(body.page-guestbook) {
   user-select: none;
   -webkit-user-select: none;
   cursor: grab;
-  border-radius: 3px 13px 13px 3px;
+  border-radius: 3px;
 }
 
 .book-flip-stage.is-dragging {
@@ -7202,11 +7189,11 @@ html:has(body.page-guestbook) {
 /* Ilusión de bloque de hojas apiladas en el borde derecho */
 .book-pages-stack {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
+  top: 0px;
+  bottom: 0px;
   right: 0;
   width: 9px;
-  border-radius: 0 10px 10px 0;
+  border-radius: 3px;
   background:
     repeating-linear-gradient(
       90deg,
@@ -7247,7 +7234,7 @@ html:has(body.page-guestbook) {
   position: absolute;
   inset: 0 9px 0 0;
   z-index: 4;
-  border-radius: 3px 12px 12px 3px;
+  border-radius: 3px;
 }
 
 .book-flip-host {
@@ -7310,7 +7297,7 @@ html:has(body.page-guestbook) {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border-radius: 3px 12px 12px 3px;
+  border-radius: 3px;
   box-shadow: 0 4px 14px rgba(31, 40, 27, 0.12);
 }
 
@@ -7375,7 +7362,7 @@ html:has(body.page-guestbook) {
     /* Tono papel algodón cálido */
     linear-gradient(170deg, #FFFDF8 0%, #FDF7EA 58%, #F8EEDB 100%);
   border: 1px solid rgba(196, 162, 99, 0.44);
-  border-radius: 3px 12px 12px 3px;
+  border-radius: 3px;
   overflow: hidden;
 }
 
@@ -7398,7 +7385,7 @@ html:has(body.page-guestbook) {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-rows: repeat(var(--page-slots, 3), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--page-slots, 5), minmax(0, 1fr));
   gap: 2px;
   overflow: hidden;
 }
@@ -7687,8 +7674,8 @@ html:has(body.page-guestbook) {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 1px solid rgba(201, 160, 80, 0.35);
-  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(201, 160, 80, 0.1);
+  background: rgba(255, 255, 255, 0.5);
   color: var(--color-olive-dark);
   font-size: 1.2rem;
   line-height: 1;
@@ -8147,7 +8134,7 @@ html.allow-landscape-mode .orientation-lock-overlay {
 .drawer-sub, .hero-date-pill, .nav-link, .drawer-nav-item, .drawer-cam-text strong { font-family: var(--font-sans); font-weight: 400; text-transform: uppercase; letter-spacing: .1em; }
 :is(a, button, [role="button"]) { font-weight: 400 !important; }
 :is(a, button, [role="button"]) :is(strong, b, span, .option-title) { font-weight: 400 !important; }
-.option-icon-wrap, .option-video .option-icon-wrap, .option-gallery .option-icon-wrap, .drawer-cam-icon, .drawer-item-icon { background: rgba(74, 88, 66, .09); color: var(--color-olive); border: 1px solid rgba(74, 88, 66, .16); box-shadow: inset 0 1px 0 rgba(250, 247, 242, .7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.option-icon-wrap, .option-video .option-icon-wrap, .option-gallery .option-icon-wrap, .drawer-cam-icon, .drawer-item-icon { background: rgba(74, 88, 66, .05); color: #8F6B28; border: 1px solid rgb(88 77 66 / 10%); box-shadow: inset 0 1px 0 rgba(250, 247, 242, .7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 .hero-btn-moments { background: rgba(250, 247, 242, .84); color: var(--color-olive-dark); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 4px 18px rgba(45, 58, 39, .12); }
 .ui-icon { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -.16em; flex-shrink: 0; }
 a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark); outline-offset: 4px; }
@@ -8168,7 +8155,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 .preloader-monogram { filter: brightness(0) saturate(100%) invert(31%) sepia(12%) saturate(730%) hue-rotate(57deg) brightness(96%) contrast(89%); }
 /* Ampersand tipografico: escala junto con los nombres. */
 .hero-content-lower .hero-title .hero-amp {
-  display: inline-block; position: static; width: auto; margin: 0 .06em;
+  display: inline-block; position: static; width: auto; margin: 0em;
   vertical-align: -.08em; font-family: 'Tangerine', cursive;
   font-size: 1.12em; font-weight: 400; line-height: .8;
   pointer-events: none; filter: none;
@@ -8195,7 +8182,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 /* Respetar los colores originales de la variante vegetal del monograma. */
 .nav-brand .brand-monogram, .drawer-brand .brand-monogram { filter: none; }
 /* Navegación sobre el fondo de la página y libro a primer plano. */
-.site-nav:not(.nav-over-hero) { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.page-guestbook .site-nav:not(.nav-over-hero) { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .book-page-main { position: relative; z-index: 1001; padding: 12px; pointer-events: none; }
 .book-page-main .wedding-book-stage { pointer-events: auto; }
 @media (max-width: 1140px) { .site-nav .nav-mobile-actions { display: flex; } .site-nav .brand-wordmark, .site-nav .brand-divider, .site-nav .nav-links { display: none; } }
@@ -8214,7 +8201,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 }
 .book-cover-monogram {
   display: block; width: min(72%, 320px); height: auto; max-height: 46dvh; object-fit: contain;
-  margin: 0 auto 20px; filter: drop-shadow(0 1px 0 rgba(255,241,196,.2)) drop-shadow(0 -2px 1px rgba(0,0,0,.85));
+  margin: 0 auto 20px; filter: drop-shadow(0 1px 0 rgba(255,241,196,.1)) drop-shadow(0 -2px 1px rgba(0,0,0,.2));
 }
 .wedding-book-sheet:not(.is-open) .book-sheet-header {
   position: relative; display: flex; flex-direction: column; align-items: center;
@@ -8233,29 +8220,186 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 .wedding-book-sheet.is-open { animation: bookOpenReveal .65s ease both; transform-origin: left center; }
 #bookFlipStage[hidden] { display: none; }
 #bookReadView > #bookWriteView.is-active {
-  padding: 16px 20px; border-radius: 3px 12px 12px 3px;
+  padding: 16px 20px; border-radius: 3px;
   background: linear-gradient(90deg, rgba(36,46,30,.12), transparent 8%), #FFFDF8;
   border: 1px solid rgba(196,162,99,.44); box-shadow: 3px 3px 0 #E9DFC9, 5px 5px 0 #D8CDB5;
 }
 /* El reverso conserva papel opaco sin texto reflejado. */
 .book-stf-page { background: #FFFDF8; }
 .book-stf-page .book-paper-page { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-.book-signature-entry.is-new-signature { position: relative; animation: signatureInkReveal .7s ease both; }
-.book-signature-entry.is-new-signature::after {
-  content: ''; position: absolute; inset: -6px; pointer-events: none;
-  background: radial-gradient(ellipse at 8% 25%, #F4E2B7 0 2px, transparent 4px), radial-gradient(ellipse at 82% 14%, #C9A050 0 2px, transparent 4px), radial-gradient(ellipse at 93% 72%, #F4E2B7 0 3px, transparent 5px), radial-gradient(ellipse at 24% 88%, #C9A050 0 1px, transparent 3px);
-  animation: signatureSparkles 1.6s ease-out 2 both;
-}
+/* Escritura luminosa exclusiva de la firma recien guardada. */
+.book-signature-entry.is-new-signature { position: relative; transform: none; }
+.book-signature-entry.is-new-signature:not(.signature-revealing) :is(.book-sig-message,.book-sig-author) { opacity: 0; }
+.signature-magic-layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 7; }
+.signature-light-trail { stroke: none; filter: drop-shadow(0 0 2px #F4E2B7) drop-shadow(0 0 5px #C9A050); }
+.signature-light-tip { fill: #FFFDF8; stroke: #C9A050; stroke-width: 1; filter: drop-shadow(0 0 4px #C9A050) drop-shadow(0 0 8px #C9A050); }
+.signature-light-spark { fill: #FFFDF8; stroke: #F4E2B7; stroke-width: .35; filter: drop-shadow(0 0 2px #F4E2B7) drop-shadow(0 0 4px #C9A050); }
 @keyframes bookOpenReveal { from { opacity: .45; transform: perspective(1200px) rotateY(-12deg); } to { opacity: 1; transform: perspective(1200px) rotateY(0); } }
-@keyframes signatureInkReveal { from { opacity: .3; } to { opacity: 1; } }
-@keyframes signatureSparkles { 0% { opacity: 0; transform: scale(.85); } 30% { opacity: .9; } 100% { opacity: 0; transform: scale(1.08) translateY(-6px); } }
-@media (prefers-reduced-motion: reduce) { .wedding-book-sheet.is-open, .book-signature-entry.is-new-signature, .book-signature-entry.is-new-signature::after { animation: none; } .book-signature-entry.is-new-signature::after { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .wedding-book-sheet.is-open { animation: none; }
+  .book-signature-entry.is-new-signature:not(.signature-revealing) :is(.book-sig-message,.book-sig-author) { opacity: revert; }
+  .signature-magic-layer { display: none; }
+}
 
 .book-stf-page.is-turning-verso .book-paper-page > * { visibility: hidden; }
 
 /* Tangerine en todos los nombres, sin el solapamiento del SVG. */
-.brand-text .brand-amp { display: inline-block; position: static; width: auto; font-family: 'Tangerine', cursive; font-size: 1.16em; font-weight: 400; line-height: .8; vertical-align: -.08em; margin: 0 .07em; }
+.brand-text .brand-amp { display: inline-block; position: static; width: auto; font-family: 'Tangerine', cursive; font-size: 1.16em; font-weight: 400; line-height: .8; vertical-align: -.08em; margin: 0em; }
 .drawer-brand .brand-wordmark { display: flex; }
 .drawer-brand .brand-text { font-size: clamp(1.45rem, 5.8vw, 1.75rem); }
 .mobile-drawer-head, .drawer-camera-spotlight, .drawer-nav-list { position: relative; z-index: 1; }
-.drawer-monogram-watermark { position: absolute; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: 160px; height: auto; opacity: .065; pointer-events: none; user-select: none; filter: none; z-index: 0; }
+.drawer-monogram-watermark { position: absolute; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: 200px; height: auto; opacity: .1; pointer-events: none; user-select: none; filter: none; z-index: 0; }
+
+/* Controles de carrete con vidrio transparente sobre las miniaturas. */
+#standbySection > .camera-quota-meter { margin-top: 22px; }
+.standby-select-badge,
+.standby-tile.is-selected .standby-select-badge,
+.standby-delete-btn {
+  background: transparent;
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  box-shadow: 0 4px 10px rgba(0,0,0,.34);
+  text-shadow: 0 2px 3px rgba(0,0,0,.4);
+}
+.standby-select-badge { color: #192016; border-color: currentColor; }
+.standby-tile.is-selected .standby-select-badge { color: var(--color-gold); border-color: currentColor; }
+.standby-delete-btn { color: #CD2D2D; border-color: currentColor; }
+.standby-delete-btn svg, .btn-publish-standby svg { filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+.btn-mini-gallery, .btn-mini-gallery:hover { background: transparent; color: var(--color-olive-dark); }
+
+/* Marcas discretas y del mismo grosor en el carrete. */
+.standby-select-badge { border: 1.5px solid rgba(25,32,22,.3); }
+.standby-tile.is-selected .standby-select-badge { border-color: rgba(201,160,80,.3); }
+.standby-delete-btn { border-color: rgba(205,45,45,.3); }
+.standby-preview-btn { border-color: rgba(255,255,255,.3); }
+
+/* Mosaico con alturas alternadas independientes del archivo original. */
+.gallery-grid.gallery-wall { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); grid-auto-rows: 4px; grid-auto-flow: row dense; gap: 10px; align-items: stretch; width: 100%; }
+.gallery-wall .gallery-grid-item { position: relative; display: block; width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; margin: 0; border-radius: 12px; opacity: 1; transform: none; transition-delay: 0s !important; }
+.gallery-wall .gallery-item-aspect { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gallery-wall .gallery-item-media { width: 100%; height: 100%; object-fit: cover; }
+.gallery-wall video.gallery-item-media { min-height: 0; }
+@media (max-width: 1000px) { .gallery-grid.gallery-wall { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (max-width: 600px) { .gallery-grid.gallery-wall { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.gallery-grid.gallery-wall.is-sparse { grid-template-columns: minmax(0,1fr); }
+.gallery-wall .gallery-item-overlay { opacity: 1; background: linear-gradient(to top, rgba(15,22,12,.66), transparent 45%); }
+.gallery-wall .gallery-item-author { opacity: 0; transform: translateY(5px); transition: opacity .2s ease, transform .2s ease; }
+.gallery-wall .gallery-grid-item:hover .gallery-item-author, .gallery-wall .gallery-grid-item:focus-within .gallery-item-author { opacity: 1; transform: none; }
+.gallery-wall .gallery-item-like { margin-left: auto; min-height: 32px; }
+.gallery-wall .gallery-owner-badge { opacity: 0; }
+.gallery-wall .gallery-grid-item:hover .gallery-owner-badge, .gallery-wall .gallery-grid-item:focus-within .gallery-owner-badge { opacity: 1; }
+@media (hover: none) { .gallery-wall .gallery-item-author, .gallery-wall .gallery-owner-badge { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .gallery-wall .gallery-item-author, .gallery-wall .gallery-item-media { transition: none; } }
+
+/* Pocos recuerdos populares comparten una sola fila y altura. */
+.gallery-grid.gallery-wall.is-level-row { grid-template-columns: repeat(var(--gallery-small-count), minmax(0,1fr)); }
+/* La barra conserva su fondo fuera del libro y acompana el sentido del scroll. */
+.site-nav { transition: transform .32s cubic-bezier(.22,1,.36,1); }
+.site-nav.is-scroll-hidden { transform: translateY(-110%); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .site-nav { transition: none; } }
+
+/* Abierto: la hoja ocupa todo el interior; cambiar de modo desde su pie. */
+.wedding-book-sheet.is-open .book-sheet-header { display: none; }
+.wedding-book-sheet.is-open #bookReadView { flex: 1; min-height: 0; }
+.book-write-footer { display: flex; justify-content: flex-end; flex-shrink: 0; margin-top: auto; padding: 12px 0 4px; }
+.book-mode-switch { overflow: visible; }
+.book-mode-switch svg { width: 16px; height: 16px; }
+.book-mode-tooltip { position: absolute; bottom: calc(100% + 9px); right: 0; width: max-content; max-width: 180px; padding: 7px 11px; border-radius: 8px; background: var(--color-olive-dark); color: #FAF7F2; font-family: var(--font-sans); font-size: .72rem; line-height: 1.3; font-weight: 400; white-space: nowrap; box-shadow: 0 4px 12px rgba(31,40,27,.2); opacity: 0; visibility: hidden; transform: translateY(3px); pointer-events: none; transition: opacity .18s ease, transform .18s ease, visibility .18s ease; z-index: 8; }
+.book-mode-tooltip::after { content: ''; position: absolute; top: 100%; right: 10px; border: 5px solid transparent; border-top-color: var(--color-olive-dark); }
+.book-mode-switch:hover .book-mode-tooltip, .book-mode-switch:focus-visible .book-mode-tooltip { opacity: 1; visibility: visible; transform: none; }
+@media (prefers-reduced-motion: reduce) { .book-mode-tooltip { transition: none; } }
+
+/* Inspiracion y formulario centrados, con las seis opciones a la vista. */
+#bookWriteView .book-chips-strip { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; width: 100%; max-width: 440px; margin: 4px auto 18px; padding: 4px; overflow: visible; }
+#bookWriteView .book-chips-strip .gb-chip-btn { min-width: 0; min-height: 40px; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; text-align: center; justify-content: center; }
+#guestbookForm { width: 100%; max-width: 440px; margin-inline: auto; }
+#bookWriteView .book-prompt-note { max-width: 440px; margin-inline: auto; text-align: center; }
+
+/* El libro vuelve debajo de la barra, en cualquier ancho. */
+.page-guestbook .book-page-main { z-index: auto; padding: calc(80px + env(safe-area-inset-top, 0px)) 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
+.book-static-spread { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); height: 100%; }
+.book-static-spread > .book-stf-page { min-width: 0; }
+@media (min-width: 1000px) {
+  .page-guestbook.has-open-book .wedding-book-stage { max-width: 1180px; }
+  .wedding-book-sheet.is-two-page { padding: 10px; }
+  .wedding-book-sheet.is-two-page::after { content: ''; position: absolute; top: 10px; bottom: 10px; left: calc(50% - 12px); width: 24px; z-index: 8; pointer-events: none; background: linear-gradient(90deg, transparent, rgba(31,40,27,.12) 42%, rgba(31,40,27,.25) 50%, rgba(255,253,248,.5) 56%, transparent); }
+  .wedding-book-sheet.is-two-page #bookReadView { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: minmax(0,1fr); gap: 0; align-items: stretch; }
+  .wedding-book-sheet.is-two-page[data-mode="read"] #bookFlipStage { grid-column: 1 / -1; }
+  .wedding-book-sheet.is-two-page[data-mode="write"] #bookWriteView { grid-column: 1; grid-row: 1; min-width: 0; margin: 0; border-radius: 3px; box-shadow: none; padding: 16px 22px 12px; }
+  .wedding-book-sheet.is-two-page[data-mode="write"] #bookFlipStage { grid-column: 2; grid-row: 1; }
+  .wedding-book-sheet.is-two-page .book-flip-host-wrap { right: 0; }
+  .wedding-book-sheet.is-two-page .book-paper-page { border-radius: 3px; }
+  .wedding-book-sheet.is-two-page[data-mode="read"] [data-book-side="left"] .book-corner-next,
+  .wedding-book-sheet.is-two-page[data-mode="read"] [data-book-side="left"] .book-mode-switch,
+  .wedding-book-sheet.is-two-page[data-mode="read"] [data-book-side="right"] .book-corner-prev { display: none; }
+  .wedding-book-sheet.is-two-page[data-mode="write"] .book-paper-page .book-mode-switch { display: none; }
+}
+
+/* La pasta mantiene el lomo lateral cerrada; abierto se centra en la doble hoja. */
+.wedding-book-cover.is-open-book { border-radius: 12px; padding: 10px; }
+.wedding-book-cover.is-spread-open .wedding-book-spine { left: 50%; transform: translateX(-50%); width: 16px; top: 10px; bottom: 10px; border: 0; border-radius: 0; background: linear-gradient(90deg, transparent, rgba(31,40,27,.25) 40%, rgba(31,40,27,.5) 50%, rgba(31,40,27,.25) 60%, transparent); z-index: 6; pointer-events: none; }
+.wedding-book-cover.is-spread-open .wedding-book-ribbon { right: auto; left: calc(50% + 18px); }
+
+/* Desplazamiento fino en paginas, modales y paneles interiores. */
+* { scrollbar-width: thin; scrollbar-color: rgba(74,88,66,.58) rgba(74,88,66,.06); }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: rgba(74,88,66,.06); border-radius: 999px; margin-block: 8px; }
+*::-webkit-scrollbar-thumb { background: rgba(74,88,66,.58); border-radius: 999px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--color-gold-dark); }
+*::-webkit-scrollbar-thumb:active { background: var(--color-olive-dark); }
+*::-webkit-scrollbar-corner { background: transparent; }
+.book-sig-modal-card { scrollbar-gutter: stable; }
+@media (forced-colors: active) { * { scrollbar-color: auto; } }
+
+/* Perfil del invitado y rotulos sobre acentos dorados. */
+#guestModal .modal-dialog, #guestNameInput, #guestModal .modal-current-info { border-radius: 12px; }
+#guestModal .modal-icon-badge { color: var(--color-gold); background: rgba(244,226,183,.85); box-shadow: none; }
+#guestModal .modal-icon-badge svg { fill: var(--color-gold); stroke: var(--color-gold); }
+#guestModal .modal-current-info { background: rgba(244,226,183,.85); }
+.btn-primary, .drawer-camera-spotlight, .gallery-tab-item.active,
+#btnCaptureFromCamera, .btn-upload-camera, .camera-mode-btn.active,
+.hero-btn-moments, .lightbox-standby-select-btn.is-selected,
+.book-submit-btn, .book-mode-btn.is-active .book-count-pill { color: #FFFFFF; }
+
+.btn-primary,
+#btnCaptureFromCamera,
+.btn-upload-camera,
+.camera-mode-btn.active,
+.nav-camera-cta,
+.nav-camera-mobile-btn,
+.hero-btn-moments,
+.lightbox-standby-select-btn.is-selected,
+.live-cam-upload-btn,
+.book-mode-btn.is-active .book-count-pill,
+.book-submit-btn { color: #FFFFFF; }
+
+/* Bloques de camara: bordes finos y fondos al cincuenta por ciento. */
+.page-camera .camera-option-card,
+.page-camera .camera-option-card.option-video,
+.page-camera .camera-option-card.option-gallery,
+.page-camera .standby-section,
+.page-camera .my-uploads-section { border-width: 1px; }
+.page-camera .camera-option-card { background: rgba(255,255,255,.5); }
+.page-camera .camera-option-card.option-photo { background: linear-gradient(155deg,rgba(255,251,242,.5),rgba(251,241,220,.5)); }
+.page-camera .camera-option-card.option-video,
+.page-camera .camera-option-card.option-gallery { background: rgba(255,255,255,.5); }
+.page-camera .camera-option-card.option-video:hover,
+.page-camera .camera-option-card.option-gallery:hover { background: linear-gradient(135deg,rgba(255,253,248,.5),rgba(251,246,236,.5)); }
+.page-camera .standby-section { background: linear-gradient(160deg,rgba(255,253,248,.5),rgba(250,244,232,.5)); }
+.page-camera .my-uploads-section { background: rgba(255,255,255,.5); }
+
+/* Hoja de escritura: identidad centrada y dedicatoria a toda la altura disponible. */
+#bookWriteView .book-write-wordmark { display:flex; flex-direction:column; flex-shrink:0; align-items:center; width:100%; text-align:center; gap:6px; margin:8px auto 12px; }
+#bookWriteView .book-write-wordmark .brand-text { font-size:clamp(2rem,4vw,2.8rem); line-height:1.15; white-space:normal; }
+#bookWriteView .book-write-divider { display:block; flex-shrink:0; width:min(100%,440px); height:1px; margin:0 auto 18px; background:linear-gradient(90deg,transparent,rgba(201,160,80,.6),transparent); }
+#bookWriteView #guestbookForm { flex:1 0 260px; min-height:260px; }
+#guestbookForm .book-message-field { display:flex; flex-direction:column; flex:1; min-height:120px; }
+#guestbookForm #gbMessage { flex:1; height:100%; min-height:100px; }
+#guestbookForm .book-form-actions { flex-shrink:0; margin-top:0; }
+
+/* Acciones alineadas en la hoja de escritura. */
+#bookWriteView .book-label, #bookWriteView .book-prompt-note { font-family: var(--font-serif); }
+#guestbookForm .book-form-actions { display:flex; flex-direction:row; align-items:center; gap:12px; }
+#guestbookForm .book-write-footer { flex:0 0 48px; width:48px; height:48px; margin:0; padding:0; }
+#guestbookForm .book-write-footer .book-mode-switch { width:48px; height:48px; border-radius:50%; padding:0; }
+#guestbookForm .book-submit-btn { flex:1; width:auto; height:48px; min-width:0; padding:8px 12px; }

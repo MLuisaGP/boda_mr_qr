@@ -29,31 +29,6 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
           Toma todas las fotos y videos que quieras: se guardarán en espera en tu dispositivo. Después selecciona tus mejores 24 recuerdos (máximo 4 videos de hasta 20 s) y pulsa <strong>Publicar</strong>. Disponible hasta el <?= htmlspecialchars($uploadDeadlineLabel, ENT_QUOTES, 'UTF-8') ?>.
         </p>
 
-        <!-- Tarjeta de Estado y Cupo del Invitado -->
-        <div class="camera-quota-card">
-          <div class="camera-quota-top">
-            <div class="camera-quota-user">
-              <div class="guest-avatar-sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-              </div>
-              <div>
-                <div class="camera-quota-label">Tu Álbum Personal</div>
-                <div class="camera-quota-name" id="bannerGuestName">Identifícate al publicar tus recuerdos</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="camera-quota-meter">
-            <div class="camera-quota-bar">
-              <div class="camera-quota-fill" id="quotaProgressFill" style="width: 0%;"></div>
-              <div class="camera-quota-fill-selected" id="quotaSelectedFill" style="left: 0%; width: 0%;"></div>
-            </div>
-            <div class="camera-quota-numbers">
-              <span id="guestQuotaText">0 de 24 publicados · 0/4 videos</span>
-              <span id="guestQuotaRemaining">Te quedan 24 (máx. 4 videos)</span>
-            </div>
-          </div>
-        </div>
       </header>
 
       <!-- AVISO DE CIERRE DE SUBIDAS (DESPUÉS DEL 21 DE DICIEMBRE DE 2026) -->
@@ -77,7 +52,7 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
           </div>
           <div class="option-body">
             <h3>Tomar Fotos</h3>
-            <p>Toma todas las fotos que quieras; se guardarán en espera para que elijas las mejores.</p>
+            <p>Toma todas las fotos y elije las mejores.</p>
           </div>
           <span class="option-pill">Sin Límite</span>
         </button>
@@ -89,7 +64,7 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
           </div>
           <div class="option-body">
             <h3>Tomar Video</h3>
-            <p>Graba todos los clips que quieras (máx. 20 s) y luego elige hasta 4 para publicar.</p>
+            <p>Hasta de 20s para publicar.</p>
           </div>
           <span class="option-pill">En Espera</span>
         </button>
@@ -101,7 +76,7 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
           </div>
           <div class="option-body">
             <h3>Subir de Galería</h3>
-            <p>Agrega fotos o videos de tu teléfono a tu carrete temporal para preseleccionar.</p>
+            <p>Agrega fotos o videos de tu teléfono.</p>
           </div>
           <span class="option-pill">Preselección</span>
         </button>
@@ -152,7 +127,6 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
           <button type="button" class="btn-publish-standby" id="btnPublishStandby" disabled>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             <span id="btnPublishStandbyLabel">Publicar seleccionados</span>
-            <span class="publish-count-badge" id="btnPublishStandbyCount">0</span>
           </button>
         </div>
 
@@ -167,6 +141,17 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
           <h3>Tu carrete en espera está vacío</h3>
           <p>Toma fotos, graba videos o agrega desde tu galería. Aquí podrás revisarlos con calma y elegir los mejores antes de publicarlos.</p>
         </div>
+
+          <div class="camera-quota-meter">
+            <div class="camera-quota-bar">
+              <div class="camera-quota-fill" id="quotaProgressFill" style="width: 0%;"></div>
+              <div class="camera-quota-fill-selected" id="quotaSelectedFill" style="left: 0%; width: 0%;"></div>
+            </div>
+            <div class="camera-quota-numbers">
+              <span id="guestQuotaText">0 de 24 publicados · 0/4 videos</span>
+              <span id="guestQuotaRemaining">Te quedan 24 (máx. 4 videos)</span>
+            </div>
+          </div>
       </section>
 
       <!-- GESTIÓN DE FOTOS Y VIDEOS YA PUBLICADOS POR EL INVITADO -->
@@ -177,7 +162,6 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
             <p class="my-uploads-sub">Estos recuerdos ya están visibles en la galería para todos los invitados.</p>
           </div>
           <div class="my-uploads-actions">
-            <a href="/galeria" class="btn-mini-gallery app-nav-link">Ver Galería ↗</a>
             <button type="button" class="btn-mini-refresh" id="btnRefreshMyUploads" title="Actualizar mis recuerdos">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
             </button>
@@ -235,7 +219,7 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
       <!-- Estado de Permiso / Solicitud de Cámara -->
       <div class="live-cam-permission" id="cameraPermissionOverlay" style="display:none;">
         <div class="live-cam-perm-card">
-          <button type="button" class="live-cam-perm-close" id="btnCameraPermClose" title="Cerrar" aria-label="Cerrar">&times;</button>
+          <button type="button" class="live-cam-perm-close" id="btnCameraPermClose" title="Cerrar" aria-label="Cerrar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
           <div class="live-cam-perm-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
           </div>
@@ -305,6 +289,6 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
   <script src="/assets/js/vendor/browser-image-compression.js?v=2.0.2"></script>
-  <script src="/assets/js/app.js?v=22"></script>
+  <script src="/assets/js/app.js?v=39"></script>
 </body>
 </html>

@@ -73,9 +73,8 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
       <div class="drawer-cam-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
       </div>
-      <div class="drawer-cam-text"><strong>Comparte tus momentos</strong></div>
-      <svg class="drawer-cam-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </a>
+      <div class="drawer-cam-text">Comparte tus momentos</div>
+      </a>
 
     <nav class="drawer-nav-list">
       <a href="/" class="drawer-nav-item app-nav-link<?= $activePage === 'home' ? ' active' : '' ?>">

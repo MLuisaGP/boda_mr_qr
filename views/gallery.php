@@ -42,7 +42,7 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
       <div class="gallery-tabs-row">
         <button type="button" class="tab-btn gallery-tab-item active" data-filter="all">Todos</button>
         <button type="button" class="tab-btn gallery-tab-item" data-filter="my">Mis Fotos</button>
-        <button type="button" class="tab-btn gallery-tab-item" data-filter="popular">Más Queridas ♥</button>
+        <button type="button" class="tab-btn gallery-tab-item" data-filter="popular">Favoritas ♥</button>
       </div>
     </header>
 
@@ -53,7 +53,7 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
         <p style="font-size:0.85rem; color:#6A7B61; letter-spacing:1px; text-transform:uppercase;">Cargando recuerdos...</p>
       </div>
 
-      <div class="gallery-grid" id="galleryGrid">
+      <div class="gallery-grid gallery-wall" id="galleryGrid">
         <!-- Renderizado dinámico con animación en cascada vía app.js -->
       </div>
 
@@ -87,6 +87,6 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=22"></script>
+  <script src="/assets/js/app.js?v=39"></script>
 </body>
 </html>
