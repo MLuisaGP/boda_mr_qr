@@ -8142,7 +8142,6 @@ html.allow-landscape-mode .orientation-lock-overlay {
 .brand-emblem svg { width: 100%; height: 100%; overflow: visible; }
 .drawer-brand-emblem { width: 112px; height: 116px; flex-shrink: 0; }
 .drawer-brand { position: relative; gap: 16px; }
-.drawer-brand::before { content: ''; position: absolute; inset: -8px -22px -12px -12px; background: url('/assets/img/r-rama.svg') center / contain no-repeat; opacity: .15; pointer-events: none; }
 .drawer-brand > * { position: relative; }
 .drawer-brand-divider { display: none; }
 .drawer-sub, .hero-date-pill, .nav-link, .drawer-nav-item, .drawer-cam-text strong { font-family: var(--font-sans); font-weight: 400; text-transform: uppercase; letter-spacing: .1em; }
@@ -8154,7 +8153,6 @@ html.allow-landscape-mode .orientation-lock-overlay {
 a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark); outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) { .brand-emblem, .hero-btn { animation: none !important; transition: none !important; } }
 
-.drawer-sub::after { content: ""; display: block; width: 72px; height: 70px; margin-top: 8px; background: url("/assets/img/rama-inclinada.svg") center / contain no-repeat; opacity: .2; }
 
 /* Referencia caligrafica: Corinthia; rotulos geometricos: Montserrat. */
 .hero-date-pill, .brand-date, .drawer-sub { font-family: var(--font-sans); font-weight: 400; letter-spacing: .2em; }
@@ -8168,24 +8166,12 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 .brand-monogram { display: block; width: 100%; height: 100%; object-fit: contain; filter: brightness(0) saturate(100%) invert(31%) sepia(12%) saturate(730%) hue-rotate(57deg) brightness(96%) contrast(89%); }
 .site-nav.nav-over-hero .brand-monogram { filter: none; }
 .preloader-monogram { filter: brightness(0) saturate(100%) invert(31%) sepia(12%) saturate(730%) hue-rotate(57deg) brightness(96%) contrast(89%); }
-/* Em conserva los ajustes de -55/-70 px a la escala máxima del título. */
+/* Ampersand tipografico: escala junto con los nombres. */
 .hero-content-lower .hero-title .hero-amp {
-  position: relative;
-  display: inline-flex;
-  font-size: inherit;
-  width: 1.1em;
-  vertical-align: -1.08em;
-  margin: 0 .09em -.661em -.841em;
-  pointer-events: none;
-}
-.hero-amp img {
-  display: block;
-  width: 2.404em;
-  max-width: none;
-  height: auto;
-  flex-shrink: 0;
-  -webkit-mask-image: linear-gradient(to bottom, #000 48%, rgba(0,0,0,.38) 76%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 48%, rgba(0,0,0,.38) 76%, transparent 100%);
+  display: inline-block; position: static; width: auto; margin: 0 .06em;
+  vertical-align: -.08em; font-family: 'Tangerine', cursive;
+  font-size: 1.12em; font-weight: 400; line-height: .8;
+  pointer-events: none; filter: none;
 }
 .hero-content-lower .hero-subtitle { position: relative; z-index: 2; }
 .mobile-drawer-head { align-items: flex-start; }
@@ -8197,9 +8183,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 .drawer-nav-item::after { content: ''; position: absolute; bottom: 0; left: 14px; right: 14px; height: 1px; background: linear-gradient(90deg, transparent, rgba(201,160,80,.32) 20%, rgba(74,88,66,.14) 80%, transparent); }
 .drawer-nav-item:hover, .drawer-nav-item.active { background: transparent; box-shadow: none; color: var(--color-olive); }
 .drawer-install-btn { margin-top: 0; background: transparent; }
-.drawer-brand::before { opacity: .08; }
-.drawer-sub::after { opacity: .13; }
-.mobile-drawer { background-color: #FAF7F2; color: var(--color-olive-dark); background-image: url('/assets/img/rama-espejo.svg'); background-size: 240px auto; background-position: right -95px bottom -40px; background-repeat: no-repeat; background-blend-mode: soft-light; }
+.mobile-drawer { background: #FAF7F2; color: var(--color-olive-dark); }
 .hero-btn { backdrop-filter: blur(28px) saturate(145%); -webkit-backdrop-filter: blur(28px) saturate(145%); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 8px 24px rgba(0,0,0,.24); }
 .hero-btn-moments { background: rgba(201,160,80,.22); color: var(--color-gold-light); border: 1px solid var(--color-gold); }
 .hero-btn-moments:hover { background: rgba(201,160,80,.32); }
@@ -8210,14 +8194,68 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 
 /* Respetar los colores originales de la variante vegetal del monograma. */
 .nav-brand .brand-monogram, .drawer-brand .brand-monogram { filter: none; }
-.brand-amp { display: inline-flex; width: .85em; vertical-align: -.14em; }
-.brand-amp img { display: block; width: 100%; height: auto; }
 /* Navegación sobre el fondo de la página y libro a primer plano. */
 .site-nav:not(.nav-over-hero) { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
-.brand-text .brand-amp { position: relative; font-size: inherit; width: 1.1em; vertical-align: -1.08em; margin: 0 .072em -.661em -.841em; pointer-events: none; }
-.brand-text .brand-amp img { width: 2.404em; max-width: none; flex-shrink: 0; height: auto; }
 .book-page-main { position: relative; z-index: 1001; padding: 12px; pointer-events: none; }
 .book-page-main .wedding-book-stage { pointer-events: auto; }
 @media (max-width: 1140px) { .site-nav .nav-mobile-actions { display: flex; } .site-nav .brand-wordmark, .site-nav .brand-divider, .site-nav .nav-links { display: none; } }
 @media (max-width: 800px) { .book-page-main { z-index: auto; padding: calc(70px + env(safe-area-inset-top, 0px)) 12px calc(12px + env(safe-area-inset-bottom, 0px)); } }
 @media (max-width: 600px) { .book-page-main { padding: calc(68px + env(safe-area-inset-top, 0px)) 8px calc(8px + env(safe-area-inset-bottom, 0px)); } }
+
+/* Libro de honor: pasta cerrada y hojas al abrir. */
+.wedding-book-sheet:not(.is-open) {
+  background: linear-gradient(110deg, #161E13, #263322 18%, #1F291B 66%, #161E13);
+  box-shadow: inset 3px 0 9px rgba(0,0,0,.38), inset 0 1px 0 rgba(244,226,183,.16);
+  color: var(--color-gold-light);
+}
+.wedding-book-sheet:not(.is-open)::before {
+  content: ''; position: absolute; inset: 22px; pointer-events: none;
+  background: url('/assets/img/d-rama.svg') center / contain no-repeat; opacity: .045;
+}
+.book-cover-monogram {
+  display: block; width: min(72%, 320px); height: auto; max-height: 46dvh; object-fit: contain;
+  margin: 0 auto 20px; filter: drop-shadow(0 1px 0 rgba(255,241,196,.2)) drop-shadow(0 -2px 1px rgba(0,0,0,.85));
+}
+.wedding-book-sheet:not(.is-open) .book-sheet-header {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex: 1; min-height: 0; margin: 0; padding: 16px 0; border: 0;
+}
+.wedding-book-sheet:not(.is-open) .book-ornament { display: none; }
+.wedding-book-sheet:not(.is-open) .book-eyebrow {
+  font-family: var(--font-serif); font-style: italic; font-size: clamp(1.8rem, 5vw, 2.6rem);
+  text-transform: none; letter-spacing: .025em; color: var(--color-gold-light); margin-bottom: 24px;
+}
+.wedding-book-sheet:not(.is-open) .book-mode-bar { background: rgba(250,247,242,.05); }
+.wedding-book-sheet:not(.is-open) .book-mode-btn { color: var(--color-gold-light); min-height: 44px; }
+.wedding-book-sheet:not(.is-open) .book-mode-btn:hover { background: rgba(201,160,80,.14); }
+.wedding-book-sheet:not(.is-open) .book-view { display: none; }
+.wedding-book-sheet.is-open .book-cover-monogram { display: none; }
+.wedding-book-sheet.is-open { animation: bookOpenReveal .65s ease both; transform-origin: left center; }
+#bookFlipStage[hidden] { display: none; }
+#bookReadView > #bookWriteView.is-active {
+  padding: 16px 20px; border-radius: 3px 12px 12px 3px;
+  background: linear-gradient(90deg, rgba(36,46,30,.12), transparent 8%), #FFFDF8;
+  border: 1px solid rgba(196,162,99,.44); box-shadow: 3px 3px 0 #E9DFC9, 5px 5px 0 #D8CDB5;
+}
+/* El reverso conserva papel opaco sin texto reflejado. */
+.book-stf-page { background: #FFFDF8; }
+.book-stf-page .book-paper-page { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.book-signature-entry.is-new-signature { position: relative; animation: signatureInkReveal .7s ease both; }
+.book-signature-entry.is-new-signature::after {
+  content: ''; position: absolute; inset: -6px; pointer-events: none;
+  background: radial-gradient(ellipse at 8% 25%, #F4E2B7 0 2px, transparent 4px), radial-gradient(ellipse at 82% 14%, #C9A050 0 2px, transparent 4px), radial-gradient(ellipse at 93% 72%, #F4E2B7 0 3px, transparent 5px), radial-gradient(ellipse at 24% 88%, #C9A050 0 1px, transparent 3px);
+  animation: signatureSparkles 1.6s ease-out 2 both;
+}
+@keyframes bookOpenReveal { from { opacity: .45; transform: perspective(1200px) rotateY(-12deg); } to { opacity: 1; transform: perspective(1200px) rotateY(0); } }
+@keyframes signatureInkReveal { from { opacity: .3; } to { opacity: 1; } }
+@keyframes signatureSparkles { 0% { opacity: 0; transform: scale(.85); } 30% { opacity: .9; } 100% { opacity: 0; transform: scale(1.08) translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .wedding-book-sheet.is-open, .book-signature-entry.is-new-signature, .book-signature-entry.is-new-signature::after { animation: none; } .book-signature-entry.is-new-signature::after { display: none; } }
+
+.book-stf-page.is-turning-verso .book-paper-page > * { visibility: hidden; }
+
+/* Tangerine en todos los nombres, sin el solapamiento del SVG. */
+.brand-text .brand-amp { display: inline-block; position: static; width: auto; font-family: 'Tangerine', cursive; font-size: 1.16em; font-weight: 400; line-height: .8; vertical-align: -.08em; margin: 0 .07em; }
+.drawer-brand .brand-wordmark { display: flex; }
+.drawer-brand .brand-text { font-size: clamp(1.45rem, 5.8vw, 1.75rem); }
+.mobile-drawer-head, .drawer-camera-spotlight, .drawer-nav-list { position: relative; z-index: 1; }
+.drawer-monogram-watermark { position: absolute; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: 160px; height: auto; opacity: .065; pointer-events: none; user-select: none; filter: none; z-index: 0; }

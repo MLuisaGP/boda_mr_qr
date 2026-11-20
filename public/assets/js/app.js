@@ -43,6 +43,8 @@
   let galleryLastGuestToken = null;
   let galleryActiveLoadPromise = null;
   let guestbookEntries = [];
+  let celebratingSignatureId = null;
+  let signatureCelebrationTimer = null;
   let currentBookPage = 1;
   let currentBookPageSize = 3;
   let bookPageFlipInstance = null;
@@ -1649,12 +1651,12 @@
         thumb.innerHTML = `
           <video src="${entry.previewUrl}" muted playsinline preload="metadata"></video>
           <span class="cam-tray-vid-tag">VID</span>
-          <button type="button" class="cam-tray-remove" aria-label="Quitar">&times;</button>
+          <button type="button" class="cam-tray-remove" aria-label="Quitar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         `;
       } else {
         thumb.innerHTML = `
           <img src="${entry.previewUrl}" alt="Captura" />
-          <button type="button" class="cam-tray-remove" aria-label="Quitar">&times;</button>
+          <button type="button" class="cam-tray-remove" aria-label="Quitar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         `;
       }
 
@@ -3567,7 +3569,7 @@
     }
 
     if (isStandby) {
-      if (lightboxAvatar) lightboxAvatar.textContent = '✦';
+      if (lightboxAvatar) lightboxAvatar.innerHTML = '<svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg>';
       if (lightboxAuthor) {
         lightboxAuthor.textContent = item.selected ? 'Seleccionado para publicar' : 'En espera (sin publicar)';
       }
@@ -3774,7 +3776,7 @@
       if (e.key === 'ArrowRight') navigateLightbox(1);
       return;
     }
-    if (bookReadView && bookReadView.classList.contains('is-active') && !(bookSigModal && bookSigModal.classList.contains('is-open'))) {
+    if (bookReadView && !bookFlipStage.hidden && bookReadView.classList.contains('is-active') && !(bookSigModal && bookSigModal.classList.contains('is-open'))) {
       if (e.key === 'ArrowRight') triggerBookFlip('next');
       if (e.key === 'ArrowLeft') triggerBookFlip('prev');
     }
@@ -3814,12 +3816,12 @@
       return totalEntries > 0 ? 'Toca una firma para leerla completa' : 'Agrega la primera dedicatoria';
     }
     if (pageNum <= 1) {
-      return 'Desliza la esquina o la hoja ← con tu dedo';
+      return 'Desliza la esquina o la hoja a la izquierda con tu dedo';
     }
     if (pageNum >= totalPages) {
-      return 'Última hoja · Desliza → para regresar';
+      return 'Última hoja · Desliza a la derecha para regresar';
     }
-    return 'Desliza ← o → con tu dedo para hojear';
+    return 'Desliza a la izquierda o a la derecha con tu dedo para hojear';
   }
 
   function buildBookPageFooterHtml(pageNum, totalPages, totalEntries) {
@@ -3837,7 +3839,7 @@
           data-book-dir="prev"
           aria-label="Hoja anterior"
           ${prevDisabled ? 'disabled' : ''}
-        >←</button>
+        ><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
         <span class="book-paper-swipe-hint">${escapeHtml(hintText)}</span>
         <button
           type="button"
@@ -3845,7 +3847,7 @@
           data-book-dir="next"
           aria-label="Hoja siguiente"
           ${nextDisabled ? 'disabled' : ''}
-        >→</button>
+        ><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
       </div>
     `;
   }
@@ -3881,7 +3883,7 @@
       const rawMsg = (entry.raw_message || entry.message || '').replace(/\r?\n+/g, ' ').trim();
 
       return `
-        <article class="book-signature-entry sig-font-${fontKey} is-clickable" data-entry-id="${Number(entry.id)}">
+        <article class="book-signature-entry sig-font-${fontKey} is-clickable${Number(entry.id) === celebratingSignatureId ? ' is-new-signature' : ''}" data-entry-id="${Number(entry.id)}">
           <p class="book-sig-message">${escapeHtml(rawMsg)}</p>
           <div class="book-sig-footer">
             <span class="book-sig-author">— ${escapeHtml(authorText)}</span>
@@ -4037,6 +4039,14 @@
       });
 
       bookPageFlipInstance.loadFromHTML(pageNodes);
+      // StPageFlip dibuja las hojas blandas en 2D: backface-visibility por si solo no oculta el verso.
+      const renderer = bookPageFlipInstance.getRender();
+      const setFlippingPage = renderer.setFlippingPage.bind(renderer);
+      renderer.setFlippingPage = (page) => {
+        setFlippingPage(page);
+        const element = page && page.getElement && page.getElement();
+        if (element) element.classList.add('is-turning-verso');
+      };
       lastMountedBookKey = nextKey;
 
       const fc = bookPageFlipInstance.getFlipController && bookPageFlipInstance.getFlipController();
@@ -4336,6 +4346,9 @@
       bookPageFlipInstance.on('changeState', (e) => {
         const state = e && e.data ? String(e.data) : 'read';
         bookIsFlipping = state !== 'read';
+        if (state === 'read') {
+          bookFlipHostWrap.querySelectorAll('.is-turning-verso').forEach((page) => page.classList.remove('is-turning-verso'));
+        }
         if (bookFlipStage) {
           bookFlipStage.classList.toggle('is-dragging', state === 'user_fold');
         }
@@ -4560,8 +4573,15 @@
 
   function setBookMode(mode) {
     const isRead = mode === 'read';
+    const sheet = document.getElementById('weddingBookSheet');
+    if (sheet) { sheet.classList.add('is-open'); sheet.dataset.mode = mode; }
+    [btnBookWriteTab, btnBookReadTab].forEach((button) => {
+      if (button) button.setAttribute('aria-expanded', 'true');
+    });
+    if (bookFlipStage) bookFlipStage.hidden = !isRead;
     if (bookWriteView) bookWriteView.classList.toggle('is-active', !isRead);
-    if (bookReadView) bookReadView.classList.toggle('is-active', isRead);
+    if (bookReadView) bookReadView.classList.add('is-active');
+    if (!isRead && guestbookAuthorInput) requestAnimationFrame(() => guestbookAuthorInput.focus({ preventScroll: true }));
     if (btnBookWriteTab) btnBookWriteTab.classList.toggle('is-active', !isRead);
     if (btnBookReadTab) btnBookReadTab.classList.toggle('is-active', isRead);
     if (isRead) {
@@ -4582,7 +4602,7 @@
   let bookResizeTimer = null;
   function scheduleBookResize() {
     if (shouldFreezeLayoutForLandscape()) return;
-    if (!bookFlipStage || !bookReadView || !bookReadView.classList.contains('is-active')) return;
+    if (!bookFlipStage || bookFlipStage.hidden || !bookReadView || !bookReadView.classList.contains('is-active')) return;
     clearTimeout(bookResizeTimer);
     bookResizeTimer = setTimeout(() => {
       if (!bookIsFlipping && !shouldFreezeLayoutForLandscape()) {
@@ -4600,6 +4620,11 @@
       const data = await res.json();
       if (data.success && Array.isArray(data.entries)) {
         guestbookEntries = data.entries;
+        if (celebratingSignatureId !== null) {
+          currentBookPageSize = computeBookPageSize();
+          const index = guestbookEntries.findIndex((entry) => Number(entry.id) === celebratingSignatureId);
+          if (index >= 0) currentBookPage = Math.floor(index / currentBookPageSize) + 1;
+        }
         renderGuestbookPage(currentBookPage);
       }
     } catch (e) {
@@ -4732,6 +4757,12 @@
           showToast('¡Tu firma ha quedado guardada en el libro!', 'success', '¡Gracias por firmar!');
           if (guestbookMsgInput) guestbookMsgInput.value = '';
           if (data.entry) {
+            celebratingSignatureId = Number(data.entry.id);
+            clearTimeout(signatureCelebrationTimer);
+            signatureCelebrationTimer = setTimeout(() => {
+              celebratingSignatureId = null;
+              document.querySelectorAll('.is-new-signature').forEach((entry) => entry.classList.remove('is-new-signature'));
+            }, 3500);
             guestbookEntries = [data.entry, ...guestbookEntries.filter((x) => Number(x.id) !== Number(data.entry.id))];
           }
           currentBookPage = 1;

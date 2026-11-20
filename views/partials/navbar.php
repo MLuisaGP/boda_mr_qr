@@ -23,7 +23,7 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
       </span>
       <span class="brand-divider" aria-hidden="true"></span>
       <span class="brand-wordmark">
-        <span class="brand-text">Michelle <span class="brand-amp"><img src="/assets/img/d-&amp;.svg" alt="&amp;" width="466" height="432"></span> René</span>
+        <span class="brand-text">Michelle <span class="brand-amp">&amp;</span> René</span>
         <span class="brand-date">19 · XII · 2026</span>
       </span>
     </a>
@@ -59,12 +59,10 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
   <aside class="mobile-drawer" id="mobileDrawer" aria-label="Menú principal" aria-hidden="true">
     <div class="mobile-drawer-head">
       <a href="/" class="drawer-brand app-nav-link" aria-label="Ir al inicio — Michelle y René">
-        <span class="brand-emblem drawer-brand-emblem" aria-hidden="true"><img class="brand-monogram" src="/assets/img/v-m&amp;r.svg" alt="">
+        <span class="brand-wordmark">
+          <span class="brand-text">Michelle <span class="brand-amp">&amp;</span> Ren&#233;</span>
+          <span class="brand-date">19 &#183; XII &#183; 2026</span>
         </span>
-        <span class="brand-divider drawer-brand-divider" aria-hidden="true"></span>
-        <div class="drawer-brand-text">
-          <div class="drawer-sub">19 · XII · 2026</div>
-        </div>
       </a>
       <button type="button" class="drawer-close-btn" id="mobileDrawerClose" aria-label="Cerrar menú"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
     </div>
@@ -75,7 +73,7 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
       <div class="drawer-cam-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
       </div>
-      <div class="drawer-cam-text"><strong>Cámara</strong></div>
+      <div class="drawer-cam-text"><strong>Comparte tus momentos</strong></div>
       <svg class="drawer-cam-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="9 18 15 12 9 6"></polyline></svg>
     </a>
 
@@ -115,4 +113,5 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
         <span>Instalar App en tu Teléfono</span>
       </button>
     </nav>
+    <img class="brand-monogram drawer-monogram-watermark" src="/assets/img/v-m&amp;r.svg" alt="" aria-hidden="true" width="1371" height="1313">
   </aside>

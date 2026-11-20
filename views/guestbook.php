@@ -21,9 +21,10 @@ $navTransparent = false;
         <div class="wedding-book-spine" aria-hidden="true"></div>
         <div class="wedding-book-ribbon" aria-hidden="true"></div>
 
-        <div class="wedding-book-sheet">
+        <div class="wedding-book-sheet" id="weddingBookSheet" data-mode="closed">
           <!-- Encabezado Compacto del Libro -->
           <header class="book-sheet-header">
+            <img class="book-cover-monogram" src="/assets/img/l-m&amp;r.svg" alt="Michelle y Ren&#233;" width="1371" height="1313">
             <div class="book-ornament" aria-hidden="true">
               <span></span>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
@@ -33,11 +34,11 @@ $navTransparent = false;
 
             <!-- Selector de Vista: Escribir Firma / Ver Firmas de los Demás -->
             <div class="book-mode-bar">
-              <button type="button" class="book-mode-btn is-active" id="btnBookWriteTab">
+              <button type="button" class="book-mode-btn" id="btnBookWriteTab" aria-controls="bookReadView" aria-expanded="false">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                 <span>Escribir Firma</span>
               </button>
-              <button type="button" class="book-mode-btn" id="btnBookReadTab">
+              <button type="button" class="book-mode-btn" id="btnBookReadTab" aria-controls="bookReadView" aria-expanded="false">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
                 <span>Ver Firmas</span>
                 <span class="book-count-pill" id="gbBookCountPill">0</span>
@@ -46,7 +47,8 @@ $navTransparent = false;
           </header>
 
           <!-- PÁGINA 1 DEL LIBRO: FORMULARIO PARA FIRMAR -->
-          <div class="book-view book-view-write is-active" id="bookWriteView">
+          <div class="book-view book-view-read" id="bookReadView">
+          <div class="book-view book-view-write" id="bookWriteView">
             <p class="book-prompt-note">
               Déjanos tus buenos deseos y bendiciones para recordar este día para siempre.
             </p>
@@ -60,7 +62,7 @@ $navTransparent = false;
                 💍 Amor eterno
               </button>
               <button type="button" class="gb-chip-btn" data-msg="¡Gracias por hacernos parte de su historia tan hermosa! Los queremos muchísimo.">
-                ✨ Gracias por invitarnos
+                <svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg> Gracias por invitarnos
               </button>
               <button type="button" class="gb-chip-btn" data-msg="¡A bailar y celebrar con todo el corazón este gran día! Que vivan los novios.">
                 🎉 ¡Que vivan los novios!
@@ -86,9 +88,6 @@ $navTransparent = false;
               </div>
             </form>
           </div>
-
-          <!-- PÁGINA 2 DEL LIBRO: VER FIRMAS DE LOS INVITADOS (HOJA DE LIBRO INTERACTIVA 3D SIN SCROLL) -->
-          <div class="book-view book-view-read" id="bookReadView">
             <!-- Escenario Interactivo del Libro (StPageFlip con doblado real de hoja, sin scroll vertical) -->
             <div class="book-flip-stage" id="bookFlipStage" aria-label="Hojas del libro de firmas, desliza con tu dedo para cambiar de página">
               <!-- Grosor visual de hojas apiladas a la derecha -->
@@ -162,8 +161,8 @@ $navTransparent = false;
   <!-- Modal ligero para leer dedicatorias largas completas en su misma tipografía -->
   <div class="book-sig-modal" id="bookSigModal" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="book-sig-modal-card">
-      <button type="button" class="book-sig-modal-close" id="bookSigModalClose" aria-label="Cerrar">&times;</button>
-      <div class="book-sig-modal-ornament" aria-hidden="true">✦</div>
+      <button type="button" class="book-sig-modal-close" id="bookSigModalClose" aria-label="Cerrar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      <div class="book-sig-modal-ornament" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg></div>
       <div class="book-sig-modal-body" id="bookSigModalBody"></div>
     </div>
   </div>
@@ -171,6 +170,6 @@ $navTransparent = false;
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
   <script src="/assets/js/vendor/page-flip.browser.min.js"></script>
-  <script src="/assets/js/app.js?v=22"></script>
+  <script src="/assets/js/app.js?v=26"></script>
 </body>
 </html>

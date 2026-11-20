@@ -93,7 +93,7 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
           <span class="hero-pill-dot"></span>
         </div>
 
-        <h1 class="hero-title">Michelle <span class="hero-amp"><img src="/assets/img/c-&amp;.svg" alt="&amp;" width="466" height="432"></span> René</h1>
+        <h1 class="hero-title">Michelle <span class="hero-amp">&amp;</span> René</h1>
 
         <p class="hero-subtitle">
           Gracias por celebrar con nosotros este día inolvidable. Captura cada sonrisa y déjanos tu recuerdo para siempre.
