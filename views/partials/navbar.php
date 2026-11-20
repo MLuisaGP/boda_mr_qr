@@ -19,27 +19,11 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
   <!-- BARRA DE NAVEGACIÓN APP (ESCRITORIO + MÓVIL CON HAMBURGUESA) -->
   <header class="site-nav<?= $navTransparent ? ' nav-over-hero' : '' ?>" id="siteNav">
     <a href="/" class="nav-brand app-nav-link" aria-label="Ir al inicio — Michelle y René">
-      <span class="brand-emblem" aria-hidden="true">
-        <svg viewBox="8 2 32 41" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="mrLogoGoldNav" x1="10" y1="8" x2="38" y2="40" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#E5C585"/>
-              <stop offset="50%" stop-color="#C9A050"/>
-              <stop offset="100%" stop-color="#9A732D"/>
-            </linearGradient>
-          </defs>
-          <path class="logo-star" d="M24 3.2 L24.7 5.1 L26.6 5.8 L24.7 6.5 L24 8.4 L23.3 6.5 L21.4 5.8 L23.3 5.1 Z" fill="url(#mrLogoGoldNav)"/>
-          <path class="logo-heart-olive" d="M25.8 14.9 C23.8 9.6 16.2 9.2 14.4 14.8 C12.6 20.4 17.4 26.8 25.8 33.2 C34.2 26.8 39.0 20.4 37.2 14.8 C35.4 9.2 27.8 9.6 25.8 14.9 Z" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-          <path class="logo-heart-gold" d="M22.2 16.5 C20.2 11.2 12.6 10.8 10.8 16.4 C9.0 22.0 13.8 28.4 22.2 34.8 C30.6 28.4 35.4 22.0 33.6 16.4 C31.8 10.8 24.2 11.2 22.2 16.5 Z" stroke="url(#mrLogoGoldNav)" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
-          <path class="logo-sprig-stem" d="M24 38.2 Q18.2 39.6 12.6 36.6 M24 38.2 Q29.8 39.6 35.4 36.6" stroke="currentColor" stroke-width="1.05" stroke-linecap="round"/>
-          <path class="logo-sprig-leaf" d="M20.4 38.8 C19.0 40.9 16.8 41.4 15.5 40.4 C16.8 39.0 18.7 38.5 20.4 38.8 Z M27.6 38.8 C29.0 40.9 31.2 41.4 32.5 40.4 C31.2 39.0 29.3 38.5 27.6 38.8 Z" fill="currentColor"/>
-          <path class="logo-sprig-leaf-soft" d="M16.4 38.0 C15.2 36.0 13.4 35.4 12.0 36.2 C13.4 37.6 15.0 38.2 16.4 38.0 Z M31.6 38.0 C32.8 36.0 34.6 35.4 36.0 36.2 C34.6 37.6 33.0 38.2 31.6 38.0 Z" fill="currentColor"/>
-          <circle cx="24" cy="38.2" r="1.25" fill="url(#mrLogoGoldNav)"/>
-        </svg>
+      <span class="brand-emblem" aria-hidden="true"><img class="brand-monogram" src="/assets/img/v-m&amp;r.svg" alt="">
       </span>
       <span class="brand-divider" aria-hidden="true"></span>
       <span class="brand-wordmark">
-        <span class="brand-text">Michelle <span class="brand-amp">&amp;</span> René</span>
+        <span class="brand-text">Michelle <span class="brand-amp"><img src="/assets/img/d-&amp;.svg" alt="&amp;" width="466" height="432"></span> René</span>
         <span class="brand-date">19 · XII · 2026</span>
       </span>
     </a>
@@ -48,7 +32,9 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
     <ul class="nav-links">
       <li><a href="/" class="nav-link app-nav-link<?= $activePage === 'home' ? ' active' : '' ?>">Inicio</a></li>
       <li><a href="/galeria" class="nav-link app-nav-link<?= $activePage === 'gallery' ? ' active' : '' ?>">Galería</a></li>
+      <?php if ($activePage !== 'guestbook'): ?>
       <li><a href="/firmas" class="nav-link app-nav-link<?= $activePage === 'guestbook' ? ' active' : '' ?>">Libro de Firmas</a></li>
+      <?php endif; ?>
       <li>
         <div id="guestDisplayBadge" class="user-badge" style="display:none;" onclick="if(window.promptGuestName) window.promptGuestName(true);" title="Mi perfil de invitado">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
@@ -73,31 +59,14 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
   <aside class="mobile-drawer" id="mobileDrawer" aria-label="Menú principal" aria-hidden="true">
     <div class="mobile-drawer-head">
       <a href="/" class="drawer-brand app-nav-link" aria-label="Ir al inicio — Michelle y René">
-        <span class="brand-emblem drawer-brand-emblem" aria-hidden="true">
-          <svg viewBox="8 2 32 41" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="mrLogoGoldDrawer" x1="10" y1="8" x2="38" y2="40" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#E5C585"/>
-                <stop offset="50%" stop-color="#C9A050"/>
-                <stop offset="100%" stop-color="#9A732D"/>
-              </linearGradient>
-            </defs>
-            <path class="logo-star" d="M24 3.2 L24.7 5.1 L26.6 5.8 L24.7 6.5 L24 8.4 L23.3 6.5 L21.4 5.8 L23.3 5.1 Z" fill="url(#mrLogoGoldDrawer)"/>
-            <path class="logo-heart-olive" d="M25.8 14.9 C23.8 9.6 16.2 9.2 14.4 14.8 C12.6 20.4 17.4 26.8 25.8 33.2 C34.2 26.8 39.0 20.4 37.2 14.8 C35.4 9.2 27.8 9.6 25.8 14.9 Z" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
-            <path class="logo-heart-gold" d="M22.2 16.5 C20.2 11.2 12.6 10.8 10.8 16.4 C9.0 22.0 13.8 28.4 22.2 34.8 C30.6 28.4 35.4 22.0 33.6 16.4 C31.8 10.8 24.2 11.2 22.2 16.5 Z" stroke="url(#mrLogoGoldDrawer)" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
-            <path class="logo-sprig-stem" d="M24 38.2 Q18.2 39.6 12.6 36.6 M24 38.2 Q29.8 39.6 35.4 36.6" stroke="currentColor" stroke-width="1.05" stroke-linecap="round"/>
-            <path class="logo-sprig-leaf" d="M20.4 38.8 C19.0 40.9 16.8 41.4 15.5 40.4 C16.8 39.0 18.7 38.5 20.4 38.8 Z M27.6 38.8 C29.0 40.9 31.2 41.4 32.5 40.4 C31.2 39.0 29.3 38.5 27.6 38.8 Z" fill="currentColor"/>
-            <path class="logo-sprig-leaf-soft" d="M16.4 38.0 C15.2 36.0 13.4 35.4 12.0 36.2 C13.4 37.6 15.0 38.2 16.4 38.0 Z M31.6 38.0 C32.8 36.0 34.6 35.4 36.0 36.2 C34.6 37.6 33.0 38.2 31.6 38.0 Z" fill="currentColor"/>
-            <circle cx="24" cy="38.2" r="1.25" fill="url(#mrLogoGoldDrawer)"/>
-          </svg>
+        <span class="brand-emblem drawer-brand-emblem" aria-hidden="true"><img class="brand-monogram" src="/assets/img/v-m&amp;r.svg" alt="">
         </span>
         <span class="brand-divider drawer-brand-divider" aria-hidden="true"></span>
         <div class="drawer-brand-text">
-          <div class="drawer-title">Michelle <span class="brand-amp">&amp;</span> René</div>
           <div class="drawer-sub">19 · XII · 2026</div>
         </div>
       </a>
-      <button type="button" class="drawer-close-btn" id="mobileDrawerClose" aria-label="Cerrar menú">&times;</button>
+      <button type="button" class="drawer-close-btn" id="mobileDrawerClose" aria-label="Cerrar menú"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
     </div>
 
     <!-- Tarjeta Destacada de Cámara en el Menú -->
@@ -106,10 +75,7 @@ $homeFloatingMenu = !empty($homeFloatingMenu);
       <div class="drawer-cam-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
       </div>
-      <div class="drawer-cam-text">
-        <strong><?= $navUploadsClosed ? 'Mis Recuerdos' : 'Cámara · Comparte tus Momentos' ?></strong>
-        <span><?= $navUploadsClosed ? 'Subidas cerradas · Ver mis recuerdos' : 'Capturar en espera y elegir tus mejores' ?></span>
-      </div>
+      <div class="drawer-cam-text"><strong>Cámara</strong></div>
       <svg class="drawer-cam-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="9 18 15 12 9 6"></polyline></svg>
     </a>
 

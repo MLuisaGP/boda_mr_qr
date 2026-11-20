@@ -4,7 +4,7 @@
    (Neumorphism sutil, Glassmorphism, Relieves Dorados y Sombras Envolventes)
    ===================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Alex+Brush&family=Qwigley&family=Sacramento&family=Indie+Flower&family=Luxurious+Script&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Alex+Brush&family=Corinthia:wght@400&family=Montserrat:wght@400;500&family=Qwigley&family=Sacramento&family=Indie+Flower&family=Luxurious+Script&display=swap');
 
 @font-face {
   font-family: 'La Luxes Script';
@@ -38,8 +38,8 @@
   --color-text-muted: #82917D;
 
   --font-serif: 'Cormorant Garamond', Georgia, serif;
-  --font-script: 'Alex Brush', cursive;
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-script: 'Corinthia', 'Alex Brush', cursive;
+  --font-sans: 'Montserrat', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 
   /* Sombras No-Planas con Profundidad Multicapa en tonos Olivo */
   --shadow-sm: 0 4px 12px rgba(31, 40, 27, 0.05), 0 1px 3px rgba(31, 40, 27, 0.04);
@@ -5285,7 +5285,7 @@ html.home-no-scroll {
 .hero-btn-glass {
   background: rgba(20, 28, 17, 0.58);
   color: #FFFFFF;
-  border: 1px solid rgba(244, 226, 183, 0.56);
+  border: 1px solid rgba(244, 226, 183, 0.06);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
@@ -8136,3 +8136,88 @@ html.allow-landscape-mode .orientation-lock-overlay {
     animation: none !important;
   }
 }
+
+/* Identidad M&R y controles transl?cidos. */
+.brand-emblem { width: 52px; height: 56px; background: transparent; border: 0; box-shadow: none; color: var(--color-olive); }
+.brand-emblem svg { width: 100%; height: 100%; overflow: visible; }
+.drawer-brand-emblem { width: 112px; height: 116px; flex-shrink: 0; }
+.drawer-brand { position: relative; gap: 16px; }
+.drawer-brand::before { content: ''; position: absolute; inset: -8px -22px -12px -12px; background: url('/assets/img/r-rama.svg') center / contain no-repeat; opacity: .15; pointer-events: none; }
+.drawer-brand > * { position: relative; }
+.drawer-brand-divider { display: none; }
+.drawer-sub, .hero-date-pill, .nav-link, .drawer-nav-item, .drawer-cam-text strong { font-family: var(--font-sans); font-weight: 400; text-transform: uppercase; letter-spacing: .1em; }
+:is(a, button, [role="button"]) { font-weight: 400 !important; }
+:is(a, button, [role="button"]) :is(strong, b, span, .option-title) { font-weight: 400 !important; }
+.option-icon-wrap, .option-video .option-icon-wrap, .option-gallery .option-icon-wrap, .drawer-cam-icon, .drawer-item-icon { background: rgba(74, 88, 66, .09); color: var(--color-olive); border: 1px solid rgba(74, 88, 66, .16); box-shadow: inset 0 1px 0 rgba(250, 247, 242, .7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.hero-btn-moments { background: rgba(250, 247, 242, .84); color: var(--color-olive-dark); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 4px 18px rgba(45, 58, 39, .12); }
+.ui-icon { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -.16em; flex-shrink: 0; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark); outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) { .brand-emblem, .hero-btn { animation: none !important; transition: none !important; } }
+
+.drawer-sub::after { content: ""; display: block; width: 72px; height: 70px; margin-top: 8px; background: url("/assets/img/rama-inclinada.svg") center / contain no-repeat; opacity: .2; }
+
+/* Referencia caligrafica: Corinthia; rotulos geometricos: Montserrat. */
+.hero-date-pill, .brand-date, .drawer-sub { font-family: var(--font-sans); font-weight: 400; letter-spacing: .2em; }
+.nav-link, .drawer-nav-item { font-size: .78rem; letter-spacing: .1em; }
+.hero-date-pill { max-width: 100%; white-space: normal; line-height: 1.6; }
+
+/* Textura original de papel: capa independiente del contenido del libro. */
+.book-paper-page::before { content: ""; position: absolute; inset: 0; background: url("/assets/img/2.jpg") center / cover no-repeat; opacity: .4; pointer-events: none; border-radius: inherit; z-index: -1; }
+.book-paper-page { isolation: isolate; }
+/* Monograma aportado y navegación editorial. */
+.brand-monogram { display: block; width: 100%; height: 100%; object-fit: contain; filter: brightness(0) saturate(100%) invert(31%) sepia(12%) saturate(730%) hue-rotate(57deg) brightness(96%) contrast(89%); }
+.site-nav.nav-over-hero .brand-monogram { filter: none; }
+.preloader-monogram { filter: brightness(0) saturate(100%) invert(31%) sepia(12%) saturate(730%) hue-rotate(57deg) brightness(96%) contrast(89%); }
+/* Em conserva los ajustes de -55/-70 px a la escala máxima del título. */
+.hero-content-lower .hero-title .hero-amp {
+  position: relative;
+  display: inline-flex;
+  font-size: inherit;
+  width: 1.1em;
+  vertical-align: -1.08em;
+  margin: 0 .09em -.661em -.841em;
+  pointer-events: none;
+}
+.hero-amp img {
+  display: block;
+  width: 2.404em;
+  max-width: none;
+  height: auto;
+  flex-shrink: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 48%, rgba(0,0,0,.38) 76%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 48%, rgba(0,0,0,.38) 76%, transparent 100%);
+}
+.hero-content-lower .hero-subtitle { position: relative; z-index: 2; }
+.mobile-drawer-head { align-items: flex-start; }
+.drawer-close-btn { margin-top: -8px; width: 44px; height: 44px; flex-shrink: 0; border: 0; background: transparent; }
+.drawer-camera-spotlight { border-radius: 999px; }
+.drawer-cam-icon, .drawer-item-icon, .drawer-nav-item.active .drawer-item-icon { background: transparent; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; color: inherit; }
+.drawer-nav-list { gap: 0; }
+.drawer-nav-item { position: relative; border: 0; border-radius: 0; background: transparent; transition: transform .22s ease, color .22s ease; }
+.drawer-nav-item::after { content: ''; position: absolute; bottom: 0; left: 14px; right: 14px; height: 1px; background: linear-gradient(90deg, transparent, rgba(201,160,80,.32) 20%, rgba(74,88,66,.14) 80%, transparent); }
+.drawer-nav-item:hover, .drawer-nav-item.active { background: transparent; box-shadow: none; color: var(--color-olive); }
+.drawer-install-btn { margin-top: 0; background: transparent; }
+.drawer-brand::before { opacity: .08; }
+.drawer-sub::after { opacity: .13; }
+.mobile-drawer { background-color: #FAF7F2; color: var(--color-olive-dark); background-image: url('/assets/img/rama-espejo.svg'); background-size: 240px auto; background-position: right -95px bottom -40px; background-repeat: no-repeat; background-blend-mode: soft-light; }
+.hero-btn { backdrop-filter: blur(28px) saturate(145%); -webkit-backdrop-filter: blur(28px) saturate(145%); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 8px 24px rgba(0,0,0,.24); }
+.hero-btn-moments { background: rgba(201,160,80,.22); color: var(--color-gold-light); border: 1px solid var(--color-gold); }
+.hero-btn-moments:hover { background: rgba(201,160,80,.32); }
+.hero-btn-glass { background: rgba(74,88,66,.28); color: #FAF7F2; border: 1px solid var(--color-olive); backdrop-filter: blur(28px) saturate(145%); -webkit-backdrop-filter: blur(28px) saturate(145%); }
+.hero-btn-glass:hover { background: rgba(74,88,66,.4); }
+@media (hover: hover) { .drawer-nav-item:hover, .drawer-camera-spotlight:hover, .drawer-close-btn:hover { transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .drawer-nav-item, .drawer-camera-spotlight, .drawer-close-btn { transition: none; } .drawer-nav-item:hover, .drawer-camera-spotlight:hover, .drawer-close-btn:hover { transform: none; } }
+
+/* Respetar los colores originales de la variante vegetal del monograma. */
+.nav-brand .brand-monogram, .drawer-brand .brand-monogram { filter: none; }
+.brand-amp { display: inline-flex; width: .85em; vertical-align: -.14em; }
+.brand-amp img { display: block; width: 100%; height: auto; }
+/* Navegación sobre el fondo de la página y libro a primer plano. */
+.site-nav:not(.nav-over-hero) { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.brand-text .brand-amp { position: relative; font-size: inherit; width: 1.1em; vertical-align: -1.08em; margin: 0 .072em -.661em -.841em; pointer-events: none; }
+.brand-text .brand-amp img { width: 2.404em; max-width: none; flex-shrink: 0; height: auto; }
+.book-page-main { position: relative; z-index: 1001; padding: 12px; pointer-events: none; }
+.book-page-main .wedding-book-stage { pointer-events: auto; }
+@media (max-width: 1140px) { .site-nav .nav-mobile-actions { display: flex; } .site-nav .brand-wordmark, .site-nav .brand-divider, .site-nav .nav-links { display: none; } }
+@media (max-width: 800px) { .book-page-main { z-index: auto; padding: calc(70px + env(safe-area-inset-top, 0px)) 12px calc(12px + env(safe-area-inset-bottom, 0px)); } }
+@media (max-width: 600px) { .book-page-main { padding: calc(68px + env(safe-area-inset-top, 0px)) 8px calc(8px + env(safe-area-inset-bottom, 0px)); } }
