@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel de Administración · Boda Michelle & René</title>
   
-  <link rel="stylesheet" href="/assets/css/admin.css?v=6">
+  <link rel="stylesheet" href="/assets/css/admin.css?v=13">
   <link rel="icon" type="image/svg+xml" href="/assets/img/m&amp;r.svg">
 </head>
 <body class="admin-dashboard">
@@ -21,12 +21,13 @@
       </div>
     </div>
 
-    <div class="admin-user-menu">
+    <button type="button" class="admin-menu-toggle" id="adminMenuToggle" aria-label="Abrir men&#250; de administraci&#243;n" aria-controls="adminUserMenu" aria-expanded="false"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <div class="admin-user-menu" id="adminUserMenu">
       <span class="user-name-tag">
         <svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg> <?= htmlspecialchars($adminUser['full_name'] ?? 'Novios') ?> (<?= htmlspecialchars($adminUser['role'] ?? 'admin') ?>)
       </span>
       <a href="/" class="admin-btn admin-btn-outline" target="_blank" rel="noopener">
-        Ver Web en Vivo ↗
+        Ver sitio ↗
       </a>
       <button id="btnLogout" class="admin-btn admin-btn-outline">
         Cerrar Sesión
@@ -152,6 +153,20 @@
 
   </main>
 
+  <div id="qrPrintSheets" aria-hidden="true"></div>
+  <div class="admin-modal-backdrop" id="adminPrintModal" role="dialog" aria-modal="true" aria-labelledby="printModalTitle">
+    <div class="admin-modal-content">
+      <h3 class="admin-section-title" id="printModalTitle">Preparar tarjetas QR</h3>
+      <p class="admin-section-note">Dos tarjetas con el dise&#241;o original por hoja Carta horizontal. Cada tarjeta ocupa media hoja.</p>
+      <form id="adminPrintForm">
+        <label class="admin-print-label" for="qrPrintCopies">&#191;Cu&#225;ntas tarjetas necesitas?</label>
+        <input id="qrPrintCopies" type="number" min="1" max="200" step="1" value="2" required inputmode="numeric" aria-describedby="qrPrintSummary">
+        <p class="admin-results" id="qrPrintSummary" role="status" aria-live="polite"></p>
+        <p class="admin-section-note">Para PDF, elige &#171;Guardar como PDF&#187;. Deja <strong>1 p&#225;gina por hoja</strong>: las dos tarjetas ya vienen acomodadas. Si el navegador muestra encabezados o pies, desact&#237;valos en M&#225;s ajustes.</p>
+        <div class="admin-confirm-actions"><button type="button" class="admin-btn admin-btn-outline" id="btnCancelPrint">Cancelar</button><button type="submit" class="admin-btn admin-btn-gold">Continuar a imprimir / PDF</button></div>
+      </form>
+    </div>
+  </div>
   <!-- MODALES EMERGENTES ELEGANTES -->
 
   <!-- Modal para ver mensaje completo del libro de firmas -->
@@ -249,6 +264,6 @@
   <!-- Contenedor de Notificaciones Toast del Panel -->
   <div class="admin-toast-container" id="adminToastContainer" aria-live="polite" aria-atomic="false"></div>
 
-  <script src="/assets/js/admin.js?v=6"></script>
+  <script src="/assets/js/admin.js?v=10"></script>
 </body>
 </html>

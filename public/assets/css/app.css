@@ -5787,11 +5787,6 @@ html.home-no-scroll {
   gap: 8px;
 }
 
-@media (max-width: 768px) {
-  .my-uploads-actions {
-    width: 100%;
-  }
-}
 
 .btn-mini-refresh {
   width: 38px;
@@ -6320,8 +6315,7 @@ html.home-no-scroll {
 }
 
 .lightbox-standby-select-btn.is-selected .lb-sel-check {
-  background: #241406;
-  border-color: #241406;
+
   color: #F4E2B7;
   opacity: 1;
 }
@@ -8136,7 +8130,7 @@ html.allow-landscape-mode .orientation-lock-overlay {
 :is(a, button, [role="button"]) :is(strong, b, span, .option-title) { font-weight: 400 !important; }
 .option-icon-wrap, .option-video .option-icon-wrap, .option-gallery .option-icon-wrap, .drawer-cam-icon, .drawer-item-icon { background: rgba(74, 88, 66, .05); color: #8F6B28; border: 1px solid rgb(88 77 66 / 10%); box-shadow: inset 0 1px 0 rgba(250, 247, 242, .7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 .hero-btn-moments { background: rgba(250, 247, 242, .84); color: var(--color-olive-dark); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 4px 18px rgba(45, 58, 39, .12); }
-.ui-icon { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -.16em; flex-shrink: 0; }
+.ui-icon { display: inline-block; width: 1.5em; height: 1.5em; vertical-align: -.16em; flex-shrink: 0; }
 a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark); outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) { .brand-emblem, .hero-btn { animation: none !important; transition: none !important; } }
 

@@ -100,12 +100,10 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
         <div class="standby-head">
           <div class="standby-title-group">
             <div class="standby-title-row">
-              <h2 class="standby-title">En Espera · Carrete Temporal</h2>
+              <h2 class="standby-title">En Espera · Galería Temporal</h2>
               <span class="standby-count-pill" id="standbyTotalBadge">0 guardados</span>
             </div>
-            <p class="standby-sub">
-              Solo tú ves estas capturas. Toca para seleccionar tus mejores recuerdos (hasta 24 publicados en total, máx. 4 videos) y pulsa <strong>Publicar</strong> para compartirlos con todos.
-            </p>
+
             <p class="standby-cache-note">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
               <span>Se guardan en la caché de tu navegador: si borras las cookies o datos del sitio antes de publicar, se eliminarán.</span>
@@ -159,8 +157,7 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
         <div class="my-uploads-head">
           <div>
             <h2 class="my-uploads-title">Mis Recuerdos Publicados</h2>
-            <p class="my-uploads-sub">Estos recuerdos ya están visibles en la galería para todos los invitados.</p>
-          </div>
+            </div>
           <div class="my-uploads-actions">
             <button type="button" class="btn-mini-refresh" id="btnRefreshMyUploads" title="Actualizar mis recuerdos">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
@@ -177,7 +174,7 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
           </div>
           <h3>Aún no has publicado recuerdos</h3>
-          <p>Captura tus momentos arriba, elige tus favoritos en espera y pulsa <strong>Publicar</strong> para compartirlos con Michelle &amp; René.</p>
+          <p>Captura tus momentos, elige tus favoritos y pulsa <strong>Publicar</strong> para compartirlos.</p>
         </div>
       </section>
     </section>

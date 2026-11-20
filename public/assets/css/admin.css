@@ -1062,7 +1062,7 @@ body.admin-modal-open { overflow: hidden; }
   .admin-dashboard .media-manager-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
   .admin-dashboard .admin-media-meta { padding: 10px; }
   .admin-dashboard .admin-media-sub { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
-  .admin-dashboard .admin-media-card-actions { flex-direction: column; gap: 6px; }
+  .admin-dashboard .admin-media-card-actions {  gap: 6px; }
   .admin-dashboard .admin-media-card-actions .admin-btn { font-size: .7rem !important; padding: 8px !important; }
   .admin-table-shell { padding: 0 14px; overflow: visible; }
   .admin-dashboard .guestbook-table thead { display: none; }
@@ -1126,3 +1126,70 @@ html:has(.admin-dashboard)::-webkit-scrollbar-thumb { background:rgba(74,88,66,.
 .login-back:hover { color:#8F6B28; text-decoration:underline; }
 .admin-login-card .admin-alert { text-align:left; color:#8E3030; background:rgba(155,53,53,.06); border-color:rgba(155,53,53,.25); }
 @media (max-width:480px) { .admin-login-main { padding:20px 12px; } .admin-login-card { padding:26px 20px; } }
+
+/* Menu del encabezado compacto, desplegado dentro de la propia barra. */
+.admin-menu-toggle { display:none; width:44px; height:44px; align-items:center; justify-content:center; border:1px solid rgba(74,88,66,.2); border-radius:50%; background:transparent; color:#4A5842; cursor:pointer; }
+.admin-menu-toggle .ui-icon { width:22px; height:22px; }
+@media (max-width:1000px) {
+  .admin-dashboard .admin-header { display:grid; grid-template-columns:minmax(0,1fr) 44px; align-items:center; gap:0 12px; }
+  .admin-menu-toggle { display:inline-flex; }
+  .admin-dashboard .admin-header .admin-user-menu { display:grid; grid-column:1 / -1; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; max-width:none; width:100%; max-height:0; padding-top:0; overflow:hidden; visibility:hidden; opacity:0; transition:max-height .3s ease,padding-top .3s ease,opacity .2s ease,visibility .3s; }
+  .admin-dashboard .admin-header.is-menu-open .admin-user-menu { max-height:260px; padding-top:18px; visibility:visible; opacity:1; }
+  .admin-dashboard .admin-header .user-name-tag { grid-column:1 / -1; padding-bottom:14px; border-bottom:1px solid rgba(201,160,80,.3); overflow-wrap:anywhere; }
+  .admin-dashboard .admin-header .admin-user-menu > .admin-btn { width:100%; min-width:0; padding:10px 8px; }
+}
+@media (max-width:380px) { .admin-dashboard .admin-header .admin-brand-title { font-size:1.4rem; } .admin-dashboard .admin-header .admin-brand-sub { font-size:.5rem; letter-spacing:.1em; } .admin-dashboard .admin-header .admin-brand { gap:8px; } .admin-dashboard .admin-header .admin-brand-monogram { width:44px; height:44px; } }
+@media (prefers-reduced-motion:reduce) { .admin-dashboard .admin-header .admin-user-menu { transition:none; } }
+
+.admin-select-trigger { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.admin-select-label { min-width:0; }
+.admin-select-arrow { display:block; width:18px; height:18px; flex-shrink:0; }
+
+/* Libro de firmas administrativo: columnas adaptables sin desbordar el panel. */
+.admin-dashboard .admin-table-shell { width:100%; min-width:0; }
+.admin-dashboard .guestbook-table { table-layout:fixed; max-width:100%; }
+.admin-dashboard .guestbook-table :is(th,td) { overflow-wrap:anywhere; }
+.admin-dashboard .guestbook-table :is(th,td):first-child { width:22%; }
+.admin-dashboard .guestbook-table :is(th,td):nth-child(3) { width:18%; }
+.admin-dashboard .guestbook-table :is(th,td):last-child { width:124px; }
+.admin-dashboard .guestbook-msg-preview { width:100%; max-width:100%; }
+@media (max-width:1060px) {
+  .admin-dashboard .guestbook-table :is(th,td):nth-child(3) { display:none; }
+  .admin-dashboard .guestbook-table :is(th,td):first-child { width:30%; }
+}
+@media (max-width:910px) {
+  .admin-dashboard .guestbook-table :is(th,td):nth-child(2) { display:none; }
+  .admin-dashboard .guestbook-table :is(th,td):first-child { width:auto; }
+}
+/* En movil se conserva la tabla compacta de Invitado y Acciones. */
+@media (max-width:640px) {
+  .admin-dashboard .admin-table-shell { padding:8px; overflow-x:auto; }
+  .admin-dashboard .guestbook-table thead { display:table-header-group; }
+  .admin-dashboard .guestbook-table tbody { display:table-row-group; }
+  .admin-dashboard .guestbook-table tr { display:table-row; width:auto; padding:0; }
+  .admin-dashboard .guestbook-table :is(td,th) { display:table-cell; padding:12px 8px; width:auto; vertical-align:middle; }
+  .admin-dashboard .guestbook-table :is(td,th):last-child { width:108px; text-align:right !important; white-space:nowrap; }
+  .admin-dashboard .guestbook-table :is(td,th):nth-child(2),
+  .admin-dashboard .guestbook-table :is(td,th):nth-child(3) { display:none; }
+  .admin-dashboard .guestbook-table td::before { display:none; }
+  .admin-dashboard .guestbook-table tbody td[colspan] { display:table-cell; width:auto; white-space:normal; }
+}
+.admin-dashboard .stat-card.stat-link, .admin-dashboard .admin-toast { border-top-left-radius:0; border-bottom-left-radius:0; }
+
+#qrPrintSheets { display:none; }
+.admin-print-label { display:block; margin:20px 0 8px; color:#4A5842; }
+#qrPrintCopies { width:100%; min-height:48px; padding:10px 14px; border:1px solid rgba(74,88,66,.25); border-radius:12px; background:#FFFDF9; color:#2D3A27; }
+
+.admin-dashboard .stat-card { border-top-left-radius:0; border-bottom-left-radius:0; }
+.qr-preview-scale { position:relative; width:100%; margin:0 auto; max-width:460px; }
+.admin-dashboard .qr-preview-scale > .qr-printable-card { width:460px; max-width:none; padding:32px; transform-origin:top left; }
+@media print {
+  @page { size:letter landscape; margin:0; }
+  html, body.admin-dashboard { margin:0 !important; padding:0 !important; background:white !important; }
+  body.admin-dashboard > :not(#qrPrintSheets) { display:none !important; }
+  body.admin-dashboard > #qrPrintSheets { display:block !important; }
+  .qr-print-sheet { width:279.4mm; height:215.9mm; display:grid; grid-template-columns:repeat(2,139.7mm); align-items:center; justify-items:center; break-after:page; page-break-after:always; overflow:hidden; }
+  .qr-print-sheet:last-child { break-after:auto; page-break-after:auto; }
+  .qr-print-slot { position:relative; }
+  .admin-dashboard .qr-print-sheet .qr-printable-card { position:absolute; top:0; left:0; width:460px !important; max-width:none; height:auto; margin:0 !important; padding:32px; border:8px double rgba(201,160,80,.6) !important; border-radius:12px; display:block; box-shadow:none; transform-origin:top left; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+}

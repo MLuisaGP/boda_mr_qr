@@ -5,6 +5,27 @@
 (function () {
   'use strict';
 
+  const adminMenuToggle = document.getElementById('adminMenuToggle');
+  const adminUserMenu = document.getElementById('adminUserMenu');
+  const adminHeader = document.querySelector('.admin-header');
+  const adminCompact = window.matchMedia('(max-width: 1000px)');
+  function setAdminMenuOpen(open, restoreFocus = false) {
+    if (!adminMenuToggle || !adminUserMenu || !adminHeader) return;
+    adminHeader.classList.toggle('is-menu-open', open);
+    adminMenuToggle.setAttribute('aria-expanded', String(open));
+    adminMenuToggle.setAttribute('aria-label', open ? 'Cerrar menu de administracion' : 'Abrir menu de administracion');
+    adminUserMenu.inert = adminCompact.matches && !open;
+    if (restoreFocus) adminMenuToggle.focus();
+  }
+  if (adminMenuToggle) {
+    adminMenuToggle.addEventListener('click', () => setAdminMenuOpen(adminMenuToggle.getAttribute('aria-expanded') !== 'true'));
+    adminCompact.addEventListener('change', () => setAdminMenuOpen(false));
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && adminMenuToggle.getAttribute('aria-expanded') === 'true') { setAdminMenuOpen(false, true); }
+    });
+    setAdminMenuOpen(false);
+  }
+
   let allMediaItems = [];
   let allGuestbookEntries = [];
   let adminMediaPage = 0;
@@ -569,11 +590,73 @@
     qrUrlInput.addEventListener('change', updateQRCode);
   }
 
+  const printModal = document.getElementById('adminPrintModal');
+  const printCopies = document.getElementById('qrPrintCopies');
+  const printSummary = document.getElementById('qrPrintSummary');
+  const printSheets = document.getElementById('qrPrintSheets');
+  function updatePrintSummary() {
+    const count = Number(printCopies.value);
+    printSummary.textContent = Number.isInteger(count) && count >= 1 && count <= 200 ? count + ' tarjetas en ' + Math.ceil(count / 2) + ' hojas.' : 'Elige entre 1 y 200 tarjetas.';
+  }
+  if (printCopies) printCopies.addEventListener('input', updatePrintSummary);
+  const cancelPrint = document.getElementById('btnCancelPrint');
+  if (cancelPrint) cancelPrint.addEventListener('click', () => printModal.classList.remove('active'));
+  if (printModal) printModal.addEventListener('click', (event) => { if (event.target === printModal) printModal.classList.remove('active'); });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && printModal) printModal.classList.remove('active'); });
+  const qrOriginal = document.querySelector('.qr-printable-card');
+  function resizeQRPreview() {
+    if (!qrOriginal || !qrOriginal.parentElement.classList.contains('qr-preview-scale')) return;
+    const wrapper = qrOriginal.parentElement;
+    const scale = Math.min(1, wrapper.clientWidth / 460);
+    qrOriginal.style.transform = 'scale(' + scale + ')';
+    wrapper.style.height = qrOriginal.offsetHeight * scale + 'px';
+  }
+  if (qrOriginal) {
+    const wrapper = document.createElement('div'); wrapper.className = 'qr-preview-scale';
+    qrOriginal.before(wrapper); wrapper.appendChild(qrOriginal);
+    if ('ResizeObserver' in window) { const observer = new ResizeObserver(resizeQRPreview); observer.observe(wrapper); observer.observe(qrOriginal); }
+    window.addEventListener('resize', resizeQRPreview);
+    if (document.fonts) document.fonts.ready.then(resizeQRPreview);
+  }
+  function buildQRPrintSheets(count) {
+    printSheets.replaceChildren();
+    const original = document.querySelector('.qr-printable-card');
+    for (let i = 0; i < count; i++) {
+      let sheet;
+      if (i % 2 === 0) { sheet = document.createElement('section'); sheet.className = 'qr-print-sheet'; printSheets.appendChild(sheet); }
+      else sheet = printSheets.lastElementChild;
+      const card = original.cloneNode(true);
+      card.removeAttribute('id');
+      card.querySelectorAll('[id]').forEach((element) => element.removeAttribute('id'));
+      const slot = document.createElement('div'); slot.className = 'qr-print-slot';
+      const width = 460, height = original.offsetHeight;
+      const scale = Math.min((139.7 - 12) * 96 / 25.4 / width, (215.9 - 12) * 96 / 25.4 / height);
+      slot.style.width = width * scale + 'px'; slot.style.height = height * scale + 'px';
+      card.style.transform = 'scale(' + scale + ')';
+      slot.appendChild(card); sheet.appendChild(slot);
+    }
+  }
+  const printForm = document.getElementById('adminPrintForm');
+  if (printForm) printForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!printForm.reportValidity()) return;
+    const count = Number(printCopies.value);
+    if (!Number.isInteger(count) || count < 1 || count > 200) return;
+    if (document.fonts) await document.fonts.ready;
+    buildQRPrintSheets(count);
+    await Promise.all(Array.from(printSheets.querySelectorAll('img')).map((img) => img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
+    printModal.classList.remove('active');
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+  });
+  window.addEventListener('afterprint', () => { if (printSheets) printSheets.replaceChildren(); });
+
   if (btnPrintCard) {
     btnPrintCard.addEventListener('click', () => {
       if (qrUrlInput && !qrUrlInput.reportValidity()) return;
       if (!qrImg || !qrImg.complete || !qrImg.naturalWidth) { showAdminToast('Espera a que el QR termine de cargar antes de imprimir.', 'warning', 'Preparando tarjeta'); return; }
-      window.print();
+      printModal.classList.add('active');
+      updatePrintSummary();
+      requestAnimationFrame(() => { printCopies.focus(); printCopies.select(); });
     });
   }
 
@@ -609,6 +692,9 @@
     if (!select) return;
     const label=select.closest('label'), wrapper=document.createElement('div'); wrapper.className='admin-custom-select'; label.appendChild(wrapper);
     const trigger=document.createElement('button');trigger.type='button';trigger.className='admin-select-trigger';
+    const triggerLabel=document.createElement('span');triggerLabel.className='admin-select-label';
+    const arrow=document.createElementNS('http://www.w3.org/2000/svg','svg');arrow.setAttribute('class','admin-select-arrow');arrow.setAttribute('viewBox','0 0 24 24');arrow.setAttribute('fill','none');arrow.setAttribute('stroke','currentColor');arrow.setAttribute('stroke-width','1.5');arrow.setAttribute('stroke-linecap','round');arrow.setAttribute('stroke-linejoin','round');arrow.setAttribute('aria-hidden','true');
+    const arrowPath=document.createElementNS('http://www.w3.org/2000/svg','path');arrowPath.setAttribute('d','m6 9 6 6 6-6');arrow.appendChild(arrowPath);trigger.appendChild(triggerLabel);trigger.appendChild(arrow);
     const list=document.createElement('div');list.className='admin-select-options';list.id=select.id+'-options';list.setAttribute('role','listbox');list.hidden=true;
     const title=label.querySelector('span').textContent;list.setAttribute('aria-label',title);
     trigger.setAttribute('aria-haspopup','listbox');trigger.setAttribute('aria-controls',list.id);trigger.setAttribute('aria-expanded','false');
@@ -616,7 +702,7 @@
       const button=document.createElement('button');button.type='button';button.className='admin-select-option';button.setAttribute('role','option');button.textContent=option.textContent;
       button.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));close(true);});list.appendChild(button);return button;
     });
-    function sync(){trigger.textContent=select.options[select.selectedIndex].textContent+' \u2304';trigger.setAttribute('aria-label',title+': '+select.options[select.selectedIndex].textContent);options.forEach((b,i)=>{b.setAttribute('aria-selected',String(i===select.selectedIndex));b.tabIndex=i===select.selectedIndex?0:-1;});}
+    function sync(){triggerLabel.textContent=select.options[select.selectedIndex].textContent;trigger.setAttribute('aria-label',title+': '+select.options[select.selectedIndex].textContent);options.forEach((b,i)=>{b.setAttribute('aria-selected',String(i===select.selectedIndex));b.tabIndex=i===select.selectedIndex?0:-1;});}
     function close(focus=false){list.hidden=true;trigger.setAttribute('aria-expanded','false');if(focus)trigger.focus();}
     function open(){list.hidden=false;trigger.setAttribute('aria-expanded','true');options[select.selectedIndex].focus();}
     trigger.addEventListener('click',()=>list.hidden?open():close());
@@ -657,7 +743,7 @@
     });
   }
 
-  const dialogs = [msgModal, confirmModal, r2GuideModal].filter(Boolean);
+  const dialogs = [msgModal, confirmModal, r2GuideModal, printModal].filter(Boolean);
   let modalReturnFocus = null;
   const focusableSelector = 'button:not([disabled]), a[href], input, select, textarea, [tabindex="0"]';
   const syncDialogs = () => {
