@@ -4,7 +4,7 @@
    (Neumorphism sutil, Glassmorphism, Relieves Dorados y Sombras Envolventes)
    ===================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Alex+Brush&family=Corinthia:wght@400&family=Montserrat:wght@400;500&family=Qwigley&family=Sacramento&family=Indie+Flower&family=Luxurious+Script&display=swap');
+/* Las fuentes de Google Fonts se cargan de forma no bloqueante desde views/partials/pwa_head.php */
 
 @font-face {
   font-family: 'La Luxes Script';
@@ -2381,19 +2381,21 @@ textarea.form-control {
 
 .camera-rec-badge {
   position: absolute;
-  top: 14px;
-  left: 14px;
-  background: rgba(185, 28, 28, 0.9);
+  bottom: 14px;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  background: rgba(185, 28, 28, 0.92);
   color: #FFFFFF;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  padding: 4px 10px;
+  font-variant-numeric: tabular-nums;
+  padding: 5px 12px;
   border-radius: 20px;
   display: flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  z-index: 4;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  z-index: 12;
+  pointer-events: none;
 }
 
 .rec-dot {
@@ -5069,6 +5071,7 @@ html.home-no-scroll {
   min-height: 0 !important;
   overflow: hidden;
   overscroll-behavior: none;
+  background-color: #141B12;
 }
 
 .page-home {
@@ -6620,6 +6623,47 @@ html.home-no-scroll {
   width: 100%;
   overflow-x: auto;
   scrollbar-width: thin;
+  scroll-behavior: smooth;
+}
+
+.live-cam-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0 auto;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+}
+
+.live-cam-mode-tab {
+  min-width: 76px;
+  min-height: 34px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.14s ease;
+}
+
+.live-cam-mode-tab.is-active {
+  background: var(--gold-gradient);
+  color: #FFFFFF;
+  box-shadow: 0 3px 12px rgba(201, 160, 80, 0.42);
+}
+
+.live-cam-mode-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .live-cam-tray {
@@ -6742,6 +6786,263 @@ html.home-no-scroll {
   place-items: center;
 }
 
+/* Modal de Selección Post-Captura (Elegir qué publicar o guardar en temporales) */
+.capture-review-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: none;
+  background: rgba(18, 22, 16, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+}
+
+.capture-review-modal.is-open {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: camFadeIn 0.2s ease both;
+}
+
+.capture-review-shell {
+  width: 100%;
+  max-width: 680px;
+  height: 100%;
+  max-height: 100dvh;
+  background: var(--color-ivory, #FAF7F2);
+  color: var(--color-ink, #2B2A26);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+}
+
+@media (min-width: 640px) {
+  .capture-review-modal.is-open {
+    align-items: center;
+    padding: 20px;
+  }
+
+  .capture-review-shell {
+    height: auto;
+    max-height: 88dvh;
+    border-radius: 24px;
+    border: 1px solid rgba(201, 160, 80, 0.32);
+  }
+}
+
+.capture-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid rgba(74, 88, 66, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.capture-review-heading {
+  min-width: 0;
+}
+
+.capture-review-title {
+  font-family: var(--font-serif);
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--color-olive-dark, #35412F);
+  margin: 0;
+}
+
+.capture-review-subtitle {
+  margin: 3px 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-olive, #4A5842);
+}
+
+.capture-review-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(74, 88, 66, 0.2);
+  background: #FFFFFF;
+  color: var(--color-olive-dark, #35412F);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.18s ease, transform 0.15s ease;
+}
+
+.capture-review-close:active {
+  transform: scale(0.94);
+}
+
+.capture-review-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 18px;
+  background: rgba(250, 247, 242, 0.92);
+  border-bottom: 1px solid rgba(74, 88, 66, 0.08);
+}
+
+.capture-review-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #6A6860);
+}
+
+.capture-review-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.capture-review-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.capture-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 420px) {
+  .capture-review-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 640px) {
+  .capture-review-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+.capture-review-grid .standby-tile {
+  opacity: 0.72;
+  transition: opacity 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.capture-review-grid .standby-tile.is-selected {
+  opacity: 1;
+}
+
+.capture-review-empty {
+  text-align: center;
+  padding: 36px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: var(--color-text-muted, #6A6860);
+  font-size: 0.9rem;
+}
+
+.capture-review-footer {
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(74, 88, 66, 0.14);
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.capture-review-note {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--color-text-muted, #6A6860);
+  text-align: center;
+}
+
+.capture-review-secondary-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.capture-review-btn-more,
+.capture-review-btn-cancel {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: background 0.18s ease, transform 0.15s ease;
+}
+
+.capture-review-btn-more {
+  border: 1.5px solid rgba(74, 88, 66, 0.35);
+  background: rgba(74, 88, 66, 0.08);
+  color: var(--color-olive-dark, #35412F);
+}
+
+.capture-review-btn-more:hover {
+  background: rgba(74, 88, 66, 0.14);
+}
+
+.capture-review-btn-cancel {
+  border: 1px solid rgba(74, 88, 66, 0.22);
+  background: transparent;
+  color: var(--color-text-muted, #5C5B54);
+  padding-inline: 18px;
+}
+
+.capture-review-btn-cancel:hover {
+  background: rgba(74, 88, 66, 0.06);
+}
+
+.capture-review-btn-publish {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: none;
+  background: var(--gold-gradient);
+  color: #FFFFFF;
+  font-size: 0.94rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  box-shadow: 0 8px 22px rgba(201, 160, 80, 0.36);
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.capture-review-btn-publish:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.capture-review-btn-publish:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capture-review-modal.is-open {
+    animation: none;
+  }
+}
+
 /* =====================================================================
    LIBRO DE FIRMAS — LIBRO NUPCIAL INTERACTIVO 3D (TAMAÑO PANTALLA, SIN SCROLL)
    ===================================================================== */
@@ -6756,10 +7057,6 @@ html:has(body.page-guestbook) {
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 18% 20%, rgba(201, 160, 80, 0.16) 0%, transparent 45%),
-    radial-gradient(circle at 82% 80%, rgba(74, 88, 66, 0.14) 0%, transparent 50%),
-    #EFE6D8;
 }
 
 .book-page-main {
@@ -7391,8 +7688,8 @@ html:has(body.page-guestbook) {
   flex-direction: column;
   justify-content: center;
   min-height: 0;
-  overflow: hidden;
-  padding: 5px 6px 6px;
+  overflow: visible;
+  padding: 3px 10px 4px;
   border-bottom: 1px dashed rgba(201, 160, 80, 0.3);
   transition: background-color 0.2s ease;
 }
@@ -7402,13 +7699,13 @@ html:has(body.page-guestbook) {
 }
 
 .book-signature-entry:nth-child(odd) {
-  transform: rotate(-0.35deg);
+  transform: rotate(-0.3deg);
   padding-right: 12px;
 }
 
 .book-signature-entry:nth-child(even) {
-  transform: rotate(0.32deg);
-  padding-left: 10px;
+  transform: rotate(0.28deg);
+  padding-left: 12px;
 }
 
 .book-signature-entry.is-clickable {
@@ -7421,7 +7718,8 @@ html:has(body.page-guestbook) {
 }
 
 .book-sig-message {
-  margin: 0 0 3px;
+  margin: -0.08em -0.14em 2px -0.1em;
+  padding: 0.14em 0.22em 0.12em 0.14em;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: var(--sig-lines, 2);
@@ -7437,6 +7735,7 @@ html:has(body.page-guestbook) {
   justify-content: flex-end;
   gap: 8px;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .book-sig-author {
@@ -7444,86 +7743,160 @@ html:has(body.page-guestbook) {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  padding: 0.14em 0.26em 0.14em 0.16em;
+  margin: -0.1em -0.16em -0.1em 0;
   opacity: 0.86;
 }
 
 /* =====================================================================
-   LAS 4 TIPOGRAFÍAS MANUSCRITAS (CALIBRADAS POR ESCALA Y TINTA)
+   LAS 7 TIPOGRAFÍAS MANUSCRITAS (CALIBRADAS PARA 5 FIRMAS SIN RECORTES)
    ===================================================================== */
 
-/* 1. Qwigley — Caligrafía artística con trazos expresivos */
-.sig-font-qwigley .book-sig-message {
-  font-family: 'Qwigley', cursive;
-  font-size: clamp(1.42rem, 4.9vw, 1.92rem);
-  line-height: 1.06;
+/* 1. Ballet — Caligrafía Spenceriana ornamentada (trazos altos y fluidos) */
+.sig-font-ballet .book-sig-message {
+  font-family: 'Ballet', cursive;
+  font-size: clamp(0.92rem, 2.9vw, 1.16rem);
+  line-height: 1.48;
+  padding: 0.22em 0.34em 0.2em 0.24em;
+  margin: -0.14em -0.2em 1px -0.16em;
+  color: #3E232C;
+}
+
+.sig-font-ballet .book-sig-author {
+  font-family: 'Ballet', cursive;
+  font-size: clamp(0.76rem, 2.2vw, 0.92rem);
+  line-height: 1.38;
+  padding: 0.18em 0.32em 0.18em 0.22em;
+  color: #6E3345;
+}
+
+/* 2. Lavishly Yours — Caligrafía fluida y elegante */
+.sig-font-lavishly_yours .book-sig-message {
+  font-family: 'Lavishly Yours', cursive;
+  font-size: clamp(1.12rem, 3.6vw, 1.44rem);
+  line-height: 1.24;
+  padding: 0.18em 0.28em 0.16em 0.18em;
   color: #242E1F;
 }
 
-.sig-font-qwigley .book-sig-author {
-  font-family: 'Qwigley', cursive;
-  font-size: clamp(0.92rem, 2.7vw, 1.12rem);
-  line-height: 1;
+.sig-font-lavishly_yours .book-sig-author {
+  font-family: 'Lavishly Yours', cursive;
+  font-size: clamp(0.84rem, 2.4vw, 1.02rem);
+  line-height: 1.22;
+  padding: 0.16em 0.28em 0.14em 0.18em;
   color: #4A5842;
 }
 
-/* 2. Sacramento — Cursiva monolineal clásica y delicada */
-.sig-font-sacramento .book-sig-message {
-  font-family: 'Sacramento', cursive;
-  font-size: clamp(1.18rem, 4vw, 1.54rem);
-  line-height: 1.22;
+/* 3. Tangerine — Caligrafía nupcial clásica estilizada */
+.sig-font-tangerine .book-sig-message {
+  font-family: 'Tangerine', cursive;
+  font-size: clamp(1.2rem, 3.9vw, 1.54rem);
+  font-weight: 700;
+  line-height: 1.16;
+  padding: 0.14em 0.24em 0.14em 0.14em;
   color: #3B2B1E;
 }
 
-.sig-font-sacramento .book-sig-author {
-  font-family: 'Sacramento', cursive;
-  font-size: clamp(0.82rem, 2.4vw, 1rem);
-  line-height: 1.08;
+.sig-font-tangerine .book-sig-author {
+  font-family: 'Tangerine', cursive;
+  font-size: clamp(0.9rem, 2.6vw, 1.08rem);
+  font-weight: 700;
+  line-height: 1.15;
+  padding: 0.12em 0.24em 0.12em 0.14em;
   color: #7D5920;
 }
 
-/* 3. Indie Flower — Letra a mano casual y amigable */
+/* 4. Annie Use Your Telescope — Letra manuscrita alta y espontánea */
+.sig-font-annie_use_your_telescope .book-sig-message {
+  font-family: 'Annie Use Your Telescope', cursive;
+  font-size: clamp(0.88rem, 2.7vw, 1.08rem);
+  line-height: 1.26;
+  padding: 0.1em 0.16em 0.1em 0.1em;
+  color: #253646;
+}
+
+.sig-font-annie_use_your_telescope .book-sig-author {
+  font-family: 'Annie Use Your Telescope', cursive;
+  font-size: clamp(0.7rem, 2vw, 0.84rem);
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.1em 0.16em;
+  color: #364B5E;
+}
+
+/* 5. Indie Flower — Letra a mano casual y amigable */
 .sig-font-indie_flower .book-sig-message {
   font-family: 'Indie Flower', cursive;
-  font-size: clamp(0.86rem, 2.75vw, 1.04rem);
-  line-height: 1.32;
+  font-size: clamp(0.8rem, 2.4vw, 0.96rem);
+  line-height: 1.28;
+  padding: 0.08em 0.14em;
   color: #253646;
 }
 
 .sig-font-indie_flower .book-sig-author {
   font-family: 'Indie Flower', cursive;
-  font-size: clamp(0.66rem, 1.95vw, 0.76rem);
+  font-size: clamp(0.64rem, 1.85vw, 0.74rem);
   font-weight: 600;
-  line-height: 1.15;
+  line-height: 1.2;
+  padding: 0.08em 0.14em;
   color: #364B5E;
 }
 
-/* 4. La Luxes Script — Caligrafía nupcial de lujo (con fallback Luxurious Script) */
-.sig-font-la_luxes_script .book-sig-message {
-  font-family: 'La Luxes Script', 'Luxurious Script', 'Alex Brush', cursive;
-  font-size: clamp(1.48rem, 5.1vw, 2.02rem);
-  line-height: 1.05;
-  color: #3E232C;
+/* 6. Oooh Baby — Manuscrita cálida y natural */
+.sig-font-oooh_baby .book-sig-message {
+  font-family: 'Oooh Baby', cursive;
+  font-size: clamp(0.94rem, 3vw, 1.18rem);
+  line-height: 1.26;
+  padding: 0.12em 0.2em 0.12em 0.12em;
+  color: #2F3A28;
 }
 
-.sig-font-la_luxes_script .book-sig-author {
-  font-family: 'La Luxes Script', 'Luxurious Script', 'Alex Brush', cursive;
-  font-size: clamp(0.94rem, 2.8vw, 1.15rem);
-  line-height: 1;
-  color: #6E3345;
+.sig-font-oooh_baby .book-sig-author {
+  font-family: 'Oooh Baby', cursive;
+  font-size: clamp(0.74rem, 2.1vw, 0.88rem);
+  line-height: 1.2;
+  padding: 0.1em 0.2em;
+  color: #55664B;
 }
 
-/* Ajuste fino cuando hay 4 firmas por página */
-.book-paper-entries[data-slots="4"] .sig-font-qwigley .book-sig-message {
-  font-size: clamp(1.34rem, 4.3vw, 1.72rem);
+/* 7. Italianno — Caligrafía italiana refinada */
+.sig-font-italianno .book-sig-message {
+  font-family: 'Italianno', cursive;
+  font-size: clamp(1.18rem, 3.8vw, 1.5rem);
+  line-height: 1.18;
+  padding: 0.16em 0.28em 0.14em 0.16em;
+  color: #352820;
 }
-.book-paper-entries[data-slots="4"] .sig-font-sacramento .book-sig-message {
-  font-size: clamp(1.12rem, 3.5vw, 1.42rem);
+
+.sig-font-italianno .book-sig-author {
+  font-family: 'Italianno', cursive;
+  font-size: clamp(0.88rem, 2.5vw, 1.06rem);
+  line-height: 1.16;
+  padding: 0.14em 0.26em 0.14em 0.16em;
+  color: #7A5630;
+}
+
+/* Ajuste fino cuando hay 4 firmas por página (espacio más holgado) */
+.book-paper-entries[data-slots="4"] .sig-font-ballet .book-sig-message {
+  font-size: clamp(1rem, 3.2vw, 1.26rem);
+}
+.book-paper-entries[data-slots="4"] .sig-font-lavishly_yours .book-sig-message {
+  font-size: clamp(1.2rem, 3.9vw, 1.54rem);
+}
+.book-paper-entries[data-slots="4"] .sig-font-tangerine .book-sig-message {
+  font-size: clamp(1.28rem, 4.2vw, 1.66rem);
+}
+.book-paper-entries[data-slots="4"] .sig-font-annie_use_your_telescope .book-sig-message {
+  font-size: clamp(0.94rem, 2.9vw, 1.14rem);
 }
 .book-paper-entries[data-slots="4"] .sig-font-indie_flower .book-sig-message {
-  font-size: clamp(0.84rem, 2.5vw, 0.98rem);
+  font-size: clamp(0.84rem, 2.5vw, 1rem);
 }
-.book-paper-entries[data-slots="4"] .sig-font-la_luxes_script .book-sig-message {
-  font-size: clamp(1.38rem, 4.5vw, 1.82rem);
+.book-paper-entries[data-slots="4"] .sig-font-oooh_baby .book-sig-message {
+  font-size: clamp(1rem, 3.2vw, 1.26rem);
+}
+.book-paper-entries[data-slots="4"] .sig-font-italianno .book-sig-message {
+  font-size: clamp(1.26rem, 4.1vw, 1.62rem);
 }
 
 /* Estado vacío sobre el pergamino */
@@ -7539,8 +7912,8 @@ html:has(body.page-guestbook) {
 }
 
 .book-paper-empty-title {
-  font-family: 'Sacramento', cursive;
-  font-size: clamp(1.7rem, 5.5vw, 2.2rem);
+  font-family: 'Italianno', cursive;
+  font-size: clamp(2rem, 6.2vw, 2.55rem);
   color: var(--color-olive-dark);
   margin-bottom: 6px;
 }
@@ -7686,7 +8059,8 @@ html:has(body.page-guestbook) {
   display: block;
   -webkit-line-clamp: unset;
   overflow: visible;
-  margin-bottom: 14px;
+  margin: 0 0 14px;
+  padding: 0.16em 0.24em;
 }
 
 .book-sig-modal-body .book-sig-footer {
@@ -7696,6 +8070,9 @@ html:has(body.page-guestbook) {
 
 .book-sig-modal-body .book-sig-author {
   white-space: normal;
+  overflow: visible;
+  margin: 0;
+  padding: 0.14em 0.24em;
   max-width: 100%;
 }
 
@@ -7754,11 +8131,11 @@ html:has(body.page-guestbook) {
 }
 
 .book-signing-author {
-  font-family: 'Sacramento', cursive;
-  font-size: 1.55rem;
+  font-family: 'Italianno', cursive;
+  font-size: 1.85rem;
   line-height: 1.1;
   color: var(--color-gold-dark);
-  min-height: 1.7rem;
+  min-height: 1.9rem;
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
@@ -8070,19 +8447,248 @@ html.allow-landscape-mode .orientation-lock-overlay {
   html.allow-landscape-mode .lightbox-bottom {
     padding: 7px calc(16px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px));
   }
+}
 
-  html.allow-landscape-mode .live-cam-topbar {
-    padding: 10px calc(16px + env(safe-area-inset-right, 0px)) 10px calc(16px + env(safe-area-inset-left, 0px));
+/* Diseño horizontal tipo cámara nativa: visor a altura completa + barra lateral de controles */
+@media (orientation: landscape) and (max-height: 540px) {
+  .live-camera-modal {
+    --cam-rail-w: calc(124px + env(safe-area-inset-right, 0px));
+    flex-direction: row;
   }
 
-  html.allow-landscape-mode .live-cam-bottom {
-    padding: 8px calc(16px + env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px));
+  .live-camera-modal .live-cam-viewport {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    height: 100%;
+  }
+
+  .live-camera-modal .live-cam-topbar {
+    left: 0;
+    right: var(--cam-rail-w);
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px calc(14px + env(safe-area-inset-left, 0px));
+    pointer-events: none;
+  }
+
+  .live-camera-modal .live-cam-topbar > * {
+    pointer-events: auto;
+  }
+
+  .live-camera-modal .live-cam-mode-pill {
+    padding: 5px 11px;
+    font-size: 0.74rem;
+    gap: 6px;
+  }
+
+  .live-camera-modal .live-cam-quota-chip {
+    padding: 5px 10px;
+    font-size: 0.72rem;
+  }
+
+  .live-camera-modal .live-cam-icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .live-camera-modal .camera-rec-badge {
+    top: calc(52px + env(safe-area-inset-top, 0px));
+    right: 12px;
+    bottom: auto;
+    padding: 4px 10px;
+    font-size: 0.74rem;
+  }
+
+  .live-camera-modal .live-cam-bottom {
+    width: var(--cam-rail-w);
+    flex: 0 0 var(--cam-rail-w);
+    height: 100%;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) calc(10px + env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) 10px;
+    background: linear-gradient(90deg, rgba(10, 13, 9, 0.84) 0%, #0A0D09 28%);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .live-camera-modal .live-cam-mode-switch {
+    width: 100%;
+    max-width: 104px;
+    padding: 3px;
+    gap: 2px;
+    margin: 0;
+  }
+
+  .live-camera-modal .live-cam-mode-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 30px;
+    padding: 4px 6px;
+    font-size: 0.68rem;
+    letter-spacing: 0.02em;
+  }
+
+  .live-camera-modal .live-cam-controls-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    max-width: none;
+    width: 100%;
+    flex: 1 1 auto;
+    margin: 0;
+  }
+
+  .live-camera-modal .live-cam-left-slot {
+    display: none;
+  }
+
+  .live-camera-modal .live-cam-center-slot {
+    align-items: center;
+  }
+
+  .live-camera-modal .live-cam-right-slot {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .live-camera-modal .camera-shutter-btn,
+  .live-camera-modal .camera-record-btn {
+    width: 64px;
+    height: 64px;
+    border-width: 3.5px;
+  }
+
+  .live-camera-modal .shutter-inner {
+    width: 48px;
+    height: 48px;
+  }
+
+  .live-camera-modal .record-inner {
+    width: 46px;
+    height: 46px;
+  }
+
+  .live-camera-modal .camera-record-btn.recording .record-inner {
+    width: 26px;
+    height: 26px;
+  }
+
+  .live-camera-modal .live-cam-upload-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 8px 10px;
+    gap: 6px;
+    font-size: 0.76rem;
+  }
+
+  .live-camera-modal .upload-batch-badge {
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+  }
+
+  .live-camera-modal .live-cam-tray-wrap {
+    position: fixed;
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    right: calc(var(--cam-rail-w) + 12px);
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    z-index: 25;
+    padding: 4px 8px;
+    border-radius: 14px;
+    background: rgba(10, 13, 9, 0.56);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .live-camera-modal .live-cam-tray {
+    gap: 8px;
+    padding: 2px;
+  }
+
+  .live-camera-modal .cam-tray-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+
+  .live-camera-modal .live-cam-permission {
+    padding: calc(52px + env(safe-area-inset-top, 0px)) 16px 14px;
+  }
+
+  .live-camera-modal .live-cam-perm-card {
+    max-width: 460px;
+    padding: 18px 20px 14px;
+    border-radius: 20px;
+  }
+
+  .live-camera-modal .live-cam-perm-icon {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 10px;
+  }
+
+  .live-camera-modal .live-cam-perm-card h3 {
+    font-size: 1.2rem;
+    margin-bottom: 6px;
+  }
+
+  .live-camera-modal .live-cam-perm-card p {
+    font-size: 0.78rem;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+
+  .live-camera-modal .live-cam-perm-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 8px;
   }
 
-  html.allow-landscape-mode .cam-tray-thumb {
-    width: 46px;
-    height: 46px;
+  .live-camera-modal .live-cam-perm-actions .btn {
+    width: auto;
+    padding: 9px 14px;
+    font-size: 0.8rem;
+  }
+
+  .live-camera-modal .live-cam-item-preview img,
+  .live-camera-modal .live-cam-item-preview video {
+    max-height: calc(100% - 64px);
+  }
+
+  .live-camera-modal .live-cam-preview-actions {
+    bottom: 10px;
+    gap: 10px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 360px) {
+  .live-camera-modal {
+    --cam-rail-w: calc(110px + env(safe-area-inset-right, 0px));
+  }
+
+  .live-camera-modal .camera-shutter-btn,
+  .live-camera-modal .camera-record-btn {
+    width: 56px;
+    height: 56px;
+  }
+
+  .live-camera-modal .shutter-inner {
+    width: 42px;
+    height: 42px;
+  }
+
+  .live-camera-modal .record-inner {
+    width: 40px;
+    height: 40px;
+  }
+
+  .live-camera-modal .cam-tray-thumb {
+    width: 38px;
+    height: 38px;
   }
 }
 
@@ -8175,8 +8781,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 
 /* Respetar los colores originales de la variante vegetal del monograma. */
 .nav-brand .brand-monogram, .drawer-brand .brand-monogram { filter: none; }
-/* Navegación sobre el fondo de la página y libro a primer plano. */
-.page-guestbook .site-nav:not(.nav-over-hero) { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
+/* Libro a primer plano en escritorio (reemplazado más abajo por .page-guestbook .book-page-main). */
 .book-page-main { position: relative; z-index: 1001; padding: 12px; pointer-events: none; }
 .book-page-main .wedding-book-stage { pointer-events: auto; }
 @media (max-width: 1140px) { .site-nav .nav-mobile-actions { display: flex; } .site-nav .brand-wordmark, .site-nav .brand-divider, .site-nav .nav-links { display: none; } }
@@ -8267,9 +8872,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 .standby-delete-btn { border-color: rgba(205,45,45,.3); }
 .standby-preview-btn { border-color: rgba(255,255,255,.3); }
 
-/* Mosaico con alturas alternadas independientes del archivo original. */
-.gallery-grid.gallery-wall { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); grid-auto-rows: 4px; grid-auto-flow: row dense; gap: 10px; align-items: stretch; width: 100%; }
-.gallery-wall .gallery-grid-item { position: relative; display: block; width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; margin: 0; border-radius: 12px; opacity: 1; transform: none; transition-delay: 0s !important; }
+/* Mosaico con alturas alternadas independientes del archivo original (conserva transición en cascada). */
+.gallery-grid.gallery-wall { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); grid-auto-rows: 4px; grid-auto-flow: row dense; gap: 10px; align-items: stretch; width: 100%; }
+.gallery-wall .gallery-grid-item { position: relative; display: block; width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; margin: 0; border-radius: 12px; }
 .gallery-wall .gallery-item-aspect { position: absolute; inset: 0; width: 100%; height: 100%; }
 .gallery-wall .gallery-item-media { width: 100%; height: 100%; object-fit: cover; }
 .gallery-wall video.gallery-item-media { min-height: 0; }
@@ -8283,7 +8888,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 .gallery-wall .gallery-owner-badge { opacity: 0; }
 .gallery-wall .gallery-grid-item:hover .gallery-owner-badge, .gallery-wall .gallery-grid-item:focus-within .gallery-owner-badge { opacity: 1; }
 @media (hover: none) { .gallery-wall .gallery-item-author, .gallery-wall .gallery-owner-badge { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .gallery-wall .gallery-item-author, .gallery-wall .gallery-item-media { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .gallery-wall .gallery-grid-item { opacity: 1; transform: none; transition: none; } .gallery-wall .gallery-item-author, .gallery-wall .gallery-item-media { transition: none; } }
 
 /* Los recuerdos populares conservan la misma altura y las columnas adaptables. */
 /* La barra conserva su fondo fuera del libro y acompana el sentido del scroll. */
@@ -8396,3 +9001,104 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 #guestbookForm .book-write-footer { flex:0 0 48px; width:48px; height:48px; margin:0; padding:0; }
 #guestbookForm .book-write-footer .book-mode-switch { width:48px; height:48px; border-radius:50%; padding:0; }
 #guestbookForm .book-submit-btn { flex:1; width:auto; height:48px; min-width:0; padding:8px 12px; }
+
+/* PWA standalone (iOS/Android): cubrir pantalla completa edge-to-edge en Home y Libro de Firmas */
+@media (display-mode: standalone) {
+  html.home-no-scroll {
+    height: 100%;
+    min-height: 100vh;
+    min-height: 100lvh;
+    background-color: #141B12;
+  }
+
+  body.page-home {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.page-home .app-main-home {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+  }
+
+  html:has(body.page-guestbook) {
+    height: 100%;
+    min-height: 100vh;
+    min-height: 100lvh;
+  }
+
+  body.page-guestbook {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.page-guestbook .book-page-main {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+  }
+}
+
+html.is-pwa-standalone.home-no-scroll {
+  height: 100%;
+  min-height: 100vh;
+  min-height: 100lvh;
+  background-color: #141B12;
+}
+
+html.is-pwa-standalone body.page-home {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+}
+
+html.is-pwa-standalone body.page-home .app-main-home {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+html.is-pwa-standalone:has(body.page-guestbook) {
+  height: 100%;
+  min-height: 100vh;
+  min-height: 100lvh;
+}
+
+html.is-pwa-standalone body.page-guestbook {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+}
+
+html.is-pwa-standalone body.page-guestbook .book-page-main {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 768px) {
+  .page-guestbook .wedding-book-stage {
+    max-height: none;
+  }
+}

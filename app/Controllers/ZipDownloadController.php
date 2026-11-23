@@ -8,6 +8,7 @@ use App\Helpers\AuthHelper;
 use App\Helpers\Response;
 use App\Config\Database;
 use App\Services\AlbumZipService;
+use App\Services\R2StorageService;
 use PDO;
 use App\Services\AlbumZipException;
 use Throwable;
@@ -28,6 +29,59 @@ class ZipDownloadController extends Controller {
         $action = (string) ($input['action'] ?? '');
         $job = (string) ($input['job'] ?? '');
         try {
+            if ($post && $action === 'manifest') {
+                session_write_close();
+                $hasIds = array_key_exists('ids', $input) && $input['ids'] !== null;
+                if ($hasIds) {
+                    if (!is_array($input['ids'])) {
+                        throw new AlbumZipException('Selección de recuerdos no válida.');
+                    }
+                    $selectedIds = array_values(array_unique(array_filter(
+                        array_map('intval', $input['ids']),
+                        static fn (int $v): bool => $v > 0
+                    )));
+                    if (!$selectedIds) {
+                        throw new AlbumZipException('Selecciona al menos un recuerdo para descargar.');
+                    }
+                    $placeholders = implode(',', array_fill(0, count($selectedIds), '?'));
+                    $stmt = Database::getConnection()->prepare(
+                        "SELECT id, file_path, original_name, file_size, media_type FROM media WHERE is_approved = 1 AND id IN ({$placeholders}) ORDER BY id ASC"
+                    );
+                    $stmt->execute($selectedIds);
+                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    if (!$rows) {
+                        throw new AlbumZipException('No se encontraron recuerdos válidos en tu selección.');
+                    }
+                } else {
+                    // Entire published album manifest; browser downloads originals directly from R2.
+                    $rows = Database::getConnection()->query(
+                        'SELECT id, file_path, original_name, file_size, media_type FROM media WHERE is_approved = 1 ORDER BY id ASC'
+                    )->fetchAll(PDO::FETCH_ASSOC);
+                    if (!$rows) {
+                        throw new AlbumZipException('Todavía no hay recuerdos para descargar.');
+                    }
+                }
+                $items = [];
+                $totalBytes = 0;
+                foreach ($rows as $row) {
+                    $url = $this->resolveDownloadUrl((string) $row['file_path']);
+                    $size = max(0, (int) $row['file_size']);
+                    $totalBytes += $size;
+                    $items[] = [
+                        'id' => (int) $row['id'],
+                        'name' => AlbumZipService::entryName($row),
+                        'url' => $url,
+                        'size' => $size,
+                    ];
+                }
+                Response::json([
+                    'success' => true,
+                    'filename' => $hasIds ? 'Seleccion_Michelle_y_Rene.zip' : 'Album_Michelle_y_Rene.zip',
+                    'total' => count($items),
+                    'total_bytes' => $totalBytes,
+                    'items' => $items,
+                ]);
+            }
             if (PHP_INT_SIZE < 8) throw new AlbumZipException('El servidor necesita PHP de 64 bits para exportar el álbum.');
             $service = $this->zipService ?? new AlbumZipService();
             if ($post && $action === 'start') {
@@ -101,5 +155,25 @@ class ZipDownloadController extends Controller {
             Response::error('No se pudo preparar el álbum. Reintenta en unos momentos.', 500,
                 ['reference' => $reference, 'stage' => $action]);
         }
+    }
+
+    private function resolveDownloadUrl(string $path): string {
+        if (R2StorageService::isRemoteUrl($path)) {
+            $key = R2StorageService::extractKeyFromUrl($path);
+            if ($key === null || !str_starts_with($key, 'media/') || str_contains($key, '..')) {
+                throw new AlbumZipException('No se encontró un archivo del álbum.');
+            }
+            $url = R2StorageService::buildPublicUrl($key);
+            if (strtolower((string) parse_url($url, PHP_URL_SCHEME)) !== 'https') {
+                throw new AlbumZipException('La descarga del álbum necesita una conexión HTTPS al almacenamiento.');
+            }
+            return $url;
+        }
+        $base = realpath(dirname(__DIR__, 2) . '/public/uploads');
+        $file = realpath(dirname(__DIR__, 2) . '/public/' . ltrim($path, '/'));
+        if (!$base || !$file || !str_starts_with($file, $base . DIRECTORY_SEPARATOR) || str_contains(str_replace('\\', '/', $file), '/thumbs/')) {
+            throw new AlbumZipException('No se encontró un archivo del álbum.');
+        }
+        return '/' . ltrim($path, '/');
     }
 }

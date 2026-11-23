@@ -17,6 +17,12 @@ class AuthHelper {
         }
     }
 
+    public static function closeSession(): void {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+    }
+
     public static function getGuestToken(): ?string {
         self::startSession();
 
@@ -60,8 +66,11 @@ class AuthHelper {
         $guest = $stmt->fetch();
 
         if ($guest) {
-            $upd = $pdo->prepare('UPDATE `guests` SET `last_active_at` = NOW() WHERE `id` = :id');
-            $upd->execute([':id' => $guest['id']]);
+            $lastActive = !empty($guest['last_active_at']) ? strtotime((string) $guest['last_active_at']) : 0;
+            if (!$lastActive || (time() - $lastActive) >= 300) {
+                $upd = $pdo->prepare('UPDATE `guests` SET `last_active_at` = NOW() WHERE `id` = :id');
+                $upd->execute([':id' => $guest['id']]);
+            }
         }
 
         return $guest ?: null;

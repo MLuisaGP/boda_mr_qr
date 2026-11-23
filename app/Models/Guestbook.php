@@ -15,10 +15,13 @@ class Guestbook {
      * Tipografías manuscritas asignadas automáticamente al azar a cada firma.
      */
     public const SIGNATURE_FONTS = [
-        'qwigley',
-        'sacramento',
+        'ballet',
+        'lavishly_yours',
+        'tangerine',
+        'annie_use_your_telescope',
         'indie_flower',
-        'la_luxes_script',
+        'oooh_baby',
+        'italianno',
     ];
 
     private static ?bool $hasFontColumn = null;
@@ -72,6 +75,28 @@ class Guestbook {
         ");
         $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
         $stmt->execute();
+        $rows = $stmt->fetchAll();
+
+        foreach ($rows as &$row) {
+            $row['font_family'] = self::normalizeFont($row['font_family'] ?? null, (int) ($row['id'] ?? 0));
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    public static function listAllVisible(string $order = 'ASC'): array {
+        $pdo = Database::getConnection();
+        $hasFont = self::ensureFontColumn($pdo);
+        $fontSelect = $hasFont ? ', `font_family`' : '';
+        $direction = strtoupper($order) === 'DESC' ? 'DESC' : 'ASC';
+
+        $stmt = $pdo->query("
+            SELECT `id`, `guest_id`, `guest_name`, `message`{$fontSelect}, `created_at`
+            FROM `guestbook`
+            WHERE `is_visible` = 1
+            ORDER BY `id` {$direction}
+        ");
         $rows = $stmt->fetchAll();
 
         foreach ($rows as &$row) {

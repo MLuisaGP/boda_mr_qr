@@ -66,6 +66,16 @@ namespace {
     try {
         check($call(['action' => 'start'], 'POST', 'guest')['status'] === 401, 'Unauthenticated export allowed.');
         check($call(['action' => 'start'], 'POST', 'admin', 'csrf')['status'] === 403, 'Cross-site export allowed.');
+        check($call(['action' => 'manifest'], 'POST', 'guest')['status'] === 401, 'Unauthenticated manifest allowed.');
+        check($call(['action' => 'manifest'], 'POST', 'admin', 'csrf')['status'] === 403, 'Cross-site manifest allowed.');
+        $manifest = $call(['action' => 'manifest']);
+        check($manifest['status'] === 200 && ($manifest['json']['total'] ?? null) === 2 && ($manifest['json']['total_bytes'] ?? null) === 8000, 'Manifest summary failed: status=' . $manifest['status'] . ' body=' . $manifest['body']);
+        check(count($manifest['json']['items']) === 2 && $manifest['json']['items'][0]['url'] === 'https://cdn.test.invalid/media/test1.webp', 'Manifest items failed.');
+        check($manifest['json']['items'][0]['name'] === 'Fotos/1_foto.webp', 'Manifest entry naming failed.');
+        $selectedManifest = $call(['action' => 'manifest', 'ids' => [2, 3, 2]]);
+        check($selectedManifest['status'] === 200 && ($selectedManifest['json']['total'] ?? null) === 1 && ($selectedManifest['json']['filename'] ?? '') === 'Seleccion_Michelle_y_Rene.zip', 'Selected manifest failed.');
+        check(($selectedManifest['json']['items'][0]['id'] ?? 0) === 2, 'Selected manifest returned wrong item.');
+        check($call(['action' => 'manifest', 'ids' => []])['status'] === 422, 'Empty selection manifest allowed.');
         $response = $call(['action' => 'start']);
         check($response['status'] === 200 && $response['json']['total'] === 2, 'Start/snapshot failed.');
         $job = $response['json']['job'];

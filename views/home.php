@@ -132,6 +132,6 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=39"></script>
+  <script src="/assets/js/app.js?v=44"></script>
 </body>
 </html>

@@ -27,6 +27,7 @@ $router->get('/fotos', [HomeController::class, 'gallery']);
 $router->get('/firmas', [HomeController::class, 'guestbook']);
 
 // Ruta del panel administrativo de novios
-$router->get('/admin', [AdminController::class, 'index']);
+$router->get('/novios', [AdminController::class, 'index']);
+$router->get('/novios/firmas-pdf', [AdminController::class, 'guestbookPdf']);
 
 return $router;
