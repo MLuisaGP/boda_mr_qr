@@ -55,7 +55,7 @@
         <div class="stat-label">Invitados Activos</div>
         <div class="stat-value" id="statGuests">&mdash;</div>
         <div class="stat-desc">Dispositivos registrados</div></a>
-      <div class="stat-card">
+      <div class="stat-card storage">
         <div class="stat-label">Almacenamiento Usado</div>
         <div class="stat-value" id="statStorage">&mdash;</div>
         <div class="stat-desc">En Cloudflare R2</div>
