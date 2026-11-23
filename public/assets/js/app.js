@@ -43,8 +43,10 @@
   let galleryLastGuestToken = null;
   let galleryActiveLoadPromise = null;
   let guestbookEntries = [];
+  let celebratingSignatureId = null;
+  let signatureCelebrationTimer = null;
   let currentBookPage = 1;
-  let currentBookPageSize = 3;
+  let currentBookPageSize = 5;
   let bookPageFlipInstance = null;
   let bookIsFlipping = false;
   let lastMountedBookKey = '';
@@ -543,108 +545,87 @@
   function initFallingPetals() {
     const canvas = document.getElementById('petalsCanvas');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
+    // Valores predeterminados de petalos_preview.html, sin los controles de demostracion.
+    const config = () => ({ count: 36, opacity: .70, wind: .60, speed: 1 });
+    const range = (a, b) => a + Math.random() * (b - a);
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let w=1,h=1,dpr=1,particles=[],running=false,raf=null,last=0,elapsed=0;
+  function seed(top=false){
+   const z=Math.pow(Math.random(),.75);
+   return {x:range(-30,w+30),y:top?range(-h,0):range(-25,h+25),z,base:range(4.6,10.8)*(0.65+z*.9),
+     fall:range(16,42)*(0.65+z*.8),drift:range(-9,9),swing:range(10,37),frequency:range(.28,.78),
+     phase:range(0,Math.PI*2),spin:range(.75,2.4)*(Math.random()<.5?-1:1),tilt:range(-.9,.9),
+     turn:range(0,Math.PI*2),alpha:range(.37,.82),hue:range(-1,1),focal:z>.84&&Math.random()<.62?range(.8,2):0};
+  }
+  function fit(){
+   if (shouldFreezeLayoutForLandscape()) return;
+   const r=canvas.getBoundingClientRect();const ow=w,oh=h;w=Math.max(1,r.width);h=Math.max(1,r.height);
+   dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
+   particles.forEach(p=>{p.x=p.x*w/Math.max(1,ow);p.y=p.y*h/Math.max(1,oh)});
+  }
+  const targetCount=()=>Math.round(config().count*(w<600?.72:1));
+  function adjust(){let n=targetCount();while(particles.length<n)particles.push(seed());if(particles.length>n)particles.length=n;}
+  function paintPetal(p,t,opacity){
+   const flip=Math.cos(p.turn + t*p.spin*1.35);
+   const foreshorten=.22+.78*Math.abs(flip);
+   const roll=Math.sin(p.turn*.68+t*p.spin*.83)*.55;
+   const size=p.base*(.83+.17*Math.sin(t+p.phase));
+   ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.tilt+roll);
+   ctx.scale(flip<0?-foreshorten:foreshorten,1);
+   const a=p.alpha*opacity*(.84+.16*Math.sin(t*1.2+p.phase));
+   ctx.globalAlpha=Math.max(0,Math.min(.95,a));
+   if(p.focal){ctx.shadowColor='rgba(255,194,212,.55)';ctx.shadowBlur=p.focal*6;}
+   const grad=ctx.createLinearGradient(0,-size,0,size);
+   grad.addColorStop(0,p.hue<-.3?'#fff0ed':'#ffe8ec');
+   grad.addColorStop(.46,p.hue>.35?'#f8bacd':'#f8cbd5');
+   grad.addColorStop(1,p.hue<-.3?'#d88fa4':'#e3a2b8');
+   ctx.fillStyle=grad;ctx.beginPath();
+   ctx.moveTo(0,-size*.92);
+   ctx.bezierCurveTo(size*.42,-size*1.2,size*.91,-size*.43,size*.85,size*.09);
+   ctx.bezierCurveTo(size*.76,size*.54,size*.28,size*.96,0,size*.96);
+   ctx.bezierCurveTo(-size*.3,size*.97,-size*.94,size*.53,-size*.8,-size*.05);
+   ctx.bezierCurveTo(-size*.68,-size*.57,-size*.27,-size*1.16,0,-size*.92);
+   ctx.closePath();ctx.fill();
+   ctx.shadowBlur=0;ctx.strokeStyle='rgba(183,95,133,.14)';ctx.lineWidth=.45;ctx.beginPath();
+   ctx.moveTo(0,size*.72);ctx.quadraticCurveTo(size*.13,-size*.03,0,-size*.73);ctx.stroke();ctx.restore();
+  }
+  function frame(ts){
+   if(!running)return;
+   const dt=Math.min(.045,Math.max(0,(ts-(last||ts))/1000));last=ts;elapsed+=dt;
+   ctx.clearRect(0,0,w,h);const c=config();
+   for(let i=0;i<particles.length;i++){
+    const p=particles[i];
+    p.y+=p.fall*c.speed*dt;
+    const gust=Math.sin(elapsed*.31+p.phase*.7)*13+Math.sin(elapsed*.79+p.phase)*5;
+    p.x+=(p.drift+c.wind*(7+gust)+Math.cos(elapsed*p.frequency*2*Math.PI+p.phase)*p.swing*.73)*dt*c.speed;
+    p.tilt+=Math.sin(elapsed*.34+p.phase)*.0009;
+    if(p.y>h+38||p.x>w+100||p.x<-100){particles[i]=seed(true);particles[i].y=range(-55,-5);}
+    paintPetal(p,elapsed,c.opacity);
+   }
+   raf=requestAnimationFrame(frame);
+  }
 
-    let width = 0;
-    let height = 0;
-    let dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-    function resize() {
-      if (shouldFreezeLayoutForLandscape()) return;
-      width = canvas.clientWidth || window.innerWidth;
-      height = canvas.clientHeight || window.innerHeight;
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    function syncPlayback() {
+      cancelAnimationFrame(raf);
+      raf = null;
+      last = 0;
+      running = !reduceMotion.matches && !document.hidden;
+      if (running) raf = requestAnimationFrame(frame);
+      else if (reduceMotion.matches) ctx.clearRect(0, 0, w, h);
     }
-
-    resize();
-    window.addEventListener('resize', resize);
-    window.addEventListener('boda:portrait-restored', resize);
-
-    // Tonos suaves y tenues de flor de cerezo (sakura)
-    const palette = [
-      { base: [255, 210, 222], tip: [255, 246, 249] },
-      { base: [252, 198, 214], tip: [255, 240, 245] },
-      { base: [255, 226, 234], tip: [255, 252, 253] },
-      { base: [248, 206, 218], tip: [255, 244, 247] }
-    ];
-
-    const petalCount = window.innerWidth < 768 ? 18 : 28;
-    const petals = Array.from({ length: petalCount }, () => createPetal(true));
-
-    function createPetal(randomY) {
-      const size = 6.5 + Math.random() * 8.5;
-      return {
-        x: Math.random() * width,
-        y: randomY ? Math.random() * height : -24 - Math.random() * 60,
-        size,
-        alpha: 0.18 + Math.random() * 0.24,
-        speedY: 0.34 + Math.random() * 0.56,
-        speedX: -0.22 + Math.random() * 0.44,
-        swayAmp: 0.35 + Math.random() * 0.75,
-        swayFreq: 0.007 + Math.random() * 0.01,
-        phase: Math.random() * Math.PI * 2,
-        rot: Math.random() * Math.PI * 2,
-        rotSpeed: -0.012 + Math.random() * 0.024,
-        tilt: Math.random() * Math.PI,
-        tiltSpeed: 0.009 + Math.random() * 0.018,
-        tone: palette[Math.floor(Math.random() * palette.length)]
-      };
+    function resizePetals() {
+      fit(); adjust();
+      if (!running) ctx.clearRect(0, 0, w, h);
     }
-
-    function drawCherryPetal(s, tone, alpha) {
-      const grad = ctx.createLinearGradient(0, s, 0, -s);
-      grad.addColorStop(0, `rgba(${tone.base[0]}, ${tone.base[1]}, ${tone.base[2]}, ${alpha.toFixed(3)})`);
-      grad.addColorStop(1, `rgba(${tone.tip[0]}, ${tone.tip[1]}, ${tone.tip[2]}, ${(alpha * 0.78).toFixed(3)})`);
-
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      // Base afinada del pétalo de cerezo
-      ctx.moveTo(0, s * 0.95);
-      // Curva derecha hacia el lóbulo superior derecho
-      ctx.bezierCurveTo(s * 0.78, s * 0.52, s * 0.96, -s * 0.42, s * 0.42, -s * 0.92);
-      // Escotadura característica (muesca en V suave) en la punta del pétalo de cerezo
-      ctx.quadraticCurveTo(s * 0.16, -s * 0.96, 0, -s * 0.58);
-      // Lóbulo superior izquierdo simétrico
-      ctx.quadraticCurveTo(-s * 0.16, -s * 0.96, -s * 0.42, -s * 0.92);
-      // Curva izquierda de regreso a la base
-      ctx.bezierCurveTo(-s * 0.96, -s * 0.42, -s * 0.78, s * 0.52, 0, s * 0.95);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    let frame = 0;
-    function draw() {
-      if (!document.hidden) {
-        frame++;
-        ctx.clearRect(0, 0, width, height);
-
-        for (let i = 0; i < petals.length; i++) {
-          const p = petals[i];
-          p.y += p.speedY;
-          p.x += p.speedX + Math.sin(frame * p.swayFreq + p.phase) * p.swayAmp;
-          p.rot += p.rotSpeed;
-          p.tilt += p.tiltSpeed;
-
-          if (p.y > height + 32 || p.x < -42 || p.x > width + 42) {
-            petals[i] = createPetal(false);
-            continue;
-          }
-
-          ctx.save();
-          ctx.translate(p.x, p.y);
-          ctx.rotate(p.rot);
-          ctx.scale(0.88 + Math.sin(p.tilt) * 0.12, 0.48 + Math.abs(Math.cos(p.tilt)) * 0.52);
-          drawCherryPetal(p.size, p.tone, p.alpha);
-          ctx.restore();
-        }
-      }
-      requestAnimationFrame(draw);
-    }
-
-    requestAnimationFrame(draw);
+    reduceMotion.addEventListener('change', syncPlayback);
+    document.addEventListener('visibilitychange', syncPlayback);
+    window.addEventListener('resize', resizePetals);
+    window.addEventListener('boda:portrait-restored', resizePetals);
+    window.addEventListener('pagehide', () => { running = false; cancelAnimationFrame(raf); raf = null; });
+    window.addEventListener('pageshow', syncPlayback);
+    fit(); adjust(); syncPlayback();
   }
 
   // =====================================================================
@@ -962,28 +943,38 @@
     applyUploadClosedUI();
   }
 
-  async function checkGuestSession() {
-    const savedToken = localStorage.getItem('mr_guest_token');
-    if (!savedToken) {
-      updateQuotaUI();
-      if (myUploadsGrid) renderMyUploads([]);
-      return;
-    }
+  function getSavedGuestToken() {
+    const cookie = document.cookie.split(';').map((part) => part.trim()).find((part) => part.startsWith('guest_token='));
+    if (cookie) { try { return decodeURIComponent(cookie.slice(12)); } catch (error) {} }
+    try { return localStorage.getItem('mr_guest_token') || ''; } catch (error) { return ''; }
+  }
 
+  async function checkGuestSession() {
+    if (!guestModal) return;
+    const savedToken = getSavedGuestToken();
     try {
       const res = await fetch('/api/auth/guest-me', {
-        headers: { 'X-Guest-Token': savedToken }
+        credentials: 'same-origin',
+        headers: savedToken ? { 'X-Guest-Token': savedToken } : {}
       });
       const data = await res.json();
       syncUploadDeadlineFromApi(data);
-      if (data.success && data.guest) {
+      if (res.ok && data.success && data.guest) {
         setGuestSession(data.guest, { isRestore: true });
-      } else {
+      } else if (res.status === 401) {
+        try { localStorage.removeItem('mr_guest_token'); localStorage.removeItem('mr_guest_name'); } catch (error) {}
         updateQuotaUI();
         if (myUploadsGrid) renderMyUploads([]);
+        promptGuestName(false);
+      } else {
+        updateQuotaUI();
+        if (!savedToken) promptGuestName(false);
+        showToast('No se pudo comprobar tu perfil. Intenta de nuevo cuando tengas conexión.', 'warning', 'Perfil pendiente');
       }
-    } catch (e) {
+    } catch (error) {
       updateQuotaUI();
+      if (!savedToken) promptGuestName(false);
+      // No borrar un perfil guardado ante una falla temporal de conexion.
     }
   }
 
@@ -1003,8 +994,9 @@
       }
     }
     if (guestModalClose) {
-      guestModalClose.style.display = (canClose || Boolean(existingName)) ? 'grid' : 'none';
+      guestModalClose.style.display = canClose ? 'grid' : 'none';
     }
+    guestModal.dataset.required = canClose ? 'false' : 'true';
     guestModal.classList.add('active');
     setTimeout(() => {
       if (guestNameInput) guestNameInput.focus();
@@ -1012,6 +1004,7 @@
   }
 
   function closeGuestModal() {
+    if (guestModal && guestModal.dataset.required === 'true') return;
     if (guestModal) guestModal.classList.remove('active');
   }
 
@@ -1027,8 +1020,11 @@
 
   function setGuestSession(guest, options = {}) {
     currentGuest = guest;
-    localStorage.setItem('mr_guest_token', guest.token);
-    localStorage.setItem('mr_guest_name', guest.name);
+    try {
+      localStorage.setItem('mr_guest_token', guest.token);
+      localStorage.setItem('mr_guest_name', guest.name);
+    } catch (error) {}
+    if (guestModal) guestModal.dataset.required = 'false';
 
     if (guestModal) guestModal.classList.remove('active');
     if (guestDisplayName) guestDisplayName.textContent = guest.name;
@@ -1069,7 +1065,7 @@
         return;
       }
 
-      const existingToken = localStorage.getItem('mr_guest_token') || '';
+      const existingToken = getSavedGuestToken();
       try {
         const res = await fetch('/api/auth/guest-login', {
           method: 'POST',
@@ -1649,12 +1645,12 @@
         thumb.innerHTML = `
           <video src="${entry.previewUrl}" muted playsinline preload="metadata"></video>
           <span class="cam-tray-vid-tag">VID</span>
-          <button type="button" class="cam-tray-remove" aria-label="Quitar">&times;</button>
+          <button type="button" class="cam-tray-remove" aria-label="Quitar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         `;
       } else {
         thumb.innerHTML = `
           <img src="${entry.previewUrl}" alt="Captura" />
-          <button type="button" class="cam-tray-remove" aria-label="Quitar">&times;</button>
+          <button type="button" class="cam-tray-remove" aria-label="Quitar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
         `;
       }
 
@@ -2591,18 +2587,9 @@
     }
 
     // Asignar número de orden a los elementos seleccionados
-    const selectionOrderMap = new Map();
-    let orderIdx = 1;
-    standbyItems.forEach((item) => {
-      if (item.selected) {
-        selectionOrderMap.set(item.id, orderIdx++);
-      }
-    });
-
     standbyItems.forEach((item, index) => {
       const tile = document.createElement('div');
       const isSelected = Boolean(item.selected);
-      const selNum = selectionOrderMap.get(item.id);
       tile.className = `standby-tile${isSelected ? ' is-selected' : ''}`;
       tile.style.animationDelay = `${Math.min(index * 28, 280)}ms`;
       tile.setAttribute('role', 'button');
@@ -2616,7 +2603,7 @@
           ? `<img src="${escapeHtml(item.thumbUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async" />`
           : `<video muted playsinline preload="metadata"></video>`
         }
-        <span class="standby-select-badge" aria-hidden="true">${isSelected ? selNum : ''}</span>
+        <span class="standby-select-badge" aria-hidden="true">${isSelected ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>' : ''}</span>
         <button type="button" class="standby-delete-btn" title="Quitar de espera" aria-label="Quitar captura">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
         </button>
@@ -3038,6 +3025,11 @@
     const tile = document.createElement('div');
     tile.className = 'gallery-grid-item';
     tile.dataset.mediaId = String(item.id);
+    tile.tabIndex = 0;
+    tile.setAttribute('aria-label', `Abrir recuerdo de ${item.guest_name || 'Invitado'}`);
+    tile.addEventListener('keydown', (event) => {
+      if (event.target === tile && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); tile.click(); }
+    });
     tile.style.transitionDelay = `${Math.min(batchIndex * 35, 320)}ms`;
 
     const isVideo = item.media_type === 'video';
@@ -3101,12 +3093,83 @@
     });
 
     galleryGrid.appendChild(fragment);
+    layoutGalleryMosaic();
+
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         newTiles.forEach((tile) => tile.classList.add('visible'));
       });
     });
+  }
+
+  // Reservar las filas antes de cargar imagenes: el mosaico no depende de su tamano nativo.
+  function initScrollNavigation() {
+    const nav = document.getElementById('siteNav');
+    if (!nav || document.body.classList.contains('page-guestbook')) return;
+    let lastY = Math.max(0, window.scrollY);
+    let pointerNearTop = false;
+    let framePending = false;
+    const show = () => nav.classList.remove('is-scroll-hidden');
+    const update = () => {
+      framePending = false;
+      const y = Math.max(0, window.scrollY);
+      const delta = y - lastY;
+      const menuButton = document.getElementById('navHamburgerBtn');
+      const menuOpen = menuButton && menuButton.getAttribute('aria-expanded') === 'true';
+      if (y <= nav.offsetHeight || pointerNearTop || nav.contains(document.activeElement) || menuOpen) {
+        show(); lastY = y; return;
+      }
+      if (Math.abs(delta) < 6) return;
+      nav.classList.toggle('is-scroll-hidden', delta > 0);
+      lastY = y;
+    };
+    window.addEventListener('scroll', () => {
+      if (!framePending) { framePending = true; requestAnimationFrame(update); }
+    }, { passive: true });
+    document.addEventListener('pointermove', (event) => {
+      if (event.pointerType !== 'mouse') return;
+      pointerNearTop = event.clientY <= nav.offsetHeight + 16;
+      if (pointerNearTop) show();
+    }, { passive: true });
+    document.addEventListener('pointerleave', () => { pointerNearTop = false; });
+    nav.addEventListener('focusin', show);
+  }
+
+  function getGalleryTileSpan(width, index, sparse) {
+    const ratios = [3/4, 3/5, 1, 2/3, 5/6, 4/7];
+    const height = sparse ? Math.min(440, width / ratios[index % ratios.length]) : width / ratios[index % ratios.length];
+    return Math.max(1, Math.ceil((height + 10) / 14));
+  }
+
+  function layoutGalleryMosaic() {
+    if (!galleryGrid) return;
+    const tiles = Array.from(galleryGrid.querySelectorAll('.gallery-grid-item'));
+    const sparse = !galleryHasMore && tiles.length <= 4;
+    const levelRow = currentFilter === 'popular' && sparse && tiles.length > 0;
+    galleryGrid.classList.toggle('is-sparse', sparse);
+    galleryGrid.classList.toggle('is-level-row', levelRow);
+    galleryGrid.style.setProperty('--gallery-small-count', Math.max(1, tiles.length));
+    if (!tiles.length) return;
+    // La misma cuadricula sirve a Todos, Mis Fotos y Mas Queridas.
+    const columns = levelRow ? tiles.length : sparse ? 1 : window.innerWidth <= 600 ? 2 : window.innerWidth <= 1000 ? 3 : 4;
+    const width = (galleryGrid.clientWidth - (columns - 1) * 10) / columns;
+    tiles.forEach((tile, index) => {
+      tile.style.gridRowEnd = 'span ' + getGalleryTileSpan(width, levelRow ? 0 : index, sparse);
+    });
+  }
+
+  if (galleryGrid) {
+    let lastMosaicWidth = -1;
+    if ('ResizeObserver' in window) {
+      const observer = new ResizeObserver((entries) => {
+        const width = entries[0].contentRect.width;
+        if (width !== lastMosaicWidth) { lastMosaicWidth = width; layoutGalleryMosaic(); }
+      });
+      observer.observe(galleryGrid);
+    } else {
+      window.addEventListener('resize', layoutGalleryMosaic);
+    }
   }
 
   function syncGalleryTileLike(mediaId, hasLiked, likesCount) {
@@ -3128,7 +3191,7 @@
     galleryCurrentPage = 0;
     galleryTotal = 0;
     galleryHasMore = false;
-    if (galleryGrid) galleryGrid.innerHTML = '';
+    if (galleryGrid) { galleryGrid.innerHTML = ''; galleryGrid.classList.remove('is-sparse', 'is-level-row'); }
     if (galleryEmpty) galleryEmpty.style.display = 'none';
     if (currentLightboxSource === 'gallery') {
       currentLightboxItems = allMediaCache;
@@ -3423,6 +3486,8 @@
     if (galleryGrid) {
       const tileToRemove = galleryGrid.querySelector(`.gallery-grid-item[data-media-id="${String(mediaId)}"]`);
       if (tileToRemove) tileToRemove.remove();
+      layoutGalleryMosaic();
+
       if (allMediaCache.length === 0) {
         if (galleryHasMore) {
           loadNextGalleryPage();
@@ -3567,7 +3632,7 @@
     }
 
     if (isStandby) {
-      if (lightboxAvatar) lightboxAvatar.textContent = '✦';
+      if (lightboxAvatar) lightboxAvatar.innerHTML = '<svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg>';
       if (lightboxAuthor) {
         lightboxAuthor.textContent = item.selected ? 'Seleccionado para publicar' : 'En espera (sin publicar)';
       }
@@ -3774,7 +3839,8 @@
       if (e.key === 'ArrowRight') navigateLightbox(1);
       return;
     }
-    if (bookReadView && bookReadView.classList.contains('is-active') && !(bookSigModal && bookSigModal.classList.contains('is-open'))) {
+    if (bookReadView && !bookFlipStage.hidden && bookReadView.classList.contains('is-active') && !(bookSigModal && bookSigModal.classList.contains('is-open'))) {
+      if (e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (e.key === 'ArrowRight') triggerBookFlip('next');
       if (e.key === 'ArrowLeft') triggerBookFlip('prev');
     }
@@ -3790,12 +3856,27 @@
     return SIGNATURE_FONTS[seed % SIGNATURE_FONTS.length];
   }
 
+  function isWideBook() { return window.innerWidth >= 1000; }
+
+  function isBookSpreadReading() {
+    const sheet = document.getElementById('weddingBookSheet');
+    return isWideBook() && sheet && sheet.dataset.mode === 'read';
+  }
+
+  function syncBookLayout() {
+    const sheet = document.getElementById('weddingBookSheet');
+    if (!sheet) return;
+    const open = sheet.classList.contains('is-open');
+    const writing = sheet.dataset.mode === 'write';
+    sheet.classList.toggle('is-two-page', isWideBook() && open);
+    sheet.parentElement.classList.toggle('is-open-book', open);
+    sheet.parentElement.classList.toggle('is-spread-open', isWideBook() && open);
+    document.body.classList.toggle('has-open-book', open);
+    if (bookFlipStage) bookFlipStage.hidden = !open || (writing && !isWideBook());
+  }
+
   function computeBookPageSize() {
-    const stageH = bookFlipStage ? bookFlipStage.clientHeight : 0;
-    if (stageH > 0) {
-      return stageH >= 460 ? 4 : 3;
-    }
-    return window.innerHeight >= 780 ? 4 : 3;
+    return 5;
   }
 
   function computeLineClamp(pageSize) {
@@ -3814,19 +3895,22 @@
       return totalEntries > 0 ? 'Toca una firma para leerla completa' : 'Agrega la primera dedicatoria';
     }
     if (pageNum <= 1) {
-      return 'Desliza la esquina o la hoja ← con tu dedo';
+      return 'Desliza la esquina o la hoja a la izquierda con tu dedo';
     }
     if (pageNum >= totalPages) {
-      return 'Última hoja · Desliza → para regresar';
+      return 'Última hoja · Desliza a la derecha para regresar';
     }
-    return 'Desliza ← o → con tu dedo para hojear';
+    return 'Desliza a la izquierda o a la derecha con tu dedo para hojear';
   }
 
   function buildBookPageFooterHtml(pageNum, totalPages, totalEntries) {
     const hintText = getBookPageSwipeHint(pageNum, totalPages, totalEntries);
-    const hideArrows = totalEntries === 0 || totalPages <= 1;
-    const prevDisabled = hideArrows || pageNum <= 1;
-    const nextDisabled = hideArrows || pageNum >= totalPages;
+    const spread = isBookSpreadReading();
+    const sheet = document.getElementById('weddingBookSheet');
+    const writingSpread = isWideBook() && sheet && sheet.dataset.mode === 'write';
+    const hideArrows = !writingSpread && (totalEntries === 0 || totalPages <= (spread ? 2 : 1));
+    const prevDisabled = hideArrows || pageNum <= (spread ? 2 : 1);
+    const nextDisabled = !writingSpread && (hideArrows || pageNum >= totalPages);
     const hiddenClass = hideArrows ? ' is-hidden' : '';
 
     return `
@@ -3837,17 +3921,29 @@
           data-book-dir="prev"
           aria-label="Hoja anterior"
           ${prevDisabled ? 'disabled' : ''}
-        >←</button>
+        ><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4m6-6-6 6 6 6"/></svg></button>
         <span class="book-paper-swipe-hint">${escapeHtml(hintText)}</span>
+        <button type="button" class="book-paper-corner-btn book-mode-switch" data-book-mode="write" aria-label="Escribir firma">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+          <span class="book-mode-tooltip" aria-hidden="true">Escribir firma</span>
+        </button>
         <button
           type="button"
           class="book-paper-corner-btn book-corner-next${hiddenClass}"
           data-book-dir="next"
           aria-label="Hoja siguiente"
           ${nextDisabled ? 'disabled' : ''}
-        >→</button>
+        ><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
       </div>
     `;
+  }
+
+  function buildBookPaperHtml(pageNum) {
+    const side = pageNum % 2 ? 'left' : 'right';
+    const totalPages = getTotalBookPages();
+    const html = pageNum <= totalPages ? buildBookPageHtml(pageNum) :
+      '<div class="book-paper-running-head"><span>Libro de Honor</span><span></span></div><div class="book-paper-empty" aria-label="Hoja en blanco"></div>' + buildBookPageFooterHtml(pageNum, totalPages, guestbookEntries.length);
+    return '<div class="book-paper-page" data-book-side="' + side + '">' + html + '</div>';
   }
 
   function buildBookPageHtml(pageNum) {
@@ -3881,7 +3977,7 @@
       const rawMsg = (entry.raw_message || entry.message || '').replace(/\r?\n+/g, ' ').trim();
 
       return `
-        <article class="book-signature-entry sig-font-${fontKey} is-clickable" data-entry-id="${Number(entry.id)}">
+        <article class="book-signature-entry sig-font-${fontKey} is-clickable${Number(entry.id) === celebratingSignatureId ? ' is-new-signature' : ''}" data-entry-id="${Number(entry.id)}">
           <p class="book-sig-message">${escapeHtml(rawMsg)}</p>
           <div class="book-sig-footer">
             <span class="book-sig-author">— ${escapeHtml(authorText)}</span>
@@ -3900,6 +3996,153 @@
       </div>
       ${buildBookPageFooterHtml(safePage, totalPages, total)}
     `;
+  }
+
+  let signatureRevealCleanup = null;
+  let signatureRevealScheduled = false;
+
+  // Medir el texto original conserva las ligaduras y la caligrafia: no se divide en spans.
+  function measureSignatureLines(target) {
+    const box = target.getBoundingClientRect();
+    const node = target.firstChild;
+    if (!node || node.nodeType !== 3 || !box.width || !box.height) return [];
+    const range = document.createRange();
+    const lines = [];
+    let offset = 0;
+    for (const char of Array.from(node.textContent).slice(0, 800)) {
+      range.setStart(node, offset);
+      offset += char.length;
+      range.setEnd(node, offset);
+      const rect = range.getBoundingClientRect();
+      if (!rect.width || rect.top >= box.bottom - 1 || rect.bottom <= box.top || rect.left >= box.right) continue;
+      let line = lines.find((item) => Math.abs(item.top - rect.top) < 4);
+      if (!line) { line = { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right }; lines.push(line); }
+      line.left = Math.min(line.left, rect.left);
+      line.right = Math.min(box.right, Math.max(line.right, rect.right));
+      line.bottom = Math.min(box.bottom, Math.max(line.bottom, rect.bottom));
+    }
+    return lines.map((line) => ({ target, x: Math.max(0, line.left - box.left - 2), y: Math.max(0, line.top - box.top), width: line.right - line.left + 4, height: line.bottom - Math.max(line.top, box.top), left: line.left, top: line.top }));
+  }
+
+  function animateNewSignature(entry) {
+    if (signatureRevealCleanup) signatureRevealCleanup();
+    const targets = Array.from(entry.querySelectorAll('.book-sig-message, .book-sig-author'));
+    const lines = targets.flatMap(measureSignatureLines);
+    if (!lines.length || !window.CSS || !CSS.supports('mask-image', 'linear-gradient(black, black)')) {
+      entry.classList.remove('is-new-signature'); celebratingSignatureId = null; return;
+    }
+    const box = entry.getBoundingClientRect();
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.classList.add('signature-magic-layer');
+    svg.setAttribute('viewBox', '0 0 ' + box.width + ' ' + box.height);
+    svg.setAttribute('aria-hidden', 'true');
+    const make = (tag, attrs) => {
+      const node = document.createElementNS(ns, tag);
+      Object.entries(attrs).forEach(([key,value]) => node.setAttribute(key, value));
+      svg.appendChild(node); return node;
+    };
+    const defs = document.createElementNS(ns, 'defs');
+    const gradient = document.createElementNS(ns, 'linearGradient');
+    const gradientId = 'signature-trail-' + celebratingSignatureId;
+    gradient.setAttribute('id', gradientId); gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
+    [[0, '#F4E2B7', 0], [.45, '#F4E2B7', .3], [1, '#FFFDF8', 1]].forEach(([offset, color, opacity]) => {
+      const stop = document.createElementNS(ns, 'stop');
+      stop.setAttribute('offset', offset); stop.setAttribute('stop-color', color); stop.setAttribute('stop-opacity', opacity); gradient.appendChild(stop);
+    });
+    defs.appendChild(gradient); svg.appendChild(defs);
+    const trail = make('path', {class: 'signature-light-trail', fill: 'url(#' + gradientId + ')'});
+    const tip = make('circle', {class: 'signature-light-tip', r: 3.2});
+    const particles = Array.from({length: 12}, (_,i) => make('path', {class: 'signature-light-spark', d: i % 3 === 0 ? 'M0 -4 1 -1 4 0 1 1 0 4 -1 1 -4 0 -1 -1Z' : 'M0 -1.4A1.4 1.4 0 1 0 0 1.4A1.4 1.4 0 1 0 0 -1.4'}));
+    entry.appendChild(svg);
+    targets.forEach((target) => {
+      const own = lines.filter((line) => line.target === target);
+      target.style.maskImage = own.map(() => 'linear-gradient(black,black)').join(',');
+      target.style.webkitMaskImage = target.style.maskImage;
+      target.style.maskRepeat = 'no-repeat'; target.style.webkitMaskRepeat = 'no-repeat';
+      target.style.maskPosition = own.map((line) => line.x + 'px ' + line.y + 'px').join(',');
+      target.style.webkitMaskPosition = target.style.maskPosition;
+      target.style.maskSize = own.map((line) => '0px ' + line.height + 'px').join(',');
+      target.style.webkitMaskSize = target.style.maskSize;
+    });
+    entry.classList.add('signature-revealing');
+    const totalWidth = lines.reduce((sum,line) => sum + line.width, 0);
+    const duration = Math.min(4100, Math.max(2200, totalWidth * 3.9));
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let frame = 0, started = null, finished = false;
+    const cleanup = () => {
+      if (finished) return;
+      finished = true; cancelAnimationFrame(frame);
+      targets.forEach((target) => {
+        ['mask-image','mask-size','mask-position','mask-repeat','-webkit-mask-image','-webkit-mask-size','-webkit-mask-position','-webkit-mask-repeat'].forEach((property) => target.style.removeProperty(property));
+      });
+      svg.remove(); entry.classList.remove('is-new-signature','signature-revealing');
+      if (signatureRevealCleanup === cleanup) signatureRevealCleanup = null;
+    };
+    signatureRevealCleanup = cleanup;
+    const draw = (time) => {
+      if (!entry.isConnected || motion.matches || document.hidden || bookFlipStage.hidden || bookIsFlipping) {
+        cleanup(); if (entry.isConnected) celebratingSignatureId = null; return;
+      }
+      if (started === null) started = time;
+      const progress = Math.min(1, (time - started) / duration);
+      let remaining = progress * totalWidth;
+      let active = lines[0], activeWidth = 0;
+      targets.forEach((target) => {
+        const sizes = lines.filter((line) => line.target === target).map((line) => {
+          const width = Math.min(line.width, Math.max(0, remaining));
+          if (remaining >= 0 && remaining <= line.width) { active = line; activeWidth = width; }
+          remaining -= line.width;
+          return width + 'px ' + line.height + 'px';
+        });
+        target.style.maskSize = sizes.join(','); target.style.webkitMaskSize = target.style.maskSize;
+      });
+      const x = active.left - box.left + activeWidth;
+      const y = active.top - box.top + active.height * .73;
+      const tailX = Math.max(active.left - box.left, x - 44);
+      gradient.setAttribute('x1', tailX); gradient.setAttribute('x2', Math.max(tailX + .01, x));
+      gradient.setAttribute('y1', y); gradient.setAttribute('y2', y);
+      trail.setAttribute('d', 'M' + tailX + ' ' + y + ' Q' + (x - 12) + ' ' + (y - .3) + ' ' + x + ' ' + (y - 1.2) + ' L' + x + ' ' + (y + 1.2) + ' Q' + (x - 12) + ' ' + (y + .3) + ' ' + tailX + ' ' + y + 'Z');
+      tip.setAttribute('cx', x); tip.setAttribute('cy', y);
+      const fade = progress > .93 ? (1 - progress) / .07 : Math.min(1, progress * 25);
+      svg.style.opacity = fade;
+      particles.forEach((particle,i) => {
+        const phase = ((time - started) / 460 + i / 12) % 1;
+        const px = x - phase * (18 + i * 2);
+        const py = y + Math.sin(i * 2.4) * phase * (10 + i);
+        particle.setAttribute('transform', 'translate(' + px + ' ' + py + ') scale(' + (1 - phase) + ')');
+        particle.style.opacity = (1 - phase) * .9;
+      });
+      if (progress < 1) frame = requestAnimationFrame(draw);
+      else { cleanup(); celebratingSignatureId = null; clearTimeout(signatureCelebrationTimer); }
+    };
+    frame = requestAnimationFrame(draw);
+  }
+
+  function scheduleNewSignatureReveal() {
+    if (celebratingSignatureId === null || signatureRevealScheduled) return;
+    signatureRevealScheduled = true;
+    setTimeout(async () => {
+      try {
+        if (document.fonts) await document.fonts.ready;
+        if (celebratingSignatureId === null) return;
+        const entry = bookFlipHostWrap.querySelector('.is-new-signature[data-entry-id="' + celebratingSignatureId + '"]');
+        if (!entry || entry.classList.contains('signature-revealing')) return;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          entry.classList.remove('is-new-signature'); celebratingSignatureId = null; return;
+        }
+        animateNewSignature(entry);
+      } catch (error) {
+        if (signatureRevealCleanup) signatureRevealCleanup();
+        bookFlipHostWrap.querySelectorAll('.is-new-signature').forEach((entry) => entry.classList.remove('is-new-signature'));
+        celebratingSignatureId = null;
+        console.warn('No se pudo animar la nueva firma:', error);
+      } finally { signatureRevealScheduled = false; }
+    }, 750);
+  }
+
+  if (bookFlipHostWrap) {
+    new MutationObserver(scheduleNewSignatureReveal).observe(bookFlipHostWrap, {childList: true, subtree: true});
   }
 
   function openSignatureModal(entryId) {
@@ -3969,10 +4212,14 @@
   function renderGuestbookPage(pageNum, forceRemount = false) {
     if (!bookFlipHostWrap) return;
 
+    syncBookLayout();
+    if (bookFlipStage.hidden) return;
     currentBookPageSize = computeBookPageSize();
     const total = guestbookEntries.length;
     const totalPages = getTotalBookPages();
+    const spread = isBookSpreadReading();
     currentBookPage = Math.min(Math.max(1, pageNum), totalPages);
+    if (spread) currentBookPage = Math.floor((currentBookPage - 1) / 2) * 2 + 1;
 
     updateBookChrome();
 
@@ -3983,8 +4230,11 @@
       return;
     }
 
-    const nextKey = getGuestbookSnapshotKey(guestbookEntries, currentBookPageSize, hostW, hostH);
+    const nextKey = getGuestbookSnapshotKey(guestbookEntries, currentBookPageSize, hostW, hostH) + ':' + (spread ? 'spread' : 'single');
     if (!forceRemount && bookPageFlipInstance && lastMountedBookKey === nextKey) {
+      // La libreria pudo medir cero al ocultarse o al cambiar el teclado de Android.
+      const ui = bookPageFlipInstance.getUI && bookPageFlipInstance.getUI();
+      if (ui && typeof ui.update === 'function') ui.update();
       return;
     }
 
@@ -3993,11 +4243,12 @@
 
     // Si hay 0 o 1 hoja, o si la librería no cargó, mostrar hoja directa sin necesidad de volteo
     const hasPageFlipLib = typeof window.St !== 'undefined' && typeof window.St.PageFlip === 'function';
-    if (total === 0 || totalPages <= 1 || !hasPageFlipLib) {
-      const staticPage = document.createElement('div');
-      staticPage.className = 'book-stf-page';
-      staticPage.innerHTML = `<div class="book-paper-page">${buildBookPageHtml(currentBookPage)}</div>`;
-      bookFlipHostWrap.appendChild(staticPage);
+    if (total === 0 || totalPages <= 1 || !hasPageFlipLib || (spread && totalPages <= 2)) {
+      if (spread) {
+        bookFlipHostWrap.innerHTML = '<div class="book-static-spread"><div class="book-stf-page">' + buildBookPaperHtml(currentBookPage) + '</div><div class="book-stf-page">' + buildBookPaperHtml(currentBookPage + 1) + '</div></div>';
+      } else {
+        bookFlipHostWrap.innerHTML = '<div class="book-stf-page">' + buildBookPaperHtml(currentBookPage) + '</div>';
+      }
       lastMountedBookKey = nextKey;
       return;
     }
@@ -4006,10 +4257,11 @@
     hostEl.className = 'book-flip-host';
 
     const pageNodes = [];
-    for (let p = 1; p <= totalPages; p++) {
+    const renderedPages = spread ? Math.ceil(totalPages / 2) * 2 : totalPages;
+    for (let p = 1; p <= renderedPages; p++) {
       const pageEl = document.createElement('div');
       pageEl.className = 'book-stf-page';
-      pageEl.innerHTML = `<div class="book-paper-page">${buildBookPageHtml(p)}</div>`;
+      pageEl.innerHTML = buildBookPaperHtml(p);
       hostEl.appendChild(pageEl);
       pageNodes.push(pageEl);
     }
@@ -4019,11 +4271,11 @@
     try {
       const startIndex = Math.min(Math.max(0, currentBookPage - 1), totalPages - 1);
       bookPageFlipInstance = new window.St.PageFlip(hostEl, {
-        width: hostW,
+        width: spread ? Math.floor(hostW / 2) : hostW,
         height: hostH,
         size: 'fixed',
         autoSize: false,
-        usePortrait: true,
+        usePortrait: !spread,
         showCover: false,
         startPage: startIndex,
         drawShadow: true,
@@ -4037,6 +4289,14 @@
       });
 
       bookPageFlipInstance.loadFromHTML(pageNodes);
+      // StPageFlip dibuja las hojas blandas en 2D: backface-visibility por si solo no oculta el verso.
+      const renderer = bookPageFlipInstance.getRender();
+      const setFlippingPage = renderer.setFlippingPage.bind(renderer);
+      renderer.setFlippingPage = (page) => {
+        setFlippingPage(page);
+        const element = page && page.getElement && page.getElement();
+        if (element) element.classList.add('is-turning-verso');
+      };
       lastMountedBookKey = nextKey;
 
       const fc = bookPageFlipInstance.getFlipController && bookPageFlipInstance.getFlipController();
@@ -4329,13 +4589,20 @@
         lastFlipCommitTs = now;
         lastFlipEndTs = now;
         const nextIndex = Number(e && e.data !== undefined ? e.data : 0);
+        const sheet = document.getElementById('weddingBookSheet');
+        const leaveWriting = isWideBook() && sheet && sheet.dataset.mode === 'write' && nextIndex + 1 > currentBookPage;
         currentBookPage = Math.min(Math.max(1, nextIndex + 1), totalPages);
+        if (spread) currentBookPage = Math.floor((currentBookPage - 1) / 2) * 2 + 1;
         updateBookChrome();
+        if (leaveWriting) requestAnimationFrame(() => setBookMode('read'));
       });
 
       bookPageFlipInstance.on('changeState', (e) => {
         const state = e && e.data ? String(e.data) : 'read';
         bookIsFlipping = state !== 'read';
+        if (state === 'read') {
+          bookFlipHostWrap.querySelectorAll('.is-turning-verso').forEach((page) => page.classList.remove('is-turning-verso'));
+        }
         if (bookFlipStage) {
           bookFlipStage.classList.toggle('is-dragging', state === 'user_fold');
         }
@@ -4343,7 +4610,9 @@
     } catch (err) {
       console.error('Error iniciando StPageFlip:', err);
       destroyBookPageFlip();
-      bookFlipHostWrap.innerHTML = `<div class="book-stf-page"><div class="book-paper-page">${buildBookPageHtml(currentBookPage)}</div></div>`;
+      bookFlipHostWrap.innerHTML = spread
+        ? '<div class="book-static-spread"><div class="book-stf-page">' + buildBookPaperHtml(currentBookPage) + '</div><div class="book-stf-page">' + buildBookPaperHtml(currentBookPage + 1) + '</div></div>'
+        : '<div class="book-stf-page">' + buildBookPaperHtml(currentBookPage) + '</div>';
     }
   }
 
@@ -4361,13 +4630,21 @@
 
   function triggerBookFlip(dir, corner = 'bottom') {
     const totalPages = getTotalBookPages();
+    const sheet = document.getElementById('weddingBookSheet');
+    const writingSpread = isWideBook() && sheet && sheet.dataset.mode === 'write';
+    if (writingSpread && dir === 'next' && (!bookPageFlipInstance || currentBookPage >= totalPages)) {
+      setBookMode('read');
+      return true;
+    }
+    const step = isBookSpreadReading() ? 2 : 1;
+    const canNext = currentBookPage + step - 1 < totalPages;
     if (totalPages <= 1) return false;
 
     if (bookPageFlipInstance) {
       // Bloquear si ya hay una hoja girando o recién aterrizando (1 hoja por gesto)
       if (isBookFlipLocked()) return false;
       try {
-        if (dir === 'next' && currentBookPage < totalPages) {
+        if (dir === 'next' && canNext) {
           lastFlipCommitTs = performance.now();
           bookIsFlipping = true;
           bookPageFlipInstance.flipNext(corner);
@@ -4394,12 +4671,12 @@
     }
 
     // Respaldo si no hay instancia activa
-    if (dir === 'next' && currentBookPage < totalPages) {
-      renderGuestbookPage(currentBookPage + 1);
+    if (dir === 'next' && canNext) {
+      renderGuestbookPage(currentBookPage + step);
       return true;
     }
     if (dir === 'prev' && currentBookPage > 1) {
-      renderGuestbookPage(currentBookPage - 1);
+      renderGuestbookPage(Math.max(1, currentBookPage - step));
       return true;
     }
     return false;
@@ -4560,11 +4837,26 @@
 
   function setBookMode(mode) {
     const isRead = mode === 'read';
+    // Nunca conservar una instancia que vaya a medir su host oculto.
+    destroyBookPageFlip();
+    if (isRead && bookWriteView && bookWriteView.contains(document.activeElement)) document.activeElement.blur();
+    if (!isRead && signatureRevealCleanup) { signatureRevealCleanup(); celebratingSignatureId = null; }
+    const sheet = document.getElementById('weddingBookSheet');
+    if (sheet) {
+      if (!isRead && sheet.dataset.mode !== 'write') currentBookPage = 1;
+      sheet.classList.add('is-open'); sheet.dataset.mode = mode;
+    }
+    syncBookLayout();
+    [btnBookWriteTab, btnBookReadTab].forEach((button) => {
+      if (button) button.setAttribute('aria-expanded', 'true');
+    });
+    if (bookFlipStage) bookFlipStage.hidden = !isRead && !isWideBook();
     if (bookWriteView) bookWriteView.classList.toggle('is-active', !isRead);
-    if (bookReadView) bookReadView.classList.toggle('is-active', isRead);
+    if (bookReadView) bookReadView.classList.add('is-active');
+    if (!isRead && guestbookAuthorInput) requestAnimationFrame(() => guestbookAuthorInput.focus({ preventScroll: true }));
     if (btnBookWriteTab) btnBookWriteTab.classList.toggle('is-active', !isRead);
     if (btnBookReadTab) btnBookReadTab.classList.toggle('is-active', isRead);
-    if (isRead) {
+    if (isRead || isWideBook()) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           renderGuestbookPage(currentBookPage);
@@ -4574,15 +4866,33 @@
     }
   }
 
+  if (bookReadView) {
+    bookReadView.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-book-mode]');
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!isSubmittingSignature) setBookMode(button.dataset.bookMode);
+    }, true);
+    // El control de modo no inicia un arrastre de hoja.
+    ['pointerdown', 'mousedown', 'touchstart'].forEach((type) => {
+      bookReadView.addEventListener(type, (event) => {
+        if (event.target.closest('[data-book-mode]')) event.stopPropagation();
+      }, { capture: true, passive: true });
+    });
+  }
+
   if (btnBookWriteTab) btnBookWriteTab.addEventListener('click', () => setBookMode('write'));
   if (btnBookReadTab) btnBookReadTab.addEventListener('click', () => setBookMode('read'));
   if (btnGoToReadSignatures) btnGoToReadSignatures.addEventListener('click', () => setBookMode('read'));
 
-  // Recalcular 3 o 4 firmas por hoja y dimensiones de StPageFlip si cambia la pantalla
+  // Mantener cinco firmas por hoja y alternar una o dos hojas al redimensionar.
   let bookResizeTimer = null;
   function scheduleBookResize() {
     if (shouldFreezeLayoutForLandscape()) return;
     if (!bookFlipStage || !bookReadView || !bookReadView.classList.contains('is-active')) return;
+    syncBookLayout();
+    if (bookFlipStage.hidden) return;
     clearTimeout(bookResizeTimer);
     bookResizeTimer = setTimeout(() => {
       if (!bookIsFlipping && !shouldFreezeLayoutForLandscape()) {
@@ -4592,6 +4902,18 @@
   }
   window.addEventListener('resize', scheduleBookResize);
   window.addEventListener('boda:portrait-restored', scheduleBookResize);
+  if (bookFlipHostWrap && 'ResizeObserver' in window) {
+    let lastBookWidth = -1, lastBookHeight = -1;
+    const bookSizeObserver = new ResizeObserver((entries) => {
+      const rect = entries[0].contentRect;
+      const width = Math.floor(rect.width), height = Math.floor(rect.height);
+      if (width === lastBookWidth && height === lastBookHeight) return;
+      lastBookWidth = width; lastBookHeight = height;
+      if (width >= 80 && height >= 120) scheduleBookResize();
+    });
+    bookSizeObserver.observe(bookFlipHostWrap);
+  }
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', scheduleBookResize);
 
   async function loadGuestbook() {
     if (!bookFlipHostWrap) return;
@@ -4600,6 +4922,11 @@
       const data = await res.json();
       if (data.success && Array.isArray(data.entries)) {
         guestbookEntries = data.entries;
+        if (celebratingSignatureId !== null) {
+          currentBookPageSize = computeBookPageSize();
+          const index = guestbookEntries.findIndex((entry) => Number(entry.id) === celebratingSignatureId);
+          if (index >= 0) currentBookPage = Math.floor(index / currentBookPageSize) + 1;
+        }
         renderGuestbookPage(currentBookPage);
       }
     } catch (e) {
@@ -4732,6 +5059,13 @@
           showToast('¡Tu firma ha quedado guardada en el libro!', 'success', '¡Gracias por firmar!');
           if (guestbookMsgInput) guestbookMsgInput.value = '';
           if (data.entry) {
+            celebratingSignatureId = Number(data.entry.id);
+            clearTimeout(signatureCelebrationTimer);
+            signatureCelebrationTimer = setTimeout(() => {
+              celebratingSignatureId = null;
+              document.querySelectorAll('.is-new-signature').forEach((entry) => entry.classList.remove('is-new-signature'));
+              if (signatureRevealCleanup) signatureRevealCleanup();
+            }, 12000);
             guestbookEntries = [data.entry, ...guestbookEntries.filter((x) => Number(x.id) !== Number(data.entry.id))];
           }
           currentBookPage = 1;
@@ -4753,6 +5087,7 @@
   // =====================================================================
   // INICIALIZACIÓN
   // =====================================================================
+  initScrollNavigation();
   initPWA();
   initPreloader();
   initHeroSlideshow();

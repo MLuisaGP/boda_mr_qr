@@ -3,53 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Acceso Novios · Boda Michelle & René</title>
-  
-  <link rel="stylesheet" href="assets/css/admin.css?v=2">
-  <link rel="icon" type="image/jpeg" href="assets/img/couple-portrait.jpg">
+  <meta name="theme-color" content="#FAF7F2">
+  <title>Acceso al panel ? Michelle &amp; Ren&#233;</title>
+  <link rel="stylesheet" href="/assets/css/admin.css?v=7">
+  <link rel="icon" type="image/svg+xml" href="/assets/img/m&amp;r.svg">
 </head>
-<body>
-  <div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">
-    <div style="width:min(94%, 440px); background:#25131C; border:1px solid rgba(201,160,80,0.3); border-radius:24px; padding:44px 34px; box-shadow:0 20px 50px rgba(0,0,0,0.6); text-align:center;">
-      <div style="width:64px; height:64px; border-radius:50%; background:var(--gold-gradient); margin:0 auto 18px; display:grid; place-items:center; font-family:var(--font-serif); font-size:1.7rem; font-weight:700; color:#2A1406; box-shadow:0 0 25px rgba(201,160,80,0.4);">
-        M&R
-      </div>
-      <h1 style="font-family:var(--font-serif); font-size:2.2rem; color:var(--gold-light); margin-bottom:6px;">
-        Panel de Novios
-      </h1>
-      <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:30px; letter-spacing:0.04em;">
-        Boda Michelle & René · 19 de Diciembre 2026
-      </p>
-
-      <div id="loginError" class="admin-alert admin-alert-error" role="alert" aria-live="assertive">
-        <span class="admin-alert-icon" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-        </span>
+<body class="admin-dashboard admin-login-page">
+  <main class="admin-login-main">
+    <section class="admin-login-card" aria-labelledby="loginTitle">
+      <img class="login-monogram" src="/assets/img/v-m&amp;r.svg" alt="" width="96" height="96">
+      <div class="admin-brand-title">Michelle <span class="admin-brand-amp">&amp;</span> Ren&#233;</div>
+      <p class="login-date">19 · XII · 2026</p>
+      <div class="login-divider" aria-hidden="true"></div>
+      <span class="admin-eyebrow">Nuestro espacio de recuerdos</span>
+      <h1 id="loginTitle">Bienvenidos al panel</h1>
+      <p class="login-intro">Administra el contenido y el QR de la celebraci&#243;n.</p>
+      <div id="loginError" class="admin-alert admin-alert-error" role="alert" aria-live="assertive" tabindex="-1">
+        <span class="admin-alert-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3v1"/></svg></span>
         <span class="admin-alert-body" id="loginErrorText"></span>
       </div>
-
       <form id="adminLoginForm">
-        <div style="text-align:left; margin-bottom:18px;">
-          <label style="display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--gold-light); margin-bottom:6px;">Usuario</label>
-          <input type="text" id="adminUsername" required style="width:100%; padding:13px 16px; border-radius:12px; border:1px solid rgba(201,160,80,0.3); background:#180B12; color:#FFF; font-family:inherit; outline:none;" placeholder="ReneG, MichelleB o LuisaGa" autofocus />
+        <div class="login-field">
+          <label for="adminUsername">Usuario</label>
+          <input type="text" id="adminUsername" name="username" autocomplete="username" required placeholder="Tu usuario" autocapitalize="none" spellcheck="false">
         </div>
-        <div style="text-align:left; margin-bottom:26px;">
-          <label style="display:block; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--gold-light); margin-bottom:6px;">Contraseña</label>
-          <input type="password" id="adminPassword" required style="width:100%; padding:13px 16px; border-radius:12px; border:1px solid rgba(201,160,80,0.3); background:#180B12; color:#FFF; font-family:inherit; outline:none;" placeholder="••••••••••••" />
+        <div class="login-field">
+          <label for="adminPassword">Contrase&#241;a</label>
+          <div class="login-password-wrap">
+            <input type="password" id="adminPassword" name="password" autocomplete="current-password" required placeholder="Tu contrase&#241;a">
+            <button type="button" class="login-password-toggle" id="toggleLoginPassword" aria-label="Mostrar contrase&#241;a" aria-pressed="false"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          </div>
         </div>
-        <button type="submit" class="admin-btn admin-btn-gold" style="width:100%; padding:14px; font-size:0.95rem; justify-content:center;">
-          Ingresar al Panel →
-        </button>
+        <button type="submit" class="admin-btn admin-btn-gold login-submit"><span id="loginSubmitLabel">Ingresar al panel</span><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
       </form>
-
-      <div style="margin-top:24px;">
-        <a href="/" style="color:var(--text-muted); text-decoration:none; font-size:0.8rem;">
-          ← Volver a la página principal
-        </a>
-      </div>
-    </div>
-  </div>
-
+      <a class="login-back" href="/"><span aria-hidden="true">&#8592;</span> Volver al sitio de invitados</a>
+    </section>
+  </main>
   <script>
     function showLoginError(msg) {
       const errBox = document.getElementById('loginError');
@@ -60,10 +49,16 @@
       errBox.classList.add('is-visible');
       void errBox.offsetWidth;
       errBox.classList.add('is-shake');
+      errBox.focus();
     }
 
     document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const button = e.currentTarget.querySelector('[type="submit"]');
+      if (button.disabled) return;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      document.getElementById('loginSubmitLabel').textContent = 'Ingresando...';
       const u = document.getElementById('adminUsername').value.trim();
       const p = document.getElementById('adminPassword').value;
       const errBox = document.getElementById('loginError');
@@ -76,14 +71,26 @@
           body: JSON.stringify({ username: u, password: p })
         });
         const data = await res.json();
-        if (data.success) {
+        if (res.ok && data.success) {
           window.location.reload();
         } else {
           showLoginError(data.error || 'Credenciales inválidas. Verifica tu usuario y contraseña.');
         }
       } catch (err) {
         showLoginError('Error de conexión con el servidor. Intenta nuevamente.');
+      } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        document.getElementById('loginSubmitLabel').textContent = 'Ingresar al panel';
       }
+    });
+
+    document.getElementById('toggleLoginPassword').addEventListener('click', (event) => {
+      const input = document.getElementById('adminPassword');
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      event.currentTarget.setAttribute('aria-pressed', String(show));
+      event.currentTarget.setAttribute('aria-label', show ? 'Ocultar contrase\u00f1a' : 'Mostrar contrase\u00f1a');
     });
   </script>
 </body>

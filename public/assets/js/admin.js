@@ -5,7 +5,40 @@
 (function () {
   'use strict';
 
+  const adminMenuToggle = document.getElementById('adminMenuToggle');
+  const adminUserMenu = document.getElementById('adminUserMenu');
+  const adminHeader = document.querySelector('.admin-header');
+  const adminCompact = window.matchMedia('(max-width: 1000px)');
+  function setAdminMenuOpen(open, restoreFocus = false) {
+    if (!adminMenuToggle || !adminUserMenu || !adminHeader) return;
+    adminHeader.classList.toggle('is-menu-open', open);
+    adminMenuToggle.setAttribute('aria-expanded', String(open));
+    adminMenuToggle.setAttribute('aria-label', open ? 'Cerrar menu de administracion' : 'Abrir menu de administracion');
+    adminUserMenu.inert = adminCompact.matches && !open;
+    if (restoreFocus) adminMenuToggle.focus();
+  }
+  if (adminMenuToggle) {
+    adminMenuToggle.addEventListener('click', () => setAdminMenuOpen(adminMenuToggle.getAttribute('aria-expanded') !== 'true'));
+    adminCompact.addEventListener('change', () => setAdminMenuOpen(false));
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && adminMenuToggle.getAttribute('aria-expanded') === 'true') { setAdminMenuOpen(false, true); }
+    });
+    setAdminMenuOpen(false);
+  }
+
   let allMediaItems = [];
+  let allGuestbookEntries = [];
+  let adminMediaPage = 0;
+  let adminMediaTotal = 0;
+  let adminMediaHasMore = false;
+  let adminMediaLoading = false;
+  const mediaSearch = document.getElementById('adminMediaSearch');
+  const mediaType = document.getElementById('adminMediaType');
+  const mediaSort = document.getElementById('adminMediaSort');
+  const mediaResults = document.getElementById('adminMediaResults');
+  const guestbookSearch = document.getElementById('adminGuestbookSearch');
+  const guestbookResults = document.getElementById('adminGuestbookResults');
+  const loadMoreButton = document.getElementById('btnAdminLoadMore');
 
   // DOM Elements
   const statMedia = document.getElementById('statMedia');
@@ -195,7 +228,7 @@
     if (!msgModal) return;
     msgModalAuthor.textContent = author;
     msgModalDate.textContent = date;
-    msgModalBody.innerHTML = message;
+    msgModalBody.textContent = message;
     msgModal.classList.add('active');
   }
 
@@ -264,9 +297,9 @@
         if (statGuestbook) statGuestbook.textContent = data.stats.total_guestbook;
         if (statGuests) statGuests.textContent = data.stats.total_guests;
         if (statStorage) statStorage.textContent = data.stats.storage_mb + ' MB';
-      }
+      } else { throw new Error('No se pudieron cargar las cifras'); }
     } catch (e) {
-      console.error('Error stats:', e);
+      [statMedia, statGuestbook, statGuests, statStorage].filter(Boolean).forEach((element) => { element.textContent = '—'; element.title = 'No se pudo cargar. Pulsa Actualizar panel.'; });
     }
   }
 
@@ -300,17 +333,48 @@
     }
   }
 
-  async function loadMedia() {
-    if (!mediaGrid) return;
+  function filterAdminMedia(items, query, type, sort) {
+    const needle = query.trim().toLocaleLowerCase('es');
+    const filtered = items.filter((item) => {
+      const photo = item.media_type !== 'video';
+      return (type === 'all' || (type === 'image' ? photo : !photo)) &&
+        (!needle || [item.guest_name, item.original_name].some((value) => String(value || '').toLocaleLowerCase('es').includes(needle)));
+    });
+    return filtered.sort((a,b) => sort === 'popular' ? Number(b.likes_count || 0) - Number(a.likes_count || 0) : sort === 'oldest' ? Number(a.id) - Number(b.id) : Number(b.id) - Number(a.id));
+  }
+
+  function applyMediaFilters() {
+    const items = filterAdminMedia(allMediaItems, mediaSearch ? mediaSearch.value : '', mediaType ? mediaType.value : 'all', mediaSort ? mediaSort.value : 'recent');
+    renderMediaGrid(items);
+    if (mediaResults) mediaResults.textContent = items.length + ' visibles de ' + allMediaItems.length + ' cargados de ' + adminMediaTotal + ' en total' + (adminMediaHasMore ? '. Hay más recuerdos por cargar.' : '');
+    if (loadMoreButton) { loadMoreButton.hidden = !adminMediaHasMore; loadMoreButton.disabled = adminMediaLoading; }
+  }
+
+  async function loadMedia(more = false) {
+    if (!mediaGrid || adminMediaLoading) return;
+    adminMediaLoading = true;
+    mediaGrid.setAttribute('aria-busy', 'true');
+    if (loadMoreButton) loadMoreButton.disabled = true;
+    if (!allMediaItems.length) mediaGrid.innerHTML = '<div class="admin-state" role="status"><span class="admin-loader" aria-hidden="true"></span><p>Cargando recuerdos...</p></div>';
     try {
-      const res = await fetch('/api/media?limit=150');
+      const nextPage = more ? adminMediaPage + 1 : 1;
+      const res = await fetch('/api/media?limit=48&page=' + nextPage);
       const data = await res.json();
-      if (data.success) {
-        allMediaItems = data.items || [];
-        renderMediaGrid(allMediaItems);
-      }
-    } catch (e) {
-      console.error(e);
+      if (!res.ok || !data.success || !Array.isArray(data.items)) throw new Error('No se pudo cargar el álbum');
+      const merged = more ? [...allMediaItems, ...data.items] : data.items;
+      allMediaItems = Array.from(new Map(merged.map((item) => [Number(item.id), item])).values());
+      adminMediaPage = Number(data.page || nextPage);
+      adminMediaTotal = Number(data.total ?? allMediaItems.length);
+      adminMediaHasMore = Boolean(data.has_more);
+      applyMediaFilters();
+    } catch (error) {
+      if (!allMediaItems.length) mediaGrid.innerHTML = '<div class="admin-state"><p>No pudimos cargar los recuerdos.</p><button type="button" class="admin-btn admin-btn-outline" data-admin-retry="media">Reintentar</button></div>';
+      if (mediaResults) mediaResults.textContent = 'Error al cargar. Puedes reintentar con Actualizar panel.';
+      if (more) showAdminToast('No se pudieron cargar más recuerdos. Inténtalo otra vez.', 'error', 'Sin conexión');
+    } finally {
+      adminMediaLoading = false;
+      mediaGrid.setAttribute('aria-busy', 'false');
+      if (loadMoreButton) { loadMoreButton.disabled = false; loadMoreButton.hidden = !adminMediaHasMore; }
     }
   }
 
@@ -318,7 +382,7 @@
     mediaGrid.innerHTML = '';
 
     if (!items || items.length === 0) {
-      mediaGrid.innerHTML = '<p style="color:var(--text-muted); grid-column:1/-1; text-align:center; padding:40px;">Aún no se han subido fotos o videos.</p>';
+      mediaGrid.innerHTML = '<div class="admin-state"><h3>' + (allMediaItems.length ? 'No hay coincidencias' : 'El álbum está por comenzar') + '</h3><p>' + (allMediaItems.length ? 'Prueba otro nombre o cambia el tipo de archivo.' : 'Los recuerdos aparecerán aquí cuando los invitados los publiquen.') + '</p></div>';
       return;
     }
 
@@ -347,18 +411,18 @@
             <span>${escapeHtml((item.created_at || '').substring(5, 16))}</span>
           </div>
           <div class="admin-media-card-actions">
-            <a href="${escapeHtml(item.url)}" download="${escapeHtml(item.original_name)}" class="admin-btn admin-btn-outline btn-download-single" style="padding:6px 12px; font-size:0.75rem;" title="Descargar">
-              ⬇ Guardar
-            </a>
-            <button class="admin-btn admin-btn-danger btn-delete-media" data-id="${item.id}" style="padding:6px 12px; font-size:0.75rem;" title="Eliminar">
-              ✕ Borrar
-            </button>
+            <a href="${escapeHtml(item.url)}" download="${escapeHtml(item.original_name)}" class="admin-btn admin-btn-outline btn-download-single" style="padding:6px 12px; font-size:0.75rem;" title="Descargar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg> Guardar</a>
+            <button class="admin-btn admin-btn-danger btn-delete-media" data-id="${item.id}" style="padding:6px 12px; font-size:0.75rem;" title="Eliminar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6m4-6v6"/></svg> Borrar</button>
           </div>
         </div>
       `;
 
       // Preview click to open full resolution
       const prev = card.querySelector('.admin-media-preview');
+      prev.tabIndex = 0;
+      prev.setAttribute('role', 'link');
+      prev.setAttribute('aria-label', 'Abrir recuerdo de ' + (item.guest_name || 'Invitado'));
+      prev.addEventListener('keydown', (event) => { if (event.key === 'Enter') prev.click(); });
       prev.addEventListener('click', () => {
         window.open(item.url, '_blank', 'noopener');
       });
@@ -408,57 +472,65 @@
   // =====================================================================
   // 4. GESTIÓN DEL LIBRO DE FIRMAS
   // =====================================================================
+  function applyGuestbookFilter() {
+    const query = (guestbookSearch ? guestbookSearch.value : '').trim().toLocaleLowerCase('es');
+    const entries = allGuestbookEntries.filter((item) => [item.raw_guest_name || item.guest_name, item.raw_message || item.message].some((value) => String(value || '').toLocaleLowerCase('es').includes(query)));
+    renderGuestbookTable(entries);
+    if (guestbookResults) guestbookResults.textContent = entries.length + ' de ' + allGuestbookEntries.length + ' dedicatorias';
+  }
+
   async function loadGuestbook() {
     if (!guestbookTableBody) return;
+    guestbookTableBody.setAttribute('aria-busy', 'true');
+    if (!allGuestbookEntries.length) guestbookTableBody.innerHTML = '<tr><td colspan="4"><div class="admin-state" role="status">Cargando dedicatorias...</div></td></tr>';
     try {
       const res = await fetch('/api/guestbook');
       const data = await res.json();
-      if (data.success) {
-        renderGuestbookTable(data.entries || []);
-      }
-    } catch (e) {
-      console.error(e);
-    }
+      if (!res.ok || !data.success) throw new Error('No se pudo cargar el libro');
+      allGuestbookEntries = data.entries || [];
+      applyGuestbookFilter();
+    } catch (error) {
+      if (!allGuestbookEntries.length) guestbookTableBody.innerHTML = '<tr><td colspan="4"><div class="admin-state"><p>No pudimos cargar las dedicatorias.</p><button type="button" class="admin-btn admin-btn-outline" data-admin-retry="guestbook">Reintentar</button></div></td></tr>';
+      if (guestbookResults) guestbookResults.textContent = 'Error al cargar las dedicatorias.';
+    } finally { guestbookTableBody.setAttribute('aria-busy','false'); }
   }
 
   function renderGuestbookTable(entries) {
     guestbookTableBody.innerHTML = '';
     if (!entries || entries.length === 0) {
-      guestbookTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:30px;">No hay dedicatorias registradas todavía.</td></tr>';
+      guestbookTableBody.innerHTML = '<tr><td colspan="4"><div class="admin-state"><h3>' + (allGuestbookEntries.length ? 'No hay coincidencias' : 'El libro espera sus primeras palabras') + '</h3><p>' + (allGuestbookEntries.length ? 'Prueba otro nombre o mensaje.' : 'Las dedicatorias aparecerán aquí cuando los invitados firmen.') + '</p></div></td></tr>';
       return;
     }
 
     entries.forEach(item => {
+      const name = item.raw_guest_name || item.guest_name || 'Invitado';
+      const message = item.raw_message || item.message || '';
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td style="font-weight:600; color:var(--gold-light);">${item.guest_name}</td>
-        <td>
+        <td data-label="Invitado" style="font-weight:600; color:var(--gold-light);">${escapeHtml(name)}</td>
+        <td data-label="Dedicatoria">
           <div class="guestbook-msg-preview" title="Haz clic para ver completo">
-            ${item.raw_message}
+            ${escapeHtml(message)}
           </div>
         </td>
-        <td style="font-size:0.8rem; color:var(--text-muted);">${item.created_at}</td>
-        <td style="text-align:right;">
-          <button class="admin-btn admin-btn-outline btn-view-gb" style="padding:6px 12px; font-size:0.75rem; margin-right:6px;">
-            👁 Ver
-          </button>
-          <button class="admin-btn admin-btn-danger btn-del-gb" style="padding:6px 12px; font-size:0.75rem;">
-            ✕ Borrar
-          </button>
+        <td data-label="Fecha" style="font-size:0.8rem; color:var(--text-muted);">${escapeHtml(item.created_at)}</td>
+        <td data-label="Acciones" style="text-align:right;">
+          <button class="admin-btn admin-btn-outline btn-view-gb" aria-label="Ver dedicatoria" title="Ver dedicatoria" style="padding:6px 12px; font-size:0.75rem; margin-right:6px;"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button class="admin-btn admin-btn-danger btn-del-gb" aria-label="Borrar dedicatoria" title="Borrar dedicatoria" style="padding:6px 12px; font-size:0.75rem;"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6m4-6v6"/></svg></button>
         </td>
       `;
 
       // Clic para ver completo en modal emergente
       tr.querySelector('.guestbook-msg-preview').addEventListener('click', () => {
-        openMessageModal(item.guest_name, item.created_at, item.message);
+        openMessageModal(name, item.created_at, message);
       });
       tr.querySelector('.btn-view-gb').addEventListener('click', () => {
-        openMessageModal(item.guest_name, item.created_at, item.message);
+        openMessageModal(name, item.created_at, message);
       });
 
       // Borrar firma
       tr.querySelector('.btn-del-gb').addEventListener('click', () => {
-        showConfirm(`¿Eliminar la dedicatoria de ${item.guest_name}?`, async () => {
+        showConfirm(`¿Eliminar la dedicatoria de ${name}?`, async () => {
           try {
             const res = await fetch('/api/guestbook/delete', {
               method: 'POST',
@@ -467,7 +539,7 @@
             });
             const data = await res.json();
             if (data.success) {
-              showAdminToast(`Se eliminó la dedicatoria de ${item.guest_name}.`, 'success', 'Firma eliminada');
+              showAdminToast(`Se eliminó la dedicatoria de ${name}.`, 'success', 'Firma eliminada');
               loadGuestbook();
               loadStats();
             } else {
@@ -489,20 +561,102 @@
   function updateQRCode() {
     if (!qrImg || !qrUrlInput) return;
     const targetUrl = qrUrlInput.value.trim() || window.location.origin;
+    try { const url = new URL(targetUrl); if (!['http:', 'https:'].includes(url.protocol)) throw new Error(); qrUrlInput.setCustomValidity(''); } catch { qrUrlInput.setCustomValidity('Escribe un enlace http o https válido.'); qrUrlInput.reportValidity(); return; }
     // Generar código QR nítido de alta resolución
-    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(targetUrl)}&color=4A1525&bgcolor=FAF7F2&margin=1`;
-    qrImg.src = qrApiUrl;
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(targetUrl)}&color=4A5842&bgcolor=FAF7F2&margin=1`;
+    if (qrImg.src !== qrApiUrl) {
+      if (btnPrintCard) btnPrintCard.disabled = true;
+      const help = document.getElementById('qrUrlHelp');
+      if (help) help.textContent = 'Generando el QR...';
+      qrImg.src = qrApiUrl;
+    }
   }
 
+  if (qrImg) {
+    qrImg.addEventListener('load', () => {
+      if (btnPrintCard) btnPrintCard.disabled = false;
+      const help = document.getElementById('qrUrlHelp');
+      if (help) help.textContent = 'QR listo. Revisa el enlace antes de imprimir.';
+    });
+    qrImg.addEventListener('error', () => {
+      if (btnPrintCard) btnPrintCard.disabled = true;
+      const help = document.getElementById('qrUrlHelp');
+      if (help) help.textContent = 'No se pudo generar el QR. Revisa tu conexion y vuelve a cargar esta vista.';
+    });
+  }
   if (qrUrlInput) {
     qrUrlInput.value = window.location.origin + '/';
     updateQRCode();
     qrUrlInput.addEventListener('change', updateQRCode);
   }
 
+  const printModal = document.getElementById('adminPrintModal');
+  const printCopies = document.getElementById('qrPrintCopies');
+  const printSummary = document.getElementById('qrPrintSummary');
+  const printSheets = document.getElementById('qrPrintSheets');
+  function updatePrintSummary() {
+    const count = Number(printCopies.value);
+    printSummary.textContent = Number.isInteger(count) && count >= 1 && count <= 200 ? count + ' tarjetas en ' + Math.ceil(count / 2) + ' hojas.' : 'Elige entre 1 y 200 tarjetas.';
+  }
+  if (printCopies) printCopies.addEventListener('input', updatePrintSummary);
+  const cancelPrint = document.getElementById('btnCancelPrint');
+  if (cancelPrint) cancelPrint.addEventListener('click', () => printModal.classList.remove('active'));
+  if (printModal) printModal.addEventListener('click', (event) => { if (event.target === printModal) printModal.classList.remove('active'); });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && printModal) printModal.classList.remove('active'); });
+  const qrOriginal = document.querySelector('.qr-printable-card');
+  function resizeQRPreview() {
+    if (!qrOriginal || !qrOriginal.parentElement.classList.contains('qr-preview-scale')) return;
+    const wrapper = qrOriginal.parentElement;
+    const scale = Math.min(1, wrapper.clientWidth / 460);
+    qrOriginal.style.transform = 'scale(' + scale + ')';
+    wrapper.style.height = qrOriginal.offsetHeight * scale + 'px';
+  }
+  if (qrOriginal) {
+    const wrapper = document.createElement('div'); wrapper.className = 'qr-preview-scale';
+    qrOriginal.before(wrapper); wrapper.appendChild(qrOriginal);
+    if ('ResizeObserver' in window) { const observer = new ResizeObserver(resizeQRPreview); observer.observe(wrapper); observer.observe(qrOriginal); }
+    window.addEventListener('resize', resizeQRPreview);
+    if (document.fonts) document.fonts.ready.then(resizeQRPreview);
+  }
+  function buildQRPrintSheets(count) {
+    printSheets.replaceChildren();
+    const original = document.querySelector('.qr-printable-card');
+    for (let i = 0; i < count; i++) {
+      let sheet;
+      if (i % 2 === 0) { sheet = document.createElement('section'); sheet.className = 'qr-print-sheet'; printSheets.appendChild(sheet); }
+      else sheet = printSheets.lastElementChild;
+      const card = original.cloneNode(true);
+      card.removeAttribute('id');
+      card.querySelectorAll('[id]').forEach((element) => element.removeAttribute('id'));
+      const slot = document.createElement('div'); slot.className = 'qr-print-slot';
+      const width = 460, height = original.offsetHeight;
+      const scale = Math.min((139.7 - 12) * 96 / 25.4 / width, (215.9 - 12) * 96 / 25.4 / height);
+      slot.style.width = width * scale + 'px'; slot.style.height = height * scale + 'px';
+      card.style.transform = 'scale(' + scale + ')';
+      slot.appendChild(card); sheet.appendChild(slot);
+    }
+  }
+  const printForm = document.getElementById('adminPrintForm');
+  if (printForm) printForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!printForm.reportValidity()) return;
+    const count = Number(printCopies.value);
+    if (!Number.isInteger(count) || count < 1 || count > 200) return;
+    if (document.fonts) await document.fonts.ready;
+    buildQRPrintSheets(count);
+    await Promise.all(Array.from(printSheets.querySelectorAll('img')).map((img) => img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
+    printModal.classList.remove('active');
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+  });
+  window.addEventListener('afterprint', () => { if (printSheets) printSheets.replaceChildren(); });
+
   if (btnPrintCard) {
     btnPrintCard.addEventListener('click', () => {
-      window.print();
+      if (qrUrlInput && !qrUrlInput.reportValidity()) return;
+      if (!qrImg || !qrImg.complete || !qrImg.naturalWidth) { showAdminToast('Espera a que el QR termine de cargar antes de imprimir.', 'warning', 'Preparando tarjeta'); return; }
+      printModal.classList.add('active');
+      updatePrintSummary();
+      requestAnimationFrame(() => { printCopies.focus(); printCopies.select(); });
     });
   }
 
@@ -511,8 +665,7 @@
   // =====================================================================
   tabButtons.forEach(tab => {
     tab.addEventListener('click', () => {
-      tabButtons.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
+      tabButtons.forEach(t => { const active = t === tab; t.classList.toggle('active', active); t.setAttribute('aria-selected', String(active)); t.tabIndex = active ? 0 : -1; });
 
       const target = tab.dataset.target;
       sectionMedia.style.display = target === 'media' ? 'block' : 'none';
@@ -521,17 +674,103 @@
     });
   });
 
+  tabButtons.forEach((tab, index) => tab.addEventListener('keydown', (event) => {
+    let next = index;
+    if (event.key === 'ArrowRight') next = (index + 1) % tabButtons.length;
+    else if (event.key === 'ArrowLeft') next = (index + tabButtons.length - 1) % tabButtons.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabButtons.length - 1;
+    else return;
+    event.preventDefault(); tabButtons[next].click(); tabButtons[next].focus();
+  }));
+  document.querySelectorAll('[data-admin-section]').forEach((link) => link.addEventListener('click', (event) => {
+    event.preventDefault();
+    const tab = document.getElementById('tab-' + link.dataset.adminSection);
+    if (tab) { tab.click(); tab.focus({preventScroll:true}); tab.scrollIntoView({block:'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}); }
+  }));
+  function enhanceAdminSelect(select) {
+    if (!select) return;
+    const label=select.closest('label'), wrapper=document.createElement('div'); wrapper.className='admin-custom-select'; label.appendChild(wrapper);
+    const trigger=document.createElement('button');trigger.type='button';trigger.className='admin-select-trigger';
+    const triggerLabel=document.createElement('span');triggerLabel.className='admin-select-label';
+    const arrow=document.createElementNS('http://www.w3.org/2000/svg','svg');arrow.setAttribute('class','admin-select-arrow');arrow.setAttribute('viewBox','0 0 24 24');arrow.setAttribute('fill','none');arrow.setAttribute('stroke','currentColor');arrow.setAttribute('stroke-width','1.5');arrow.setAttribute('stroke-linecap','round');arrow.setAttribute('stroke-linejoin','round');arrow.setAttribute('aria-hidden','true');
+    const arrowPath=document.createElementNS('http://www.w3.org/2000/svg','path');arrowPath.setAttribute('d','m6 9 6 6 6-6');arrow.appendChild(arrowPath);trigger.appendChild(triggerLabel);trigger.appendChild(arrow);
+    const list=document.createElement('div');list.className='admin-select-options';list.id=select.id+'-options';list.setAttribute('role','listbox');list.hidden=true;
+    const title=label.querySelector('span').textContent;list.setAttribute('aria-label',title);
+    trigger.setAttribute('aria-haspopup','listbox');trigger.setAttribute('aria-controls',list.id);trigger.setAttribute('aria-expanded','false');
+    const options=Array.from(select.options).map((option)=>{
+      const button=document.createElement('button');button.type='button';button.className='admin-select-option';button.setAttribute('role','option');button.textContent=option.textContent;
+      button.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));close(true);});list.appendChild(button);return button;
+    });
+    function sync(){triggerLabel.textContent=select.options[select.selectedIndex].textContent;trigger.setAttribute('aria-label',title+': '+select.options[select.selectedIndex].textContent);options.forEach((b,i)=>{b.setAttribute('aria-selected',String(i===select.selectedIndex));b.tabIndex=i===select.selectedIndex?0:-1;});}
+    function close(focus=false){list.hidden=true;trigger.setAttribute('aria-expanded','false');if(focus)trigger.focus();}
+    function open(){list.hidden=false;trigger.setAttribute('aria-expanded','true');options[select.selectedIndex].focus();}
+    trigger.addEventListener('click',()=>list.hidden?open():close());
+    trigger.addEventListener('keydown',e=>{if(['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();open();}});
+    list.addEventListener('keydown',e=>{const i=options.indexOf(document.activeElement);let next=i;if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close(true);return;}if(e.key==='Tab'){close();return;}if(e.key==='ArrowDown')next=(i+1)%options.length;else if(e.key==='ArrowUp')next=(i+options.length-1)%options.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=options.length-1;else return;e.preventDefault();options[next].focus();});
+    document.addEventListener('pointerdown',e=>{if(!wrapper.contains(e.target))close();});wrapper.addEventListener('focusout',()=>requestAnimationFrame(()=>{if(!wrapper.contains(document.activeElement))close();}));
+    select.addEventListener('change',sync);select.hidden=true;wrapper.appendChild(trigger);wrapper.appendChild(list);sync();
+  }
+  [mediaType,mediaSort].forEach(enhanceAdminSelect);
+
+  [mediaSearch, mediaType, mediaSort].filter(Boolean).forEach((control) => control.addEventListener(control === mediaSearch ? 'input' : 'change', applyMediaFilters));
+  if (guestbookSearch) guestbookSearch.addEventListener('input', applyGuestbookFilter);
+  if (loadMoreButton) loadMoreButton.addEventListener('click', () => loadMedia(true));
+  document.addEventListener('click', (event) => {
+    const retry = event.target.closest('[data-admin-retry]');
+    if (retry) { if (retry.dataset.adminRetry === 'media') loadMedia(); else loadGuestbook(); }
+  });
+  const refreshButton = document.getElementById('btnRefreshAdmin');
+  if (refreshButton) refreshButton.addEventListener('click', async () => {
+    refreshButton.disabled = true; refreshButton.textContent = 'Actualizando...';
+    try { await Promise.all([loadStats(), loadMedia(), loadGuestbook()]); }
+    finally { refreshButton.disabled = false; refreshButton.textContent = 'Actualizar panel'; }
+  });
+
   // Logout
   const btnLogout = document.getElementById('btnLogout');
   if (btnLogout) {
     btnLogout.addEventListener('click', async () => {
-      await fetch('/api/auth/admin-logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      window.location.reload();
+      btnLogout.disabled = true;
+      try {
+        const res = await fetch('/api/auth/admin-logout', {method:'POST',headers:{'Content-Type':'application/json'}});
+        if (!res.ok) throw new Error('No se pudo cerrar la sesion');
+        window.location.reload();
+      } catch (error) {
+        btnLogout.disabled = false;
+        showAdminToast('No se pudo cerrar la sesión. Intenta otra vez.', 'error', 'Sin conexión');
+      }
     });
   }
+
+  const dialogs = [msgModal, confirmModal, r2GuideModal, printModal].filter(Boolean);
+  let modalReturnFocus = null;
+  const focusableSelector = 'button:not([disabled]), a[href], input, select, textarea, [tabindex="0"]';
+  const syncDialogs = () => {
+    const active = dialogs.find((dialog) => dialog.classList.contains('active'));
+    document.body.classList.toggle('admin-modal-open', Boolean(active));
+    [document.querySelector('.admin-header'), document.getElementById('adminMain')].filter(Boolean).forEach((element) => { element.inert = Boolean(active); });
+    dialogs.forEach((dialog) => dialog.setAttribute('aria-hidden', String(dialog !== active)));
+    if (active && !active.contains(document.activeElement)) {
+      if (!modalReturnFocus) modalReturnFocus = document.activeElement;
+      const target = active === confirmModal ? btnConfirmCancel : active.querySelector(focusableSelector);
+      if (target) target.focus();
+    } else if (!active && modalReturnFocus) {
+      if (modalReturnFocus.isConnected) modalReturnFocus.focus();
+      modalReturnFocus = null;
+    }
+  };
+  dialogs.forEach((dialog) => new MutationObserver(syncDialogs).observe(dialog, {attributes:true, attributeFilter:['class']}));
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab') return;
+    const active = dialogs.find((dialog) => dialog.classList.contains('active'));
+    if (!active) return;
+    const controls = Array.from(active.querySelectorAll(focusableSelector));
+    const first = controls[0], last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  });
+  syncDialogs();
 
   // Inicialización
   loadStats();

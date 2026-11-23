@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $pageTitle = 'Boda Michelle & René · 19 de Diciembre 2026';
 $pageDesc = 'Celebra con nosotros la boda de Michelle y René. Comparte tus fotos, videos y firma nuestro libro de recuerdos.';
 $themeColor = '#171E14';
@@ -38,15 +38,7 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
                 stroke="url(#preloaderGold)" stroke-width="3.5" stroke-linecap="round"
                 stroke-dasharray="1320" stroke-dashoffset="1320"
                 transform="rotate(-90 250 250)" />
-        <g id="preloader-center-logo">
-          <path d="M250 126 L252 134 L260 136 L252 138 L250 146 L248 138 L240 136 L248 134 Z" fill="#C9A050" opacity="0.85"/>
-          <text x="190" y="270" font-family="'Cormorant Garamond', Georgia, serif" font-size="124" font-weight="600" fill="#1F281B" text-anchor="middle" letter-spacing="-3">M</text>
-          <text x="250" y="262" font-family="'Alex Brush', cursive" font-size="68" fill="url(#preloaderGold)" text-anchor="middle">&amp;</text>
-          <text x="310" y="270" font-family="'Cormorant Garamond', Georgia, serif" font-size="124" font-weight="600" fill="#1F281B" text-anchor="middle" letter-spacing="-3">R</text>
-          <text x="250" y="324" font-family="'Plus Jakarta Sans', sans-serif" font-size="11.5" font-weight="600" fill="#53614E" text-anchor="middle" letter-spacing="5">MICHELLE &amp; RENÉ</text>
-          <line x1="205" y1="340" x2="295" y2="340" stroke="rgba(201, 160, 80, 0.45)" stroke-width="1" />
-          <text x="250" y="360" font-family="'Plus Jakarta Sans', sans-serif" font-size="9.5" font-weight="500" fill="#82917D" text-anchor="middle" letter-spacing="3.5">19 · DICIEMBRE · 2026</text>
-        </g>
+        <g id="preloader-center-logo"><image href="/assets/img/m&amp;r.svg" x="110" y="118" width="280" height="250" class="preloader-monogram" /></g>
       </svg>
       <div id="preloader-percentage">0%</div>
       <button id="pl-skip-btn" type="button" title="Entrar">Entrar</button>
@@ -101,7 +93,7 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
           <span class="hero-pill-dot"></span>
         </div>
 
-        <h1 class="hero-title">Michelle <span>&amp;</span> René</h1>
+        <h1 class="hero-title">Michelle <span class="hero-amp">&amp;</span> René</h1>
 
         <p class="hero-subtitle">
           Gracias por celebrar con nosotros este día inolvidable. Captura cada sonrisa y déjanos tu recuerdo para siempre.
@@ -130,7 +122,7 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
               <span class="hero-btn-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
               </span>
-              <span>Galería de Fotos</span>
+              <span>Galería</span>
             </a>
           </div>
         </div>
@@ -140,6 +132,6 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=22"></script>
+  <script src="/assets/js/app.js?v=39"></script>
 </body>
 </html>
