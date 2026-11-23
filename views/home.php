@@ -16,44 +16,7 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
       data-uploads-closed="<?= $uploadsClosed ? '1' : '0' ?>"
       data-upload-deadline="<?= htmlspecialchars($uploadDeadlineIso, ENT_QUOTES, 'UTF-8') ?>">
 
-  <!-- PRELOADER ELEGANTE (SOLO PRIMERA ENTRADA DE LA SESIÓN) -->
-  <div id="interactive-preloader" aria-label="Cargando experiencia de boda" style="display:none;">
-    <div class="preloader-inner">
-      <svg id="preloader-svg" xmlns="http://www.w3.org/2000/svg" width="190" height="190" viewBox="0 0 500 500">
-        <defs>
-          <linearGradient id="preloaderGold" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#F4E2B7"/>
-            <stop offset="45%" stop-color="#C9A050"/>
-            <stop offset="100%" stop-color="#8F6B28"/>
-          </linearGradient>
-          <radialGradient id="preloaderGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="rgba(201, 160, 80, 0.16)"/>
-            <stop offset="100%" stop-color="transparent"/>
-          </radialGradient>
-        </defs>
-        <circle cx="250" cy="250" r="235" fill="url(#preloaderGlow)" />
-        <circle cx="250" cy="250" r="210" fill="none" stroke="rgba(201, 160, 80, 0.18)" stroke-width="2" />
-        <circle cx="250" cy="250" r="195" fill="none" stroke="rgba(201, 160, 80, 0.12)" stroke-width="1" stroke-dasharray="3, 5" />
-        <circle id="preloader-ring-circle" cx="250" cy="250" r="210" fill="none"
-                stroke="url(#preloaderGold)" stroke-width="3.5" stroke-linecap="round"
-                stroke-dasharray="1320" stroke-dashoffset="1320"
-                transform="rotate(-90 250 250)" />
-        <g id="preloader-center-logo"><image href="/assets/img/m&amp;r.svg" x="110" y="118" width="280" height="250" class="preloader-monogram" /></g>
-      </svg>
-      <div id="preloader-percentage">0%</div>
-      <button id="pl-skip-btn" type="button" title="Entrar">Entrar</button>
-    </div>
-  </div>
-  <script>
-    (function () {
-      var p = document.getElementById('interactive-preloader');
-      if (!p) return;
-      if (!sessionStorage.getItem('boda_mr_preloaded')) {
-        p.style.display = 'flex';
-        document.body.classList.add('loading');
-      }
-    })();
-  </script>
+<?php require __DIR__ . '/partials/preloader.php'; ?>
 
 <?php require __DIR__ . '/partials/navbar.php'; ?>
 
@@ -132,6 +95,6 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=44"></script>
+  <script src="/assets/js/app.js?v=56"></script>
 </body>
 </html>

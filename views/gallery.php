@@ -16,6 +16,8 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
       data-uploads-closed="<?= $uploadsClosed ? '1' : '0' ?>"
       data-upload-deadline="<?= htmlspecialchars($uploadDeadlineIso, ENT_QUOTES, 'UTF-8') ?>">
 
+<?php require __DIR__ . '/partials/preloader.php'; ?>
+
 <?php require __DIR__ . '/partials/navbar.php'; ?>
 
   <main class="gallery-page-main">
@@ -87,6 +89,6 @@ $uploadDeadlineIso = (string) ($uploadDeadlineIso ?? '2026-12-21T23:59:59-06:00'
 
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
-  <script src="/assets/js/app.js?v=42"></script>
+  <script src="/assets/js/app.js?v=56"></script>
 </body>
 </html>

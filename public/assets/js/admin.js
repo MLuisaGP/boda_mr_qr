@@ -905,15 +905,31 @@
   // =====================================================================
   // 5. CÓDIGO QR Y TARJETA DE MESA IMPRIMIBLE
   // =====================================================================
+  const configuredQrUrl = qrUrlInput ? (qrUrlInput.dataset.qrUrl || qrUrlInput.value || '').trim() : '';
+
+  function isValidQrUrl(value) {
+    if (!value) return false;
+    try {
+      const url = new URL(value);
+      return ['http:', 'https:'].includes(url.protocol);
+    } catch {
+      return false;
+    }
+  }
+
   function updateQRCode() {
     if (!qrImg || !qrUrlInput) return;
-    const targetUrl = qrUrlInput.value.trim() || window.location.origin;
-    try { const url = new URL(targetUrl); if (!['http:', 'https:'].includes(url.protocol)) throw new Error(); qrUrlInput.setCustomValidity(''); } catch { qrUrlInput.setCustomValidity('Escribe un enlace http o https válido.'); qrUrlInput.reportValidity(); return; }
+    qrUrlInput.value = configuredQrUrl;
+    const help = document.getElementById('qrUrlHelp');
+    if (!isValidQrUrl(configuredQrUrl)) {
+      if (btnPrintCard) btnPrintCard.disabled = true;
+      if (help) help.textContent = 'Configura un enlace http o https válido en APP_URL (o QR_URL) dentro de .env.';
+      return;
+    }
     // Generar código QR nítido de alta resolución
-    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(targetUrl)}&color=4A5842&bgcolor=FAF7F2&margin=1`;
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(configuredQrUrl)}&color=4A5842&bgcolor=FAF7F2&margin=1`;
     if (qrImg.src !== qrApiUrl) {
       if (btnPrintCard) btnPrintCard.disabled = true;
-      const help = document.getElementById('qrUrlHelp');
       if (help) help.textContent = 'Generando el QR...';
       qrImg.src = qrApiUrl;
     }
@@ -923,7 +939,7 @@
     qrImg.addEventListener('load', () => {
       if (btnPrintCard) btnPrintCard.disabled = false;
       const help = document.getElementById('qrUrlHelp');
-      if (help) help.textContent = 'QR listo. Revisa el enlace antes de imprimir.';
+      if (help) help.textContent = 'QR listo. Enlace configurado desde .env (solo lectura).';
     });
     qrImg.addEventListener('error', () => {
       if (btnPrintCard) btnPrintCard.disabled = true;
@@ -932,9 +948,7 @@
     });
   }
   if (qrUrlInput) {
-    qrUrlInput.value = window.location.origin + '/';
     updateQRCode();
-    qrUrlInput.addEventListener('change', updateQRCode);
   }
 
   const printModal = document.getElementById('adminPrintModal');
@@ -999,7 +1013,7 @@
 
   if (btnPrintCard) {
     btnPrintCard.addEventListener('click', () => {
-      if (qrUrlInput && !qrUrlInput.reportValidity()) return;
+      if (!isValidQrUrl(configuredQrUrl)) { showAdminToast('Configura un enlace válido en APP_URL (o QR_URL) dentro de .env.', 'warning', 'Enlace no configurado'); return; }
       if (!qrImg || !qrImg.complete || !qrImg.naturalWidth) { showAdminToast('Espera a que el QR termine de cargar antes de imprimir.', 'warning', 'Preparando tarjeta'); return; }
       printModal.classList.add('active');
       updatePrintSummary();

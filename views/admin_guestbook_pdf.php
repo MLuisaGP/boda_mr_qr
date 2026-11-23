@@ -23,8 +23,29 @@ $payloadEntries = array_map(static function (array $row): array {
     ];
 }, $entries);
 
-$fontsCoreUrl = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Corinthia:wght@400&family=Montserrat:wght@400;500&family=Tangerine:wght@400;700&display=swap';
-$fontsSignaturesUrl = 'https://fonts.googleapis.com/css2?family=Ballet&family=Lavishly+Yours&family=Annie+Use+Your+Telescope&family=Indie+Flower&family=Oooh+Baby&family=Italianno&display=swap';
+$fontsCoreUrl = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&family=Tangerine:wght@400;700&family=Italianno&display=swap';
+
+$allowedFonts = ['ballet', 'lavishly_yours', 'tangerine', 'annie_use_your_telescope', 'indie_flower', 'oooh_baby', 'italianno'];
+$signatureFontMap = [
+    'ballet' => 'family=Ballet',
+    'lavishly_yours' => 'family=Lavishly+Yours',
+    'annie_use_your_telescope' => 'family=Annie+Use+Your+Telescope',
+    'indie_flower' => 'family=Indie+Flower',
+    'oooh_baby' => 'family=Oooh+Baby',
+];
+$neededSigFamilies = [];
+foreach ($payloadEntries as $item) {
+    $rawFont = trim($item['font_family']);
+    if (!in_array($rawFont, $allowedFonts, true)) {
+        $rawFont = $allowedFonts[abs($item['id']) % count($allowedFonts)];
+    }
+    if (isset($signatureFontMap[$rawFont])) {
+        $neededSigFamilies[$rawFont] = $signatureFontMap[$rawFont];
+    }
+}
+$fontsSignaturesUrl = !empty($neededSigFamilies)
+    ? 'https://fonts.googleapis.com/css2?' . implode('&', array_values($neededSigFamilies)) . '&display=swap'
+    : '';
 ?>
 <!DOCTYPE html>
 <html lang="es-MX">
@@ -36,8 +57,10 @@ $fontsSignaturesUrl = 'https://fonts.googleapis.com/css2?family=Ballet&family=La
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="<?= htmlspecialchars($fontsCoreUrl, ENT_QUOTES, 'UTF-8') ?>">
+  <?php if ($fontsSignaturesUrl !== ''): ?>
   <link rel="stylesheet" href="<?= htmlspecialchars($fontsSignaturesUrl, ENT_QUOTES, 'UTF-8') ?>">
-  <link rel="stylesheet" href="/assets/css/guestbook-pdf.css?v=5">
+  <?php endif; ?>
+  <link rel="stylesheet" href="/assets/css/guestbook-pdf.css?v=7">
 </head>
 <body>
   <!-- Barra de controles solo visible en pantalla -->
@@ -87,7 +110,7 @@ $fontsSignaturesUrl = 'https://fonts.googleapis.com/css2?family=Ballet&family=La
         </div>
 
         <div class="pdf-cover-center">
-          <img class="pdf-cover-monogram" src="/assets/img/l-m&amp;r.svg" alt="Monograma Michelle y René" width="1371" height="1313">
+          <img class="pdf-cover-monogram" src="/assets/img/monogram-mr-pdf.svg" alt="Monograma Michelle y René" width="1371" height="1313">
           <div class="pdf-cover-ornament" aria-hidden="true">
             <span></span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
@@ -184,7 +207,7 @@ $fontsSignaturesUrl = 'https://fonts.googleapis.com/css2?family=Ballet&family=La
         </div>
 
         <div class="pdf-backcover-footer">
-          <img class="pdf-backcover-monogram" src="/assets/img/l-m&amp;r.svg" alt="Monograma Michelle y René" width="1371" height="1313">
+          <img class="pdf-backcover-monogram" src="/assets/img/monogram-mr-pdf.svg" alt="Monograma Michelle y René" width="1371" height="1313">
           <span class="pdf-backcover-date">19 &#183; XII &#183; 2026</span>
         </div>
       </div>
@@ -300,7 +323,7 @@ $fontsSignaturesUrl = 'https://fonts.googleapis.com/css2?family=Ballet&family=La
 
       const probeEntriesBox = probeSheet.querySelector('.pdf-paper-entries');
       const maxBoxHeight = Math.max(200, probeEntriesBox.clientHeight - 6);
-      const ENTRY_GAP = 6;
+      const ENTRY_GAP = 36;
 
       function measureItem(item) {
         const el = buildEntryElement(item.entry, item.options);
