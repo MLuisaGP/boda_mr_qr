@@ -19,11 +19,14 @@ use AsyncAws\S3\Input\PutObjectRequest;
 use AsyncAws\S3\S3Client;
 use DateTimeImmutable;
 use RuntimeException;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Throwable;
 
 class R2StorageService {
     private static ?S3Client $client = null;
     private static ?array $config = null;
+    private static ?HttpClientInterface $originalHttpClient = null;
 
     public static function getConfig(): array {
         if (self::$config !== null) {
@@ -199,6 +202,50 @@ class R2StorageService {
         } catch (Throwable $e) {
             error_log('R2 HeadObject Error: ' . $e->getMessage());
             return null;
+        }
+    }
+
+    /** @return resource Main object only; credentials never leave the server. */
+    public static function openOriginalStream(string $key) {
+        if (!str_starts_with($key, 'media/') || str_contains($key, '..')) {
+            throw new AlbumZipException('Ruta de recuerdo no válida.');
+        }
+        // The gallery already serves these main objects from the configured public domain.
+        // Read that same object without SigV4: export must not depend on the host's clock.
+        // Build from trusted configuration, never fetch an arbitrary database URL or redirect.
+        $url = self::buildPublicUrl($key);
+        if (strtolower((string) parse_url($url, PHP_URL_SCHEME)) !== 'https') {
+            throw new AlbumZipException('La descarga del álbum necesita una conexión HTTPS al almacenamiento.');
+        }
+        $client = self::$originalHttpClient ??= HttpClient::create();
+        $response = $client->request('GET', $url, [
+            'timeout' => 20, 'max_duration' => 90, 'max_redirects' => 0,
+            'headers' => ['Accept-Encoding' => 'identity'],
+        ]);
+        $stream = null;
+        try {
+            $status = $response->getStatusCode();
+            if ($status !== 200) {
+                throw new AlbumZipException('No se pudo leer uno de los recuerdos del almacenamiento (HTTP ' . $status . '). Reintenta la descarga.');
+            }
+            $stream = fopen('php://temp/maxmemory:2097152', 'w+b');
+            if ($stream === false) throw new AlbumZipException('No se pudo abrir el archivo temporal del recuerdo.');
+            foreach ($client->stream($response) as $chunk) {
+                if ($chunk->isTimeout()) throw new AlbumZipException('La lectura de un recuerdo tardó demasiado. Reintenta la descarga.');
+                $data = $chunk->getContent();
+                for ($written = 0, $length = strlen($data); $written < $length;) {
+                    $count = fwrite($stream, substr($data, $written));
+                    if ($count === false || $count === 0) throw new AlbumZipException('No hay espacio temporal suficiente para leer el recuerdo.');
+                    $written += $count;
+                }
+            }
+            rewind($stream);
+            return $stream;
+        } catch (Throwable $e) {
+            if (is_resource($stream)) fclose($stream);
+            throw $e;
+        } finally {
+            $response->cancel();
         }
     }
 
