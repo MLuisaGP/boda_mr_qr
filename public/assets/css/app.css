@@ -4,7 +4,7 @@
    (Neumorphism sutil, Glassmorphism, Relieves Dorados y Sombras Envolventes)
    ===================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Alex+Brush&family=Corinthia:wght@400&family=Montserrat:wght@400;500&family=Qwigley&family=Sacramento&family=Indie+Flower&family=Luxurious+Script&display=swap');
+/* Las fuentes de Google Fonts se cargan de forma no bloqueante desde views/partials/pwa_head.php */
 
 @font-face {
   font-family: 'La Luxes Script';
@@ -7054,10 +7054,6 @@ html:has(body.page-guestbook) {
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 18% 20%, rgba(201, 160, 80, 0.16) 0%, transparent 45%),
-    radial-gradient(circle at 82% 80%, rgba(74, 88, 66, 0.14) 0%, transparent 50%),
-    #EFE6D8;
 }
 
 .book-page-main {
@@ -8473,8 +8469,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 
 /* Respetar los colores originales de la variante vegetal del monograma. */
 .nav-brand .brand-monogram, .drawer-brand .brand-monogram { filter: none; }
-/* Navegación sobre el fondo de la página y libro a primer plano. */
-.page-guestbook .site-nav:not(.nav-over-hero) { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
+/* Libro a primer plano en escritorio (reemplazado más abajo por .page-guestbook .book-page-main). */
 .book-page-main { position: relative; z-index: 1001; padding: 12px; pointer-events: none; }
 .book-page-main .wedding-book-stage { pointer-events: auto; }
 @media (max-width: 1140px) { .site-nav .nav-mobile-actions { display: flex; } .site-nav .brand-wordmark, .site-nav .brand-divider, .site-nav .nav-links { display: none; } }
@@ -8565,9 +8560,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 .standby-delete-btn { border-color: rgba(205,45,45,.3); }
 .standby-preview-btn { border-color: rgba(255,255,255,.3); }
 
-/* Mosaico con alturas alternadas independientes del archivo original. */
+/* Mosaico con alturas alternadas independientes del archivo original (conserva transición en cascada). */
 .gallery-grid.gallery-wall { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); grid-auto-rows: 4px; grid-auto-flow: row dense; gap: 10px; align-items: stretch; width: 100%; }
-.gallery-wall .gallery-grid-item { position: relative; display: block; width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; margin: 0; border-radius: 12px; opacity: 1; transform: none; transition-delay: 0s !important; }
+.gallery-wall .gallery-grid-item { position: relative; display: block; width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; margin: 0; border-radius: 12px; }
 .gallery-wall .gallery-item-aspect { position: absolute; inset: 0; width: 100%; height: 100%; }
 .gallery-wall .gallery-item-media { width: 100%; height: 100%; object-fit: cover; }
 .gallery-wall video.gallery-item-media { min-height: 0; }
@@ -8581,7 +8576,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 .gallery-wall .gallery-owner-badge { opacity: 0; }
 .gallery-wall .gallery-grid-item:hover .gallery-owner-badge, .gallery-wall .gallery-grid-item:focus-within .gallery-owner-badge { opacity: 1; }
 @media (hover: none) { .gallery-wall .gallery-item-author, .gallery-wall .gallery-owner-badge { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .gallery-wall .gallery-item-author, .gallery-wall .gallery-item-media { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .gallery-wall .gallery-grid-item { opacity: 1; transform: none; transition: none; } .gallery-wall .gallery-item-author, .gallery-wall .gallery-item-media { transition: none; } }
 
 /* Pocos recuerdos populares comparten una sola fila y altura. */
 .gallery-grid.gallery-wall.is-level-row { grid-template-columns: repeat(var(--gallery-small-count), minmax(0,1fr)); }

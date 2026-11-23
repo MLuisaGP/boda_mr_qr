@@ -214,6 +214,6 @@
 
   <?php require __DIR__ . '/partials/admin_lightbox.php'; ?>
   <script src="/assets/js/admin.js?v=14"></script>
-  <script src="/assets/js/admin-zip.js?v=4"></script>
+  <script src="/assets/js/admin-zip.js?v=5"></script>
 </body>
 </html>

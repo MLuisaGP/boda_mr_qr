@@ -50,6 +50,7 @@ class MediaController extends Controller {
     public function index(): void {
         AuthHelper::startSession();
         $guest = AuthHelper::getGuest();
+        AuthHelper::closeSession();
         $guestId = $guest ? (int) $guest['id'] : 0;
         $guestToken = $guest ? $guest['token'] : '';
 
