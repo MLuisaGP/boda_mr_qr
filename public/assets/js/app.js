@@ -345,17 +345,30 @@
     syncOrientationLock();
   }
 
+  function isPwaStandalone() {
+    return Boolean(
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+      window.navigator.standalone === true
+    );
+  }
+
   function syncAppViewportHeight() {
     if (shouldFreezeLayoutForLandscape()) return;
-    const h = (window.visualViewport && window.visualViewport.height)
+    const standalone = isPwaStandalone();
+    document.documentElement.classList.toggle('is-pwa-standalone', standalone);
+    const vvH = (window.visualViewport && window.visualViewport.height)
       ? Math.round(window.visualViewport.height)
-      : window.innerHeight;
+      : 0;
+    const h = standalone
+      ? Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0, vvH)
+      : (vvH || window.innerHeight);
     if (h > 0) {
       document.documentElement.style.setProperty('--app-height', `${h}px`);
     }
   }
 
   function initPWA() {
+    document.documentElement.classList.toggle('is-pwa-standalone', isPwaStandalone());
     syncOrientationLock();
     tryLockPortraitOrientation();
     syncAppViewportHeight();
@@ -366,6 +379,7 @@
     };
 
     window.addEventListener('resize', handleViewportUpdate);
+    window.addEventListener('pageshow', handleViewportUpdate);
     window.addEventListener('orientationchange', () => {
       syncOrientationLock();
       setTimeout(handleViewportUpdate, 120);

@@ -2381,19 +2381,21 @@ textarea.form-control {
 
 .camera-rec-badge {
   position: absolute;
-  top: 14px;
-  left: 14px;
-  background: rgba(185, 28, 28, 0.9);
+  bottom: 14px;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  background: rgba(185, 28, 28, 0.92);
   color: #FFFFFF;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  padding: 4px 10px;
+  font-variant-numeric: tabular-nums;
+  padding: 5px 12px;
   border-radius: 20px;
   display: flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  z-index: 4;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  z-index: 12;
+  pointer-events: none;
 }
 
 .rec-dot {
@@ -5069,6 +5071,7 @@ html.home-no-scroll {
   min-height: 0 !important;
   overflow: hidden;
   overscroll-behavior: none;
+  background-color: #141B12;
 }
 
 .page-home {
@@ -8444,19 +8447,248 @@ html.allow-landscape-mode .orientation-lock-overlay {
   html.allow-landscape-mode .lightbox-bottom {
     padding: 7px calc(16px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px));
   }
+}
 
-  html.allow-landscape-mode .live-cam-topbar {
-    padding: 10px calc(16px + env(safe-area-inset-right, 0px)) 10px calc(16px + env(safe-area-inset-left, 0px));
+/* Diseño horizontal tipo cámara nativa: visor a altura completa + barra lateral de controles */
+@media (orientation: landscape) and (max-height: 540px) {
+  .live-camera-modal {
+    --cam-rail-w: calc(124px + env(safe-area-inset-right, 0px));
+    flex-direction: row;
   }
 
-  html.allow-landscape-mode .live-cam-bottom {
-    padding: 8px calc(16px + env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px));
+  .live-camera-modal .live-cam-viewport {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    height: 100%;
+  }
+
+  .live-camera-modal .live-cam-topbar {
+    left: 0;
+    right: var(--cam-rail-w);
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px calc(14px + env(safe-area-inset-left, 0px));
+    pointer-events: none;
+  }
+
+  .live-camera-modal .live-cam-topbar > * {
+    pointer-events: auto;
+  }
+
+  .live-camera-modal .live-cam-mode-pill {
+    padding: 5px 11px;
+    font-size: 0.74rem;
+    gap: 6px;
+  }
+
+  .live-camera-modal .live-cam-quota-chip {
+    padding: 5px 10px;
+    font-size: 0.72rem;
+  }
+
+  .live-camera-modal .live-cam-icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .live-camera-modal .camera-rec-badge {
+    top: calc(52px + env(safe-area-inset-top, 0px));
+    right: 12px;
+    bottom: auto;
+    padding: 4px 10px;
+    font-size: 0.74rem;
+  }
+
+  .live-camera-modal .live-cam-bottom {
+    width: var(--cam-rail-w);
+    flex: 0 0 var(--cam-rail-w);
+    height: 100%;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) calc(10px + env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) 10px;
+    background: linear-gradient(90deg, rgba(10, 13, 9, 0.84) 0%, #0A0D09 28%);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .live-camera-modal .live-cam-mode-switch {
+    width: 100%;
+    max-width: 104px;
+    padding: 3px;
+    gap: 2px;
+    margin: 0;
+  }
+
+  .live-camera-modal .live-cam-mode-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 30px;
+    padding: 4px 6px;
+    font-size: 0.68rem;
+    letter-spacing: 0.02em;
+  }
+
+  .live-camera-modal .live-cam-controls-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    max-width: none;
+    width: 100%;
+    flex: 1 1 auto;
+    margin: 0;
+  }
+
+  .live-camera-modal .live-cam-left-slot {
+    display: none;
+  }
+
+  .live-camera-modal .live-cam-center-slot {
+    align-items: center;
+  }
+
+  .live-camera-modal .live-cam-right-slot {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .live-camera-modal .camera-shutter-btn,
+  .live-camera-modal .camera-record-btn {
+    width: 64px;
+    height: 64px;
+    border-width: 3.5px;
+  }
+
+  .live-camera-modal .shutter-inner {
+    width: 48px;
+    height: 48px;
+  }
+
+  .live-camera-modal .record-inner {
+    width: 46px;
+    height: 46px;
+  }
+
+  .live-camera-modal .camera-record-btn.recording .record-inner {
+    width: 26px;
+    height: 26px;
+  }
+
+  .live-camera-modal .live-cam-upload-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 8px 10px;
+    gap: 6px;
+    font-size: 0.76rem;
+  }
+
+  .live-camera-modal .upload-batch-badge {
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+  }
+
+  .live-camera-modal .live-cam-tray-wrap {
+    position: fixed;
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    right: calc(var(--cam-rail-w) + 12px);
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    z-index: 25;
+    padding: 4px 8px;
+    border-radius: 14px;
+    background: rgba(10, 13, 9, 0.56);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .live-camera-modal .live-cam-tray {
+    gap: 8px;
+    padding: 2px;
+  }
+
+  .live-camera-modal .cam-tray-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+
+  .live-camera-modal .live-cam-permission {
+    padding: calc(52px + env(safe-area-inset-top, 0px)) 16px 14px;
+  }
+
+  .live-camera-modal .live-cam-perm-card {
+    max-width: 460px;
+    padding: 18px 20px 14px;
+    border-radius: 20px;
+  }
+
+  .live-camera-modal .live-cam-perm-icon {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 10px;
+  }
+
+  .live-camera-modal .live-cam-perm-card h3 {
+    font-size: 1.2rem;
+    margin-bottom: 6px;
+  }
+
+  .live-camera-modal .live-cam-perm-card p {
+    font-size: 0.78rem;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+
+  .live-camera-modal .live-cam-perm-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 8px;
   }
 
-  html.allow-landscape-mode .cam-tray-thumb {
-    width: 46px;
-    height: 46px;
+  .live-camera-modal .live-cam-perm-actions .btn {
+    width: auto;
+    padding: 9px 14px;
+    font-size: 0.8rem;
+  }
+
+  .live-camera-modal .live-cam-item-preview img,
+  .live-camera-modal .live-cam-item-preview video {
+    max-height: calc(100% - 64px);
+  }
+
+  .live-camera-modal .live-cam-preview-actions {
+    bottom: 10px;
+    gap: 10px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 360px) {
+  .live-camera-modal {
+    --cam-rail-w: calc(110px + env(safe-area-inset-right, 0px));
+  }
+
+  .live-camera-modal .camera-shutter-btn,
+  .live-camera-modal .camera-record-btn {
+    width: 56px;
+    height: 56px;
+  }
+
+  .live-camera-modal .shutter-inner {
+    width: 42px;
+    height: 42px;
+  }
+
+  .live-camera-modal .record-inner {
+    width: 40px;
+    height: 40px;
+  }
+
+  .live-camera-modal .cam-tray-thumb {
+    width: 38px;
+    height: 38px;
   }
 }
 
@@ -8770,3 +9002,104 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 #guestbookForm .book-write-footer { flex:0 0 48px; width:48px; height:48px; margin:0; padding:0; }
 #guestbookForm .book-write-footer .book-mode-switch { width:48px; height:48px; border-radius:50%; padding:0; }
 #guestbookForm .book-submit-btn { flex:1; width:auto; height:48px; min-width:0; padding:8px 12px; }
+
+/* PWA standalone (iOS/Android): cubrir pantalla completa edge-to-edge en Home y Libro de Firmas */
+@media (display-mode: standalone) {
+  html.home-no-scroll {
+    height: 100%;
+    min-height: 100vh;
+    min-height: 100lvh;
+    background-color: #141B12;
+  }
+
+  body.page-home {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.page-home .app-main-home {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+  }
+
+  html:has(body.page-guestbook) {
+    height: 100%;
+    min-height: 100vh;
+    min-height: 100lvh;
+  }
+
+  body.page-guestbook {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.page-guestbook .book-page-main {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+  }
+}
+
+html.is-pwa-standalone.home-no-scroll {
+  height: 100%;
+  min-height: 100vh;
+  min-height: 100lvh;
+  background-color: #141B12;
+}
+
+html.is-pwa-standalone body.page-home {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+}
+
+html.is-pwa-standalone body.page-home .app-main-home {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+html.is-pwa-standalone:has(body.page-guestbook) {
+  height: 100%;
+  min-height: 100vh;
+  min-height: 100lvh;
+}
+
+html.is-pwa-standalone body.page-guestbook {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+}
+
+html.is-pwa-standalone body.page-guestbook .book-page-main {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 768px) {
+  .page-guestbook .wedding-book-stage {
+    max-height: none;
+  }
+}
