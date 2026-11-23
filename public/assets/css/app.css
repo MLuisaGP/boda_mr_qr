@@ -9103,3 +9103,284 @@ html.is-pwa-standalone body.page-guestbook .book-page-main {
     max-height: none;
   }
 }
+
+/* =====================================================================
+   CONTRAPORTADA, ANIMACIÓN DE CIERRE Y HOJA DE GUARDA DEL LIBRO DE FIRMAS
+   ===================================================================== */
+.wedding-book-cover.is-back-cover {
+  padding: 9px 18px 10px 10px;
+  border-radius: 22px 10px 10px 22px;
+}
+
+.wedding-book-cover.is-back-cover .wedding-book-spine {
+  left: auto;
+  right: 0;
+  border-radius: 0 10px 10px 0;
+  border-right: 0;
+  border-left: 1px solid rgba(201, 160, 80, 0.35);
+}
+
+.wedding-book-cover.is-back-cover .wedding-book-ribbon {
+  right: auto;
+  left: 28px;
+}
+
+@media (max-width: 600px) {
+  .wedding-book-cover.is-back-cover {
+    padding: 7px 14px 8px 7px;
+    border-radius: 18px 8px 8px 18px;
+  }
+}
+
+.wedding-book-sheet[data-mode="back-cover"] {
+  background: linear-gradient(250deg, #161E13, #263322 18%, #1F291B 66%, #161E13);
+  box-shadow: inset -3px 0 9px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(244, 226, 183, 0.16);
+  animation: bookBackCoverReveal 0.44s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: right center;
+}
+
+.wedding-book-sheet[data-mode="back-cover"] .book-sheet-header,
+.wedding-book-sheet[data-mode="back-cover"] .book-view {
+  display: none;
+}
+
+.wedding-book-sheet.is-closing-book {
+  animation: bookCloseFold 0.34s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+@keyframes bookCloseFold {
+  0% {
+    opacity: 1;
+    transform: perspective(1400px) rotateY(0deg) scaleX(1);
+  }
+  100% {
+    opacity: 0.3;
+    transform: perspective(1400px) rotateY(-26deg) scaleX(0.9);
+  }
+}
+
+@keyframes bookBackCoverReveal {
+  0% {
+    opacity: 0.45;
+    transform: perspective(1200px) rotateY(16deg) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1200px) rotateY(0deg) scale(1);
+  }
+}
+
+.book-back-cover-view {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px 4px;
+  color: var(--color-gold-light);
+}
+
+.book-back-cover-view[hidden] {
+  display: none;
+}
+
+.book-back-cover-view::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border: 1px solid rgba(201, 160, 80, 0.26);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.book-back-cover-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 12px 10px;
+}
+
+.book-back-cover-monogram {
+  display: block;
+  width: min(44%, 152px);
+  height: auto;
+  max-height: 24dvh;
+  object-fit: contain;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 1px 0 rgba(255, 241, 196, 0.1)) drop-shadow(0 -2px 1px rgba(0, 0, 0, 0.2));
+}
+
+.book-back-cover-ornament {
+  margin: 2px 0 4px;
+  color: var(--color-gold);
+}
+
+.book-back-cover-quote {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(1.18rem, 3.8vw, 1.56rem);
+  line-height: 1.28;
+  letter-spacing: 0.015em;
+  color: var(--color-gold-light);
+  max-width: 26ch;
+  margin: 0;
+}
+
+.book-back-cover-couple {
+  font-family: var(--font-serif);
+  font-size: clamp(1.05rem, 3.2vw, 1.32rem);
+  letter-spacing: 0.04em;
+  color: rgba(250, 247, 242, 0.92);
+  margin: 6px 0 0;
+}
+
+.book-back-cover-couple .brand-amp {
+  display: inline-block;
+  font-family: 'Tangerine', cursive;
+  font-size: 1.28em;
+  color: var(--color-gold);
+  line-height: 0.8;
+  margin: 0 2px;
+}
+
+.book-back-cover-date {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(201, 160, 80, 0.88);
+  margin: 0;
+}
+
+.book-back-cover-count {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.86rem;
+  color: rgba(244, 226, 183, 0.72);
+  margin: 2px 0 6px;
+}
+
+.book-back-cover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  width: 100%;
+  max-width: 310px;
+}
+
+.book-back-cover-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 160, 80, 0.42);
+  background: rgba(250, 247, 242, 0.06);
+  color: var(--color-gold-light);
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.book-back-cover-btn--primary {
+  background: rgba(201, 160, 80, 0.18);
+  border-color: rgba(201, 160, 80, 0.65);
+}
+
+.book-back-cover-btn:hover,
+.book-back-cover-btn:focus-visible {
+  background: rgba(201, 160, 80, 0.26);
+  border-color: var(--color-gold-light);
+  outline: none;
+}
+
+.book-back-cover-btn:active {
+  transform: scale(0.97);
+}
+
+.book-back-cover-view .book-paper-footer {
+  margin: 4px 0 0;
+  border-top-color: rgba(201, 160, 80, 0.24);
+}
+
+.book-back-cover-view .book-paper-swipe-hint {
+  color: rgba(244, 226, 183, 0.76);
+}
+
+.book-back-cover-view .book-paper-corner-btn {
+  background: rgba(250, 247, 242, 0.08);
+  border-color: rgba(201, 160, 80, 0.45);
+  color: var(--color-gold-light);
+  box-shadow: none;
+}
+
+.book-back-cover-view .book-paper-corner-btn:hover:not(:disabled) {
+  background: rgba(201, 160, 80, 0.24);
+  border-color: var(--color-gold-light);
+  color: #FAF7F2;
+}
+
+/* Hoja de guarda interior (en doble página cuando el total de hojas de firmas es impar) */
+.book-paper-guard-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-guard-ornament {
+  display: block;
+  width: min(56%, 180px);
+  aspect-ratio: 1;
+  background: url('/assets/img/d-rama.svg') center / contain no-repeat;
+  opacity: 0.11;
+}
+
+@media (max-height: 680px), (max-width: 430px) {
+  .book-back-cover-body {
+    gap: 5px;
+    padding: 6px;
+  }
+
+  .book-back-cover-monogram {
+    width: min(36%, 116px);
+    max-height: 17dvh;
+  }
+
+  .book-back-cover-btn {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 0.73rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wedding-book-sheet[data-mode="back-cover"],
+  .wedding-book-sheet.is-closing-book {
+    animation: none;
+  }
+  .book-back-cover-btn {
+    transition: none;
+  }
+  .book-back-cover-btn:active {
+    transform: none;
+  }
+}

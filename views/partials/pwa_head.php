@@ -40,4 +40,4 @@ $guestbookFontsUrl = 'https://fonts.googleapis.com/css2?family=Ballet&family=Lav
   <link rel="preload" as="style" href="<?= $guestbookFontsUrl ?>" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="<?= $guestbookFontsUrl ?>"></noscript>
 <?php endif; ?>
-  <link rel="stylesheet" href="/assets/css/app.css?v=56">
+  <link rel="stylesheet" href="/assets/css/app.css?v=58">

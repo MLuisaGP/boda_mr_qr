@@ -3855,6 +3855,11 @@
       if (e.key === 'ArrowRight') navigateLightbox(1);
       return;
     }
+    const bookSheetEl = document.getElementById('weddingBookSheet');
+    if (bookSheetEl && bookSheetEl.dataset.mode === 'back-cover' && !(bookSigModal && bookSigModal.classList.contains('is-open'))) {
+      if (e.key === 'ArrowLeft') reopenBookFromBackCover();
+      return;
+    }
     if (bookReadView && !bookFlipStage.hidden && bookReadView.classList.contains('is-active') && !(bookSigModal && bookSigModal.classList.contains('is-open'))) {
       if (e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (e.key === 'ArrowRight') triggerBookFlip('next');
@@ -3884,11 +3889,15 @@
     if (!sheet) return;
     const open = sheet.classList.contains('is-open');
     const writing = sheet.dataset.mode === 'write';
+    const isBackCover = sheet.dataset.mode === 'back-cover';
     sheet.classList.toggle('is-two-page', isWideBook() && open);
     sheet.parentElement.classList.toggle('is-open-book', open);
     sheet.parentElement.classList.toggle('is-spread-open', isWideBook() && open);
+    sheet.parentElement.classList.toggle('is-back-cover', isBackCover);
     document.body.classList.toggle('has-open-book', open);
     if (bookFlipStage) bookFlipStage.hidden = !open || (writing && !isWideBook());
+    const backCoverView = document.getElementById('bookBackCoverView');
+    if (backCoverView) backCoverView.hidden = !isBackCover;
   }
 
   function computeBookPageSize() {
@@ -3906,34 +3915,33 @@
     return Math.max(1, Math.ceil(guestbookEntries.length / currentBookPageSize));
   }
 
-  function getBookPageSwipeHint(pageNum, totalPages, totalEntries) {
-    if (totalPages <= 1) {
-      return totalEntries > 0 ? 'Toca una firma para leerla completa' : 'Agrega la primera dedicatoria';
+  function getBookPageSwipeHint(pageNum, totalPages) {
+    const spread = isBookSpreadReading();
+    const isLast = spread ? (pageNum + 1 >= totalPages) : (pageNum >= totalPages);
+    if (isLast) {
+      return 'Última hoja · Desliza a la izquierda para cerrar el libro';
     }
     if (pageNum <= 1) {
       return 'Desliza la esquina o la hoja a la izquierda con tu dedo';
-    }
-    if (pageNum >= totalPages) {
-      return 'Última hoja · Desliza a la derecha para regresar';
     }
     return 'Desliza a la izquierda o a la derecha con tu dedo para hojear';
   }
 
   function buildBookPageFooterHtml(pageNum, totalPages, totalEntries) {
-    const hintText = getBookPageSwipeHint(pageNum, totalPages, totalEntries);
+    const hintText = getBookPageSwipeHint(pageNum, totalPages);
     const spread = isBookSpreadReading();
     const sheet = document.getElementById('weddingBookSheet');
     const writingSpread = isWideBook() && sheet && sheet.dataset.mode === 'write';
-    const hideArrows = !writingSpread && (totalEntries === 0 || totalPages <= (spread ? 2 : 1));
-    const prevDisabled = hideArrows || pageNum <= (spread ? 2 : 1);
-    const nextDisabled = !writingSpread && (hideArrows || pageNum >= totalPages);
-    const hiddenClass = hideArrows ? ' is-hidden' : '';
+    const isLast = spread ? (pageNum + 1 >= totalPages) : (pageNum >= totalPages);
+    const prevDisabled = pageNum <= (spread ? 2 : 1);
+    const nextDisabled = false;
+    const nextLabel = !writingSpread && isLast ? 'Cerrar libro y ver contraportada' : 'Hoja siguiente';
 
     return `
       <div class="book-paper-footer">
         <button
           type="button"
-          class="book-paper-corner-btn book-corner-prev${hiddenClass}"
+          class="book-paper-corner-btn book-corner-prev"
           data-book-dir="prev"
           aria-label="Hoja anterior"
           ${prevDisabled ? 'disabled' : ''}
@@ -3945,9 +3953,9 @@
         </button>
         <button
           type="button"
-          class="book-paper-corner-btn book-corner-next${hiddenClass}"
+          class="book-paper-corner-btn book-corner-next"
           data-book-dir="next"
-          aria-label="Hoja siguiente"
+          aria-label="${nextLabel}"
           ${nextDisabled ? 'disabled' : ''}
         ><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
       </div>
@@ -3957,9 +3965,14 @@
   function buildBookPaperHtml(pageNum) {
     const side = pageNum % 2 ? 'left' : 'right';
     const totalPages = getTotalBookPages();
-    const html = pageNum <= totalPages ? buildBookPageHtml(pageNum) :
-      '<div class="book-paper-running-head"><span>Libro de Honor</span><span></span></div><div class="book-paper-empty" aria-label="Hoja en blanco"></div>' + buildBookPageFooterHtml(pageNum, totalPages, guestbookEntries.length);
-    return '<div class="book-paper-page" data-book-side="' + side + '">' + html + '</div>';
+    if (pageNum <= totalPages) {
+      return '<div class="book-paper-page" data-book-side="' + side + '">' + buildBookPageHtml(pageNum) + '</div>';
+    }
+    const guardHtml =
+      '<div class="book-paper-running-head"><span>Libro de Honor · M &amp; R</span><span></span></div>' +
+      '<div class="book-paper-empty book-paper-guard-body" aria-label="Hoja de guarda"><span class="book-guard-ornament" aria-hidden="true"></span></div>' +
+      buildBookPageFooterHtml(pageNum, totalPages, guestbookEntries.length);
+    return '<div class="book-paper-page book-paper-guard" data-book-side="' + side + '">' + guardHtml + '</div>';
   }
 
   function buildBookPageHtml(pageNum) {
@@ -4218,6 +4231,12 @@
     currentBookPage = Math.min(Math.max(1, currentBookPage), totalPages);
 
     if (gbBookCountPill) gbBookCountPill.textContent = String(total);
+    const backCoverCount = document.getElementById('gbBackCoverCount');
+    if (backCoverCount) {
+      backCoverCount.textContent = total > 0
+        ? `${total} ${total === 1 ? 'dedicatoria guardada' : 'dedicatorias guardadas'}`
+        : 'Fin del Libro de Honor';
+    }
 
     if (bookPagesStack) {
       const remaining = Math.max(0, totalPages - currentBookPage);
@@ -4261,7 +4280,11 @@
     const hasPageFlipLib = typeof window.St !== 'undefined' && typeof window.St.PageFlip === 'function';
     if (total === 0 || totalPages <= 1 || !hasPageFlipLib || (spread && totalPages <= 2)) {
       if (spread) {
-        bookFlipHostWrap.innerHTML = '<div class="book-static-spread"><div class="book-stf-page">' + buildBookPaperHtml(currentBookPage) + '</div><div class="book-stf-page">' + buildBookPaperHtml(currentBookPage + 1) + '</div></div>';
+        bookFlipHostWrap.innerHTML =
+          '<div class="book-static-spread">' +
+          '<div class="book-stf-page">' + buildBookPaperHtml(currentBookPage) + '</div>' +
+          '<div class="book-stf-page">' + buildBookPaperHtml(currentBookPage + 1) + '</div>' +
+          '</div>';
       } else {
         bookFlipHostWrap.innerHTML = '<div class="book-stf-page">' + buildBookPaperHtml(currentBookPage) + '</div>';
       }
@@ -4640,8 +4663,53 @@
     return state !== 'read' || Boolean(fc.render && fc.render.animation !== null);
   }
 
+  let bookClosingTimer = null;
+  let isBookClosing = false;
+
+  function clearBookClosingState() {
+    if (bookClosingTimer !== null) {
+      clearTimeout(bookClosingTimer);
+      bookClosingTimer = null;
+    }
+    isBookClosing = false;
+    const sheet = document.getElementById('weddingBookSheet');
+    if (sheet) {
+      sheet.classList.remove('is-closing-book');
+      if (sheet.parentElement) sheet.parentElement.classList.remove('is-closing-book');
+    }
+  }
+
+  function closeBookToBackCover() {
+    if (isBookClosing) return true;
+    const sheet = document.getElementById('weddingBookSheet');
+    if (!sheet || !sheet.classList.contains('is-open')) return false;
+    updateBookChrome();
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      setBookMode('back-cover');
+      return true;
+    }
+    isBookClosing = true;
+    sheet.classList.add('is-closing-book');
+    if (sheet.parentElement) sheet.parentElement.classList.add('is-closing-book');
+    bookClosingTimer = setTimeout(() => {
+      bookClosingTimer = null;
+      isBookClosing = false;
+      sheet.classList.remove('is-closing-book');
+      if (sheet.parentElement) sheet.parentElement.classList.remove('is-closing-book');
+      setBookMode('back-cover');
+    }, 340);
+    return true;
+  }
+
+  function reopenBookFromBackCover() {
+    clearBookClosingState();
+    currentBookPage = getTotalBookPages();
+    setBookMode('read');
+  }
+
   function isBookFlipLocked() {
-    return isBookFlipBusy() || (performance.now() - lastFlipEndTs < BOOK_FLIP_SETTLE_MS);
+    return isBookClosing || isBookFlipBusy() || (performance.now() - lastFlipEndTs < BOOK_FLIP_SETTLE_MS);
   }
 
   function triggerBookFlip(dir, corner = 'bottom') {
@@ -4654,6 +4722,10 @@
     }
     const step = isBookSpreadReading() ? 2 : 1;
     const canNext = currentBookPage + step - 1 < totalPages;
+    if (dir === 'next' && !canNext && !writingSpread) {
+      if (isBookFlipLocked()) return false;
+      return closeBookToBackCover();
+    }
     if (totalPages <= 1) return false;
 
     if (bookPageFlipInstance) {
@@ -4746,7 +4818,6 @@
     });
 
     bookFlipHostWrap.addEventListener('pointerdown', (e) => {
-      if (guestbookEntries.length === 0) return;
       if (e.button !== undefined && e.button !== 0) return;
       // Ignorar dedos adicionales (multi-touch) o gestos iniciados mientras una hoja aún está volando
       if (gestureActive || isBookFlipBusy()) return;
@@ -4804,18 +4875,20 @@
       };
 
       // 1. Deslizamiento horizontal suave (desde cualquier parte de la hoja, solo ~34px necesarios)
-      if (totalPages > 1 && Math.abs(dx) >= 34 && Math.abs(dx) > Math.abs(dy) * 1.05 && elapsed < 1300) {
-        lastSwipeHandledTs = performance.now();
+      if (Math.abs(dx) >= 34 && Math.abs(dx) > Math.abs(dy) * 1.05 && elapsed < 1300) {
         const dir = dx < 0 ? 'next' : 'prev';
-        const stfDragging = Boolean(bookPageFlipInstance && bookPageFlipInstance.isUserTouch);
-        if (!stfDragging) {
-          // Swipe rápido (sin arrastre activo de StPageFlip): girar inmediatamente EXACTAMENTE 1 hoja
-          commitSingleFlipIfStillIdle(dir);
-        } else {
-          // Si StPageFlip sí tenía arrastre activo, esperar un tick para que stopMove() lo resuelva primero
-          setTimeout(() => commitSingleFlipIfStillIdle(dir), 25);
+        if (dir === 'next' || currentBookPage > 1) {
+          lastSwipeHandledTs = performance.now();
+          const stfDragging = Boolean(bookPageFlipInstance && bookPageFlipInstance.isUserTouch);
+          if (!stfDragging) {
+            // Swipe rápido (sin arrastre activo de StPageFlip): girar inmediatamente EXACTAMENTE 1 hoja o cerrar el libro
+            commitSingleFlipIfStillIdle(dir);
+          } else {
+            // Si StPageFlip sí tenía arrastre activo, esperar un tick para que stopMove() lo resuelva primero
+            setTimeout(() => commitSingleFlipIfStillIdle(dir), 25);
+          }
+          return;
         }
-        return;
       }
 
       // Si inició sobre una flecha de esquina y fue toque corto, deja que su evento click lo maneje una sola vez
@@ -4826,7 +4899,7 @@
       // 2. Toque corto (sin arrastre)
       if (dist < 10 && elapsed < 380) {
         const edgeZone = 42;
-        if (totalPages > 1 && relX >= rect.width - edgeZone && currentBookPage < totalPages) {
+        if (relX >= rect.width - edgeZone) {
           commitSingleFlipIfStillIdle('next');
           return;
         }
@@ -4852,12 +4925,33 @@
   }
 
   function setBookMode(mode) {
+    clearBookClosingState();
+    const isClosed = mode === 'closed';
+    const isBackCover = mode === 'back-cover';
     const isRead = mode === 'read';
     // Nunca conservar una instancia que vaya a medir su host oculto.
     destroyBookPageFlip();
-    if (isRead && bookWriteView && bookWriteView.contains(document.activeElement)) document.activeElement.blur();
+    if ((isRead || isClosed || isBackCover) && bookWriteView && bookWriteView.contains(document.activeElement)) document.activeElement.blur();
     if (!isRead && signatureRevealCleanup) { signatureRevealCleanup(); celebratingSignatureId = null; }
     const sheet = document.getElementById('weddingBookSheet');
+    if (isClosed || isBackCover) {
+      if (isClosed) currentBookPage = 1;
+      if (sheet) {
+        sheet.classList.remove('is-open');
+        sheet.dataset.mode = isBackCover ? 'back-cover' : 'closed';
+      }
+      syncBookLayout();
+      updateBookChrome();
+      [btnBookWriteTab, btnBookReadTab].forEach((button) => {
+        if (button) {
+          button.setAttribute('aria-expanded', 'false');
+          button.classList.remove('is-active');
+        }
+      });
+      if (bookWriteView) bookWriteView.classList.remove('is-active');
+      if (bookReadView) bookReadView.classList.remove('is-active');
+      return;
+    }
     if (sheet) {
       if (!isRead && sheet.dataset.mode !== 'write') currentBookPage = 1;
       sheet.classList.add('is-open'); sheet.dataset.mode = mode;
@@ -4901,6 +4995,45 @@
   if (btnBookWriteTab) btnBookWriteTab.addEventListener('click', () => setBookMode('write'));
   if (btnBookReadTab) btnBookReadTab.addEventListener('click', () => setBookMode('read'));
   if (btnGoToReadSignatures) btnGoToReadSignatures.addEventListener('click', () => setBookMode('read'));
+
+  const bookBackCoverView = document.getElementById('bookBackCoverView');
+  if (bookBackCoverView) {
+    bookBackCoverView.addEventListener('click', (event) => {
+      const modeBtn = event.target.closest('[data-book-mode]');
+      if (modeBtn) {
+        event.preventDefault();
+        if (!isSubmittingSignature) setBookMode(modeBtn.dataset.bookMode);
+        return;
+      }
+      if (event.target.closest('#btnBackCoverReopen')) {
+        event.preventDefault();
+        reopenBookFromBackCover();
+      }
+    });
+
+    let backSwipeStartX = 0;
+    let backSwipeStartY = 0;
+    let backSwipePointerId = null;
+    bookBackCoverView.addEventListener('pointerdown', (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      if (e.target.closest('button')) return;
+      backSwipePointerId = e.pointerId;
+      backSwipeStartX = e.clientX;
+      backSwipeStartY = e.clientY;
+    }, { passive: true });
+    bookBackCoverView.addEventListener('pointerup', (e) => {
+      if (backSwipePointerId === null || e.pointerId !== backSwipePointerId) return;
+      backSwipePointerId = null;
+      const dx = e.clientX - backSwipeStartX;
+      const dy = e.clientY - backSwipeStartY;
+      if (dx >= 34 && Math.abs(dx) > Math.abs(dy) * 1.05) {
+        reopenBookFromBackCover();
+      }
+    }, { passive: true });
+    bookBackCoverView.addEventListener('pointercancel', () => {
+      backSwipePointerId = null;
+    }, { passive: true });
+  }
 
   // Mantener cinco firmas por hoja y alternar una o dos hojas al redimensionar.
   let bookResizeTimer = null;

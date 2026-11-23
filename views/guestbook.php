@@ -94,6 +94,39 @@ $navTransparent = false;
             </div>
           </div>
 
+          <!-- CONTRAPORTADA DEL LIBRO (SE MUESTRA AL CERRAR DESDE LA ÚLTIMA HOJA) -->
+          <div class="book-back-cover-view" id="bookBackCoverView" aria-label="Contraportada del libro de firmas" hidden>
+            <div class="book-back-cover-body">
+              <img class="book-back-cover-monogram" src="/assets/img/l-m&amp;r.svg" alt="Michelle y Ren&#233;" width="1371" height="1313">
+              <div class="book-ornament book-back-cover-ornament" aria-hidden="true">
+                <span></span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                <span></span>
+              </div>
+              <p class="book-back-cover-quote">Gracias por ser parte de nuestra historia</p>
+              <p class="book-back-cover-couple">Michelle <span class="brand-amp">&amp;</span> Ren&#233;</p>
+              <p class="book-back-cover-date">19 &#183; XII &#183; 2026</p>
+              <p class="book-back-cover-count" id="gbBackCoverCount">Fin del Libro de Honor</p>
+              <div class="book-back-cover-actions">
+                <button type="button" class="book-back-cover-btn book-back-cover-btn--primary" data-book-mode="write">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                  <span>Escribir Firma</span>
+                </button>
+                <button type="button" class="book-back-cover-btn" data-book-mode="closed">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                  <span>Portada</span>
+                </button>
+              </div>
+            </div>
+            <div class="book-paper-footer">
+              <button type="button" class="book-paper-corner-btn book-corner-prev" id="btnBackCoverReopen" aria-label="Volver a la última hoja">
+                <svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4m6-6-6 6 6 6"/></svg>
+              </button>
+              <span class="book-paper-swipe-hint">Contraportada · Desliza a la derecha para volver</span>
+              <span class="book-paper-corner-btn is-hidden" aria-hidden="true"></span>
+            </div>
+          </div>
+
           <!-- Animación de carga: pluma firmando el libro sobre pergamino -->
           <div class="book-signing-overlay" id="bookSigningOverlay" aria-hidden="true" role="status" aria-live="polite">
             <div class="book-signing-stage">
@@ -166,6 +199,6 @@ $navTransparent = false;
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
   <script src="/assets/js/vendor/page-flip.browser.min.js"></script>
-  <script src="/assets/js/app.js?v=44"></script>
+  <script src="/assets/js/app.js?v=46"></script>
 </body>
 </html>
