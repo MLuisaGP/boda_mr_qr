@@ -60,6 +60,7 @@ class AuthController extends Controller {
     public function guestMe(): void {
         AuthHelper::startSession();
         $guest = AuthHelper::getGuest();
+        AuthHelper::closeSession();
         if (!$guest) {
             Response::error('No hay sesión de invitado activa.', 401);
         }

@@ -1,7 +1,7 @@
 <?php
 /**
  * Clean MVC Router for HostGator Shared Hosting.
- * Resuelve rutas semánticas (/, /admin, /api/...) sin exponer extensiones .php.
+ * Resuelve rutas semánticas (/, /novios, /api/...) sin exponer extensiones .php.
  */
 
 declare(strict_types=1);

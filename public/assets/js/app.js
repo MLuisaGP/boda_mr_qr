@@ -542,14 +542,14 @@
         clearInterval(interval);
         return;
       }
-      setProgress(progress + (progress < 75 ? 16 : 9));
+      setProgress(progress + (progress < 75 ? 30 : 18));
       if (progress >= 100) {
         clearInterval(interval);
-        setTimeout(dismissPreloader, 180);
+        setTimeout(dismissPreloader, 80);
       }
-    }, 90);
+    }, 55);
 
-    setTimeout(dismissPreloader, 1600);
+    setTimeout(dismissPreloader, 500);
   }
 
   // =====================================================================
@@ -3905,15 +3905,18 @@
     const isVideo = item.media_type === 'video';
     const isOwner = item.is_owner || (currentGuest && Number(item.guest_id) === Number(currentGuest.id));
     const thumbSrc = item.thumb_url || item.url;
+    const imgLoadAttrs = (galleryCurrentPage <= 1 && batchIndex < 6)
+      ? 'loading="eager" fetchpriority="high" decoding="async"'
+      : 'loading="lazy" decoding="async"';
 
     tile.innerHTML = `
       <div class="gallery-item-aspect">
         ${isVideo
           ? `${item.thumb_url
-              ? `<img src="${escapeHtml(item.thumb_url)}" alt="Video de ${escapeHtml(item.guest_name)}" class="gallery-item-media" loading="lazy" decoding="async" />`
+              ? `<img src="${escapeHtml(item.thumb_url)}" alt="Video de ${escapeHtml(item.guest_name)}" class="gallery-item-media" ${imgLoadAttrs} />`
               : `<video src="${escapeHtml(item.url)}" class="gallery-item-media" muted playsinline preload="none"></video>`}
              <div class="gallery-video-indicator"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></div>`
-          : `<img src="${escapeHtml(thumbSrc)}" alt="Recuerdo de ${escapeHtml(item.guest_name)}" class="gallery-item-media" loading="lazy" decoding="async" />`
+          : `<img src="${escapeHtml(thumbSrc)}" alt="Recuerdo de ${escapeHtml(item.guest_name)}" class="gallery-item-media" ${imgLoadAttrs} />`
         }
         <div class="gallery-item-overlay">
           <div class="gallery-overlay-top">
@@ -3965,7 +3968,6 @@
     galleryGrid.appendChild(fragment);
     layoutGalleryMosaic();
 
-
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         newTiles.forEach((tile) => tile.classList.add('visible'));
@@ -3973,7 +3975,6 @@
     });
   }
 
-  // Reservar las filas antes de cargar imagenes: el mosaico no depende de su tamano nativo.
   function initScrollNavigation() {
     const nav = document.getElementById('siteNav');
     if (!nav || document.body.classList.contains('page-guestbook')) return;

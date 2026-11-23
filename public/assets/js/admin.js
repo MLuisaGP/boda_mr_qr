@@ -53,8 +53,6 @@
   const r2GuideModal = document.getElementById('adminR2GuideModal');
   const r2GuideModalClose = document.getElementById('r2GuideModalClose');
   const r2GuideModalOk = document.getElementById('r2GuideModalOk');
-  const btnCopyRcloneCmd = document.getElementById('btnCopyRcloneCmd');
-  const r2RcloneCmd = document.getElementById('r2RcloneCmd');
 
   const tabButtons = document.querySelectorAll('.admin-tab');
   const sectionMedia = document.getElementById('sectionMedia');
@@ -64,7 +62,6 @@
   // Modals
   const msgModal = document.getElementById('adminMsgModal');
   const msgModalAuthor = document.getElementById('msgModalAuthor');
-  const msgModalDate = document.getElementById('msgModalDate');
   const msgModalBody = document.getElementById('msgModalBody');
   const msgModalClose = document.getElementById('msgModalClose');
 
@@ -224,10 +221,9 @@
     });
   }
 
-  function openMessageModal(author, date, message) {
+  function openMessageModal(author, message) {
     if (!msgModal) return;
     msgModalAuthor.textContent = author;
-    msgModalDate.textContent = date;
     msgModalBody.textContent = message;
     msgModal.classList.add('active');
   }
@@ -272,19 +268,6 @@
       if (e.target === r2GuideModal) r2GuideModal.classList.remove('active');
     });
   }
-  if (btnCopyRcloneCmd && r2RcloneCmd) {
-    btnCopyRcloneCmd.addEventListener('click', async () => {
-      const cmd = (r2RcloneCmd.textContent || '').trim();
-      if (!cmd) return;
-      try {
-        await navigator.clipboard.writeText(cmd);
-        showAdminToast('Comando de rclone copiado al portapapeles.', 'success', 'Copiado');
-      } catch (err) {
-        showAdminToast('Selecciona y copia el comando manualmente.', 'info', 'rclone');
-      }
-    });
-  }
-
   // =====================================================================
   // 2. CARGA DE MÉTRICAS Y ESTADÍSTICAS
   // =====================================================================
@@ -378,6 +361,81 @@
     }
   }
 
+  const mediaLightbox = document.getElementById('gallery-lightbox');
+  const lb = (id) => document.getElementById(id);
+  let previewItems = [], previewIndex = 0;
+  let deletingMedia = false;
+  let previewReturnFocus = null;
+
+  function clearPreviewMedia() {
+    const video = lb('lightboxVideo');
+    video.pause();
+    video.removeAttribute('src');
+    video.removeAttribute('poster');
+    video.load();
+    video.style.display = 'none';
+    lb('lightboxImg').removeAttribute('src');
+    lb('lightboxImg').style.display = 'none';
+  }
+
+  function closeMediaPreview() {
+    mediaLightbox.classList.remove('active');
+    clearPreviewMedia();
+    if (previewReturnFocus && previewReturnFocus.isConnected) previewReturnFocus.focus();
+  }
+
+  function openMediaPreview(items, index) {
+    if (!items.length) return;
+    if (!mediaLightbox.classList.contains('active')) previewReturnFocus = document.activeElement;
+    previewItems = items;
+    previewIndex = (index + items.length) % items.length;
+    const item = items[previewIndex];
+    clearPreviewMedia();
+    const media = lb(item.media_type === 'video' ? 'lightboxVideo' : 'lightboxImg');
+    if (item.media_type === 'video' && item.thumb_url) media.poster = item.thumb_url;
+    media.src = item.url;
+    media.style.display = 'block';
+    lb('lightboxImg').alt = 'Recuerdo de ' + (item.guest_name || 'Invitado');
+    lb('lightboxAuthor').textContent = item.guest_name || 'Invitado';
+    lb('lightboxAvatar').textContent = (item.guest_name || 'Invitado').trim().split(/\s+/).slice(0,2).map(n => n[0]).join('').toUpperCase();
+    lb('lightboxTime').textContent = item.created_at || '';
+    lb('lightboxLikeCount').textContent = item.likes_count || 0;
+    lb('lightboxCounter').textContent = (previewIndex + 1) + ' / ' + items.length;
+    lb('lightboxPrev').hidden = lb('lightboxNext').hidden = items.length < 2;
+    lb('lightboxDownloadBtn').href = item.url;
+    mediaLightbox.classList.add('active');
+  }
+
+  function confirmMediaDeletion(item) {
+    if (deletingMedia) return;
+    showConfirm('¿Eliminar este recuerdo de ' + (item.guest_name || 'Invitado') + '? Se borrará permanentemente. Esta acción no se puede deshacer.', () => deleteMedia(item.id));
+  }
+
+  lb('lightboxClose').addEventListener('click', closeMediaPreview);
+  lb('lightboxPrev').addEventListener('click', () => openMediaPreview(previewItems, previewIndex - 1));
+  lb('lightboxNext').addEventListener('click', () => openMediaPreview(previewItems, previewIndex + 1));
+  lb('lightboxDownloadBtn').addEventListener('click', (event) => {
+    event.preventDefault();
+    const item = previewItems[previewIndex];
+    if (item) downloadSingleMedia(item.url, item.original_name);
+  });
+  lb('lightboxDeleteBtn').addEventListener('click', () => {
+    const item = previewItems[previewIndex];
+    if (item) confirmMediaDeletion(item);
+  });
+  mediaLightbox.addEventListener('click', (event) => {
+    if (event.target === mediaLightbox || event.target === lb('lightboxMediaContainer')) closeMediaPreview();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (!mediaLightbox.classList.contains('active') || confirmModal.classList.contains('active') || event.defaultPrevented) return;
+    if (event.key === 'Escape') closeMediaPreview();
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      if (event.target === lb('lightboxVideo')) return;
+      event.preventDefault();
+      openMediaPreview(previewItems, previewIndex + (event.key === 'ArrowLeft' ? -1 : 1));
+    }
+  });
+
   function renderMediaGrid(items) {
     mediaGrid.innerHTML = '';
 
@@ -393,10 +451,6 @@
 
       const isVideo = item.media_type === 'video';
       const previewSrc = item.thumb_url || item.url;
-      const sizeLabel = item.file_size >= 1024 * 1024
-        ? `${(item.file_size / (1024 * 1024)).toFixed(1)} MB`
-        : `${(item.file_size / 1024).toFixed(0)} KB`;
-
       card.innerHTML = `
         ${isVideo ? `<div class="admin-card-select-wrap" style="pointer-events:none;"><span style="background:rgba(0,0,0,0.72); color:#F5E6C4; border:1px solid rgba(201,160,80,0.45); font-size:0.65rem; font-weight:700; padding:3px 7px; border-radius:999px; letter-spacing:0.08em;">VIDEO</span></div>` : ''}
         ${isVideo && !item.thumb_url ? `
@@ -405,14 +459,13 @@
           <img class="admin-media-preview" src="${escapeHtml(previewSrc)}" alt="${escapeHtml(item.original_name)}" loading="lazy" />
         `}
         <div class="admin-media-meta">
-          <div class="admin-media-author">${escapeHtml(item.guest_name)}</div>
-          <div class="admin-media-sub">
-            <span>${sizeLabel} · ${item.likes_count} likes</span>
-            <span>${escapeHtml((item.created_at || '').substring(5, 16))}</span>
+          <div class="admin-media-caption">
+            <div class="admin-media-author" title="${escapeHtml(item.guest_name || 'Invitado')}">${escapeHtml(item.guest_name || 'Invitado')}</div>
+            <span class="admin-media-likes" aria-label="${Number(item.likes_count) || 0} me gusta">&#9825; ${Number(item.likes_count) || 0}</span>
           </div>
           <div class="admin-media-card-actions">
-            <a href="${escapeHtml(item.url)}" download="${escapeHtml(item.original_name)}" class="admin-btn admin-btn-outline btn-download-single" style="padding:6px 12px; font-size:0.75rem;" title="Descargar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg> Guardar</a>
-            <button class="admin-btn admin-btn-danger btn-delete-media" data-id="${item.id}" style="padding:6px 12px; font-size:0.75rem;" title="Eliminar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6m4-6v6"/></svg> Borrar</button>
+            <a href="${escapeHtml(item.url)}" download="${escapeHtml(item.original_name)}" class="admin-btn admin-btn-outline btn-download-single" aria-label="Descargar recuerdo" title="Descargar recuerdo"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg></a>
+            <button class="admin-btn admin-btn-danger btn-delete-media" data-id="${item.id}" type="button" aria-label="Eliminar recuerdo" title="Eliminar recuerdo"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6m4-6v6"/></svg></button>
           </div>
         </div>
       `;
@@ -420,11 +473,11 @@
       // Preview click to open full resolution
       const prev = card.querySelector('.admin-media-preview');
       prev.tabIndex = 0;
-      prev.setAttribute('role', 'link');
+      prev.setAttribute('role', 'button');
       prev.setAttribute('aria-label', 'Abrir recuerdo de ' + (item.guest_name || 'Invitado'));
-      prev.addEventListener('keydown', (event) => { if (event.key === 'Enter') prev.click(); });
+      prev.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); prev.click(); } });
       prev.addEventListener('click', () => {
-        window.open(item.url, '_blank', 'noopener');
+        openMediaPreview(items, items.indexOf(item));
       });
 
       // Single download click (cross-origin friendly)
@@ -438,11 +491,7 @@
 
       // Delete click
       const del = card.querySelector('.btn-delete-media');
-      del.addEventListener('click', () => {
-        showConfirm(`¿Eliminar definitivamente este recuerdo de ${item.guest_name}?`, () => {
-          deleteMedia(item.id);
-        });
-      });
+      del.addEventListener('click', () => confirmMediaDeletion(item));
 
       mediaGrid.appendChild(card);
     });
@@ -450,6 +499,9 @@
 
   // Eliminar multimedia como Admin
   async function deleteMedia(mediaId) {
+    if (deletingMedia) return;
+    deletingMedia = true;
+    lb('lightboxDeleteBtn').disabled = true;
     try {
       const res = await fetch('/api/media/delete', {
         method: 'POST',
@@ -457,7 +509,8 @@
         body: JSON.stringify({ id: mediaId })
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
+        if (mediaLightbox.classList.contains('active')) closeMediaPreview();
         showAdminToast('El recuerdo se eliminó permanentemente del álbum.', 'success', 'Recuerdo eliminado');
         loadMedia();
         loadStats();
@@ -466,6 +519,9 @@
       }
     } catch (e) {
       showAdminToast('No se pudo conectar con el servidor. Intenta nuevamente.', 'error', 'Sin conexión');
+    } finally {
+      deletingMedia = false;
+      lb('lightboxDeleteBtn').disabled = false;
     }
   }
 
@@ -507,7 +563,7 @@
       const message = item.raw_message || item.message || '';
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td data-label="Invitado" style="font-weight:600; color:var(--gold-light);">${escapeHtml(name)}</td>
+        <td data-label="Invitado" role="button" tabindex="0" aria-label="Ver dedicatoria de ${escapeHtml(name)}" style="font-weight:600; color:var(--gold-light); cursor:pointer;">${escapeHtml(name)}</td>
         <td data-label="Dedicatoria">
           <div class="guestbook-msg-preview" title="Haz clic para ver completo">
             ${escapeHtml(message)}
@@ -521,11 +577,19 @@
       `;
 
       // Clic para ver completo en modal emergente
+      const guestCell = tr.querySelector('[data-label="Invitado"]');
+      guestCell.addEventListener('click', () => openMessageModal(name, message));
+      guestCell.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openMessageModal(name, message);
+        }
+      });
       tr.querySelector('.guestbook-msg-preview').addEventListener('click', () => {
-        openMessageModal(name, item.created_at, message);
+        openMessageModal(name, message);
       });
       tr.querySelector('.btn-view-gb').addEventListener('click', () => {
-        openMessageModal(name, item.created_at, message);
+        openMessageModal(name, message);
       });
 
       // Borrar firma
@@ -743,14 +807,14 @@
     });
   }
 
-  const dialogs = [msgModal, confirmModal, r2GuideModal, printModal].filter(Boolean);
+  const dialogs = [confirmModal, msgModal, r2GuideModal, printModal, mediaLightbox].filter(Boolean);
   let modalReturnFocus = null;
   const focusableSelector = 'button:not([disabled]), a[href], input, select, textarea, [tabindex="0"]';
   const syncDialogs = () => {
     const active = dialogs.find((dialog) => dialog.classList.contains('active'));
     document.body.classList.toggle('admin-modal-open', Boolean(active));
     [document.querySelector('.admin-header'), document.getElementById('adminMain')].filter(Boolean).forEach((element) => { element.inert = Boolean(active); });
-    dialogs.forEach((dialog) => dialog.setAttribute('aria-hidden', String(dialog !== active)));
+    dialogs.forEach((dialog) => { dialog.setAttribute('aria-hidden', String(dialog !== active)); dialog.inert = dialog !== active; });
     if (active && !active.contains(document.activeElement)) {
       if (!modalReturnFocus) modalReturnFocus = document.activeElement;
       const target = active === confirmModal ? btnConfirmCancel : active.querySelector(focusableSelector);
@@ -765,7 +829,8 @@
     if (event.key !== 'Tab') return;
     const active = dialogs.find((dialog) => dialog.classList.contains('active'));
     if (!active) return;
-    const controls = Array.from(active.querySelectorAll(focusableSelector));
+    const controls = Array.from(active.querySelectorAll(focusableSelector)).filter(control => control.getClientRects().length && !control.hidden);
+    if (!controls.length) return;
     const first = controls[0], last = controls[controls.length - 1];
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
