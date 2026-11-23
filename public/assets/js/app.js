@@ -55,24 +55,9 @@
   let bookLastDragDx = 0;
   const BOOK_FLIP_SETTLE_MS = 120;
 
-  // Estado de Cámara en Vivo y Multi-Captura
-  let cameraStream = null;
-  let cameraRequestId = 0;
-  let currentFacingMode = 'environment';
-  let currentCameraMode = 'photo'; // 'photo' | 'video'
-  let mediaRecorder = null;
-  let recordedChunks = [];
-  let recordedApproxBytes = 0;
-  let recordTimerInterval = null;
-  let recordSeconds = 0;
-  let capturedQueue = []; // [{ id, draftId, file, type: 'image'|'video', previewUrl }]
-  let previewingQueueId = null;
+  // Estado de Captura con Cámara Nativa del Teléfono
   let sessionCaptureIds = []; // IDs en standbyItems capturados durante la sesión actual de cámara/video
   let sessionCaptureMode = 'photo'; // 'photo' | 'video'
-  let sessionUsedNativeCamera = false;
-  let pendingFinishAfterRecord = false;
-  let recordedPosterBlob = null;
-  const pendingCaptureSaves = new Set();
 
   // Acciones pendientes tras identificar invitado
   let pendingFilesBatch = null;
@@ -116,39 +101,6 @@
   const btnPublishStandbyCount = document.getElementById('btnPublishStandbyCount');
   const standbyGrid = document.getElementById('standbyGrid');
   const standbyEmpty = document.getElementById('standbyEmpty');
-
-  const liveCameraModal = document.getElementById('liveCameraModal');
-  const liveCamModeText = document.getElementById('liveCamModeText');
-  const liveCamQuotaChip = document.getElementById('liveCamQuotaChip');
-  const liveCamHint = document.getElementById('liveCamHint');
-  const cameraVideo = document.getElementById('cameraVideo');
-  const cameraCanvas = document.getElementById('cameraCanvas');
-  const cameraFlash = document.getElementById('cameraFlash');
-  const cameraRecBadge = document.getElementById('cameraRecBadge');
-  const cameraRecTimer = document.getElementById('cameraRecTimer');
-  const cameraPermissionOverlay = document.getElementById('cameraPermissionOverlay');
-  const cameraPermTitle = document.getElementById('cameraPermTitle');
-  const cameraPermMessage = document.getElementById('cameraPermMessage');
-  const btnCameraPermClose = document.getElementById('btnCameraPermClose');
-  const btnRetryCameraPermission = document.getElementById('btnRetryCameraPermission');
-  const btnNativeCameraFallback = document.getElementById('btnNativeCameraFallback');
-  const btnCameraPermCancel = document.getElementById('btnCameraPermCancel');
-  const cameraItemPreview = document.getElementById('cameraItemPreview');
-  const cameraItemPreviewImg = document.getElementById('cameraItemPreviewImg');
-  const cameraItemPreviewVideo = document.getElementById('cameraItemPreviewVideo');
-  const btnPreviewClose = document.getElementById('btnPreviewClose');
-  const btnPreviewRemove = document.getElementById('btnPreviewRemove');
-  const cameraCaptureTrayWrap = document.getElementById('cameraCaptureTrayWrap');
-  const cameraCaptureTray = document.getElementById('cameraCaptureTray');
-  const liveCamModeSwitch = document.getElementById('liveCamModeSwitch');
-  const btnCamModePhoto = document.getElementById('btnCamModePhoto');
-  const btnCamModeVideo = document.getElementById('btnCamModeVideo');
-  const btnCameraShutter = document.getElementById('btnCameraShutter');
-  const btnCameraRecord = document.getElementById('btnCameraRecord');
-  const btnCameraFlip = document.getElementById('btnCameraFlip');
-  const btnCameraClose = document.getElementById('btnCameraClose');
-  const btnUploadCapturedBatch = document.getElementById('btnUploadCapturedBatch');
-  const uploadBatchCount = document.getElementById('uploadBatchCount');
 
   const captureReviewModal = document.getElementById('captureReviewModal');
   const captureReviewTitle = document.getElementById('captureReviewTitle');
@@ -257,10 +209,9 @@
   // 1. PWA SERVICE WORKER, BLOQUEO HORIZONTAL EN MÓVIL Y TRANSICIONES
   // =====================================================================
   function isLandscapeAllowedContext() {
-    const camOpen = Boolean(liveCameraModal && liveCameraModal.classList.contains('is-open'));
     const lbOpen = Boolean(lightbox && lightbox.classList.contains('active'));
     const fsOpen = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
-    return camOpen || lbOpen || fsOpen;
+    return lbOpen || fsOpen;
   }
 
   function isPhoneInLandscape() {
@@ -893,9 +844,6 @@
       el.style.display = 'none';
     });
 
-    if (liveCameraModal && liveCameraModal.classList.contains('is-open')) {
-      closeLiveCamera();
-    }
     if (captureReviewModal && captureReviewModal.classList.contains('is-open')) {
       closeCaptureReview({ silent: true });
     }
@@ -979,10 +927,6 @@
     if (quotaSelectedFill) {
       quotaSelectedFill.style.left = `${pct}%`;
       quotaSelectedFill.style.width = `${selPct}%`;
-    }
-
-    if (liveCamQuotaChip) {
-      liveCamQuotaChip.textContent = `En espera: ${standbyItems.length}`;
     }
 
     applyUploadClosedUI();
@@ -1531,42 +1475,8 @@
   }
 
   // =====================================================================
-  // 8. CÁMARA EN VIVO MULTI-CAPTURA + CÁMARA NATIVA DEL TELÉFONO (MODO STANDBY)
+  // 8. CÁMARA NATIVA DEL TELÉFONO (MODO STANDBY)
   // =====================================================================
-  function isSecureCameraContext() {
-    if (typeof window.isSecureContext === 'boolean') {
-      return window.isSecureContext;
-    }
-    const proto = window.location.protocol;
-    const host = window.location.hostname;
-    return proto === 'https:' || host === 'localhost' || host === '127.0.0.1';
-  }
-
-  function canUseLiveCamera() {
-    return Boolean(
-      (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') ||
-      typeof navigator.getUserMedia === 'function' ||
-      typeof navigator.webkitGetUserMedia === 'function' ||
-      typeof navigator.mozGetUserMedia === 'function'
-    );
-  }
-
-  function requestCameraMediaStream(constraints) {
-    if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
-      return navigator.mediaDevices.getUserMedia(constraints);
-    }
-    const legacyGetUserMedia =
-      navigator.getUserMedia ||
-      navigator.webkitGetUserMedia ||
-      navigator.mozGetUserMedia;
-    if (typeof legacyGetUserMedia === 'function') {
-      return new Promise((resolve, reject) => {
-        legacyGetUserMedia.call(navigator, constraints, resolve, reject);
-      });
-    }
-    return Promise.reject(new Error('getUserMedia no disponible'));
-  }
-
   function openNativeCamera(mode = 'photo') {
     if (isUploadClosed()) {
       showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
@@ -1578,238 +1488,6 @@
     targetInput.value = '';
     targetInput.click();
     return true;
-  }
-
-  function stopCameraStream() {
-    cameraRequestId++;
-    stopRecording(false);
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => {
-        try { track.stop(); } catch (e) {}
-      });
-      cameraStream = null;
-    }
-    if (cameraVideo) {
-      cameraVideo.srcObject = null;
-      cameraVideo.classList.remove('is-mirrored');
-    }
-  }
-
-  function showCameraPermissionMessage(title, message, options = {}) {
-    const liveSupported = options.liveSupported !== undefined ? options.liveSupported : canUseLiveCamera();
-    if (cameraPermTitle) cameraPermTitle.textContent = title;
-    if (cameraPermMessage) cameraPermMessage.textContent = message;
-    if (btnRetryCameraPermission) {
-      btnRetryCameraPermission.disabled = false;
-      btnRetryCameraPermission.textContent = liveSupported
-        ? 'Permitir y Abrir Cámara'
-        : 'Abrir Cámara del Teléfono';
-    }
-    if (btnNativeCameraFallback) {
-      btnNativeCameraFallback.style.display = liveSupported ? 'inline-flex' : 'none';
-      btnNativeCameraFallback.textContent = currentCameraMode === 'video'
-        ? 'Abrir Cámara de Video del Teléfono'
-        : 'Abrir Cámara del Teléfono';
-    }
-    if (cameraPermissionOverlay) cameraPermissionOverlay.style.display = 'flex';
-  }
-
-  function hideCameraPermissionMessage() {
-    if (cameraPermissionOverlay) cameraPermissionOverlay.style.display = 'none';
-  }
-
-  async function startLiveCameraStream(facingMode = 'environment') {
-    stopCameraStream();
-    const reqId = ++cameraRequestId;
-    currentFacingMode = facingMode;
-    hideCameraPermissionMessage();
-
-    if (!canUseLiveCamera()) {
-      const needsHttpsHint = !isSecureCameraContext()
-        ? 'Para tomar varias fotos y videos seguidos sin salir de la cámara, el sitio debe abrirse con HTTPS. Por ahora puedes usar la cámara del teléfono.'
-        : 'Este navegador no soporta la cámara continua en vivo, pero puedes usar la cámara de tu teléfono con el botón de abajo.';
-      showCameraPermissionMessage(
-        'Usa la cámara de tu teléfono',
-        needsHttpsHint,
-        { liveSupported: false }
-      );
-      return false;
-    }
-
-    const isVideo = currentCameraMode === 'video';
-    const constraintAttempts = isVideo
-      ? [
-          {
-            video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: true
-          },
-          { video: { facingMode: { ideal: facingMode } }, audio: true },
-          { video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-          { video: true, audio: false }
-        ]
-      : [
-          {
-            video: { facingMode: { ideal: facingMode }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-            audio: false
-          },
-          { video: { facingMode: { ideal: facingMode } }, audio: false },
-          { video: true, audio: false }
-        ];
-
-    let stream = null;
-    let lastError = null;
-    let openedVideoWithoutAudio = false;
-
-    for (let i = 0; i < constraintAttempts.length; i++) {
-      const attempt = constraintAttempts[i];
-      try {
-        stream = await requestCameraMediaStream(attempt);
-        if (isVideo && attempt.audio === false) {
-          openedVideoWithoutAudio = true;
-        }
-        break;
-      } catch (err) {
-        lastError = err;
-      }
-    }
-
-    if (!stream) {
-      if (reqId !== cameraRequestId || !liveCameraModal || !liveCameraModal.classList.contains('is-open')) {
-        return false;
-      }
-      const errName = lastError && lastError.name ? lastError.name : '';
-      const isDenied = errName === 'NotAllowedError' || errName === 'PermissionDeniedError';
-      const isNotFound = errName === 'NotFoundError' || errName === 'DevicesNotFoundError';
-      if (isDenied) {
-        showCameraPermissionMessage(
-          'Permiso de cámara bloqueado',
-          'Tu navegador bloqueó el acceso a la cámara. Habilita el permiso en la barra de dirección para tomar varias fotos seguidas, o usa la cámara de tu teléfono.',
-          { liveSupported: true }
-        );
-      } else if (isNotFound) {
-        showCameraPermissionMessage(
-          'No se detectó cámara en vivo',
-          'No se encontró una cámara disponible desde el navegador. Puedes abrir la cámara de tu teléfono con el botón de abajo.',
-          { liveSupported: true }
-        );
-      } else {
-        showCameraPermissionMessage(
-          'No se pudo iniciar la cámara en vivo',
-          'Verifica que ninguna otra app esté usando la cámara, vuelve a intentarlo o abre directamente la cámara de tu teléfono.',
-          { liveSupported: true }
-        );
-      }
-      return false;
-    }
-
-    // Si el usuario cerró el modal o lanzó otra solicitud mientras esperaba permiso, liberar el stream
-    if (reqId !== cameraRequestId || !liveCameraModal || !liveCameraModal.classList.contains('is-open')) {
-      stream.getTracks().forEach((track) => {
-        try { track.stop(); } catch (e) {}
-      });
-      return false;
-    }
-
-    cameraStream = stream;
-
-    if (cameraVideo && cameraStream) {
-      cameraVideo.setAttribute('playsinline', '');
-      cameraVideo.setAttribute('webkit-playsinline', '');
-      cameraVideo.muted = true;
-      cameraVideo.srcObject = cameraStream;
-      cameraVideo.classList.toggle('is-mirrored', facingMode === 'user');
-      try {
-        await cameraVideo.play();
-      } catch (e) {}
-    }
-
-    if (openedVideoWithoutAudio) {
-      showToast('Micrófono no disponible: podrás grabar clips continuos sin audio.', 'info', 'Video sin audio');
-    }
-
-    return true;
-  }
-
-  function renderCaptureTray() {
-    if (!cameraCaptureTray || !cameraCaptureTrayWrap) return;
-    cameraCaptureTray.innerHTML = '';
-
-    const count = capturedQueue.length;
-    cameraCaptureTrayWrap.style.display = count > 0 ? 'block' : 'none';
-
-    if (btnUploadCapturedBatch) {
-      btnUploadCapturedBatch.style.display = count > 0 ? 'inline-flex' : 'none';
-    }
-    if (uploadBatchCount) {
-      uploadBatchCount.textContent = String(count);
-    }
-
-    if (liveCamHint) {
-      if (count > 0) {
-        liveCamHint.textContent = `${count} ${count === 1 ? 'captura' : 'capturas'} · Sigue o pulsa Listo`;
-      } else {
-        liveCamHint.textContent = currentCameraMode === 'video' ? 'Graba todos los clips que quieras (máx. 20s)' : 'Toma todas las fotos que quieras';
-      }
-    }
-
-    updateQuotaUI();
-
-    capturedQueue.forEach((entry) => {
-      const thumb = document.createElement('div');
-      thumb.className = 'cam-tray-thumb';
-
-      if (entry.type === 'video') {
-        thumb.innerHTML = `
-          <video src="${entry.previewUrl}" muted playsinline preload="metadata"></video>
-          <span class="cam-tray-vid-tag">VID</span>
-          <button type="button" class="cam-tray-remove" aria-label="Quitar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
-        `;
-      } else {
-        thumb.innerHTML = `
-          <img src="${entry.previewUrl}" alt="Captura" />
-          <button type="button" class="cam-tray-remove" aria-label="Quitar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
-        `;
-      }
-
-      thumb.addEventListener('click', (e) => {
-        if (e.target.closest('.cam-tray-remove')) {
-          e.stopPropagation();
-          removeCapturedItem(entry.id);
-          return;
-        }
-        openCapturedItemPreview(entry.id);
-      });
-
-      cameraCaptureTray.appendChild(thumb);
-    });
-
-    if (count > 0 && cameraCaptureTrayWrap) {
-      cameraCaptureTrayWrap.scrollLeft = cameraCaptureTrayWrap.scrollWidth;
-    }
-  }
-
-  function removeCapturedItem(id) {
-    const idx = capturedQueue.findIndex((x) => x.id === id);
-    if (idx !== -1) {
-      const entry = capturedQueue[idx];
-      try { URL.revokeObjectURL(entry.previewUrl); } catch (e) {}
-      capturedQueue.splice(idx, 1);
-      if (entry.draftId) {
-        sessionCaptureIds = sessionCaptureIds.filter((sid) => sid !== entry.draftId);
-        deleteStandbyItem(entry.draftId, { skipConfirm: true, silent: true });
-      }
-    }
-    if (previewingQueueId === id) closeCapturedItemPreview();
-    renderCaptureTray();
-  }
-
-  function clearCapturedQueue() {
-    capturedQueue.forEach((entry) => {
-      try { URL.revokeObjectURL(entry.previewUrl); } catch (e) {}
-    });
-    capturedQueue = [];
-    closeCapturedItemPreview();
-    renderCaptureTray();
   }
 
   function getSessionReviewItems() {
@@ -1824,144 +1502,6 @@
 
   function getSelectedSessionVideoCount() {
     return getSessionReviewItems().filter((x) => x.selected && x.type === 'video').length;
-  }
-
-  function rebuildCapturedQueueFromSession() {
-    clearCapturedQueue();
-    const items = getSessionReviewItems();
-    items.forEach((draft) => {
-      const previewSource = draft.previewBlob || draft.file;
-      capturedQueue.push({
-        id: `q_${draft.id}`,
-        draftId: draft.id,
-        file: draft.file,
-        type: draft.type,
-        previewUrl: previewSource ? URL.createObjectURL(previewSource) : ''
-      });
-    });
-    renderCaptureTray();
-  }
-
-  function openCapturedItemPreview(id) {
-    const entry = capturedQueue.find((x) => x.id === id);
-    if (!entry || !cameraItemPreview) return;
-    previewingQueueId = id;
-
-    if (entry.type === 'video') {
-      if (cameraItemPreviewImg) cameraItemPreviewImg.style.display = 'none';
-      if (cameraItemPreviewVideo) {
-        cameraItemPreviewVideo.src = entry.previewUrl;
-        cameraItemPreviewVideo.style.display = 'block';
-        cameraItemPreviewVideo.play().catch(() => {});
-      }
-    } else {
-      if (cameraItemPreviewVideo) {
-        cameraItemPreviewVideo.pause();
-        cameraItemPreviewVideo.style.display = 'none';
-      }
-      if (cameraItemPreviewImg) {
-        cameraItemPreviewImg.src = entry.previewUrl;
-        cameraItemPreviewImg.style.display = 'block';
-      }
-    }
-    cameraItemPreview.style.display = 'flex';
-  }
-
-  function closeCapturedItemPreview() {
-    previewingQueueId = null;
-    if (cameraItemPreview) cameraItemPreview.style.display = 'none';
-    if (cameraItemPreviewVideo) {
-      cameraItemPreviewVideo.pause();
-      cameraItemPreviewVideo.src = '';
-    }
-  }
-
-  function updateLiveCameraModeUI() {
-    const isVideo = currentCameraMode === 'video';
-    if (liveCamModeText) {
-      liveCamModeText.textContent = isVideo ? 'Cámara de Video' : 'Cámara de Fotos';
-    }
-    if (btnCameraShutter) btnCameraShutter.style.display = isVideo ? 'none' : 'grid';
-    if (btnCameraRecord) btnCameraRecord.style.display = isVideo ? 'grid' : 'none';
-    if (btnCamModePhoto) {
-      btnCamModePhoto.classList.toggle('is-active', !isVideo);
-      btnCamModePhoto.setAttribute('aria-selected', !isVideo ? 'true' : 'false');
-    }
-    if (btnCamModeVideo) {
-      btnCamModeVideo.classList.toggle('is-active', isVideo);
-      btnCamModeVideo.setAttribute('aria-selected', isVideo ? 'true' : 'false');
-    }
-    renderCaptureTray();
-  }
-
-  async function switchLiveCameraMode(nextMode) {
-    const targetMode = nextMode === 'video' ? 'video' : 'photo';
-    if (targetMode === currentCameraMode) return;
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      showToast('Detén la grabación actual antes de cambiar de modo.', 'info', 'Grabando');
-      return;
-    }
-    if (targetMode === 'video' && typeof MediaRecorder === 'undefined') {
-      showToast('Tu navegador no permite grabar video en vivo desde aquí.', 'warning', 'Video no compatible');
-      return;
-    }
-
-    currentCameraMode = targetMode;
-    sessionCaptureMode = targetMode;
-    updateLiveCameraModeUI();
-
-    // Si cambiamos a video y el stream actual no tiene pista de audio, reiniciar stream para incluir micrófono
-    if (targetMode === 'video') {
-      const hasAudioTrack = Boolean(cameraStream && cameraStream.getAudioTracks().length > 0);
-      if (!hasAudioTrack) {
-        await startLiveCameraStream(currentFacingMode);
-      }
-    }
-  }
-
-  async function openLiveCamera(mode, options = {}) {
-    if (!liveCameraModal) return;
-    if (isUploadClosed()) {
-      showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
-      applyUploadClosedUI();
-      return;
-    }
-
-    currentCameraMode = mode === 'video' ? 'video' : 'photo';
-    sessionCaptureMode = currentCameraMode;
-    sessionUsedNativeCamera = false;
-    pendingFinishAfterRecord = false;
-
-    if (options.preserveSession) {
-      rebuildCapturedQueueFromSession();
-    } else {
-      sessionCaptureIds = [];
-      clearCapturedQueue();
-    }
-
-    updateLiveCameraModeUI();
-
-    liveCameraModal.classList.add('is-open');
-    document.body.style.overflow = 'hidden';
-    updateLandscapeAllowance();
-
-    // Solicita el permiso y abre la cámara inmediatamente tras el clic del usuario
-    await startLiveCameraStream(currentFacingMode);
-  }
-
-  function closeLiveCamera(options = {}) {
-    pendingFinishAfterRecord = false;
-    stopCameraStream();
-    hideCameraPermissionMessage();
-    clearCapturedQueue();
-    if (!options.preserveSession) {
-      sessionCaptureIds = [];
-    }
-    if (liveCameraModal) liveCameraModal.classList.remove('is-open');
-    if (!options.keepBodyLocked) {
-      document.body.style.overflow = '';
-    }
-    updateLandscapeAllowance();
   }
 
   function reconcileSessionSelectionWithQuota() {
@@ -1981,19 +1521,6 @@
         if (item.type === 'video') keptVideos++;
       }
     });
-  }
-
-  async function finishCameraSessionToReview() {
-    if (pendingCaptureSaves.size > 0) {
-      await Promise.allSettled(Array.from(pendingCaptureSaves));
-    }
-    const items = getSessionReviewItems();
-    if (items.length === 0) {
-      closeLiveCamera();
-      return;
-    }
-    closeLiveCamera({ preserveSession: true, keepBodyLocked: true });
-    openCaptureReview();
   }
 
   function openCaptureReview() {
@@ -2246,293 +1773,7 @@
     });
   }
 
-  function snapLivePhoto() {
-    if (!cameraVideo || !cameraCanvas || !cameraStream) return;
-    if (isUploadClosed()) {
-      closeLiveCamera();
-      showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
-      return;
-    }
-    if (cameraVideo.readyState < 2 || !cameraVideo.videoWidth) {
-      showToast('Espera un instante a que cargue la imagen de la cámara.', 'info', 'Iniciando cámara');
-      return;
-    }
-
-    if (cameraFlash) {
-      cameraFlash.classList.add('flash-active');
-      setTimeout(() => cameraFlash.classList.remove('flash-active'), 140);
-    }
-    if (navigator.vibrate) {
-      try { navigator.vibrate(14); } catch (e) {}
-    }
-
-    const vw = cameraVideo.videoWidth || 1280;
-    const vh = cameraVideo.videoHeight || 720;
-    const maxDim = 1920;
-    let cw = vw;
-    let ch = vh;
-    if (cw > maxDim || ch > maxDim) {
-      const r = Math.min(maxDim / cw, maxDim / ch);
-      cw = Math.round(cw * r);
-      ch = Math.round(ch * r);
-    }
-
-    cameraCanvas.width = cw;
-    cameraCanvas.height = ch;
-    const ctx = cameraCanvas.getContext('2d');
-    ctx.save();
-    if (currentFacingMode === 'user') {
-      ctx.translate(cw, 0);
-      ctx.scale(-1, 1);
-    }
-    ctx.drawImage(cameraVideo, 0, 0, cw, ch);
-    ctx.restore();
-
-    cameraCanvas.toBlob((blob) => {
-      if (!blob) return;
-      const rawFile = new File([blob], `boda_foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
-      const queueEntry = {
-        id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        draftId: null,
-        file: rawFile,
-        type: 'image',
-        previewUrl: URL.createObjectURL(rawFile)
-      };
-      // Mostrar inmediatamente en el carrete para ráfaga continua sin pausas
-      capturedQueue.push(queueEntry);
-      renderCaptureTray();
-
-      const savePromise = addFilesToStandby([rawFile], { silent: true })
-        .then(({ addedItems }) => {
-          const savedDraft = addedItems[0] || null;
-          if (!savedDraft) return;
-          // Si el usuario quitó la miniatura antes de terminar el guardado, borrarla de inmediato
-          if (!capturedQueue.some((x) => x.id === queueEntry.id)) {
-            deleteStandbyItem(savedDraft.id, { skipConfirm: true, silent: true });
-            return;
-          }
-          queueEntry.draftId = savedDraft.id;
-          if (!sessionCaptureIds.includes(savedDraft.id)) {
-            sessionCaptureIds.push(savedDraft.id);
-          }
-        })
-        .catch(() => {})
-        .finally(() => {
-          pendingCaptureSaves.delete(savePromise);
-        });
-      pendingCaptureSaves.add(savePromise);
-    }, 'image/jpeg', 0.92);
-  }
-
-  function captureCurrentVideoPosterBlob() {
-    return new Promise((resolve) => {
-      if (!cameraVideo || !cameraCanvas || cameraVideo.readyState < 2 || !cameraVideo.videoWidth) {
-        resolve(null);
-        return;
-      }
-      const vw = cameraVideo.videoWidth || 640;
-      const vh = cameraVideo.videoHeight || 360;
-      const maxDim = 480;
-      const r = Math.min(1, maxDim / Math.max(vw, vh));
-      const cw = Math.max(1, Math.round(vw * r));
-      const ch = Math.max(1, Math.round(vh * r));
-      cameraCanvas.width = cw;
-      cameraCanvas.height = ch;
-      const ctx = cameraCanvas.getContext('2d');
-      ctx.save();
-      if (currentFacingMode === 'user') {
-        ctx.translate(cw, 0);
-        ctx.scale(-1, 1);
-      }
-      ctx.drawImage(cameraVideo, 0, 0, cw, ch);
-      ctx.restore();
-      cameraCanvas.toBlob((blob) => resolve(blob || null), 'image/jpeg', 0.82);
-    });
-  }
-
-  function startLiveRecording() {
-    if (!cameraStream) return;
-    if (isUploadClosed()) {
-      closeLiveCamera();
-      showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
-      return;
-    }
-
-    recordedChunks = [];
-    recordedApproxBytes = 0;
-    recordedPosterBlob = null;
-    captureCurrentVideoPosterBlob().then((b) => { recordedPosterBlob = b; }).catch(() => {});
-
-    const preferredMimes = [
-      'video/mp4;codecs=avc1',
-      'video/mp4',
-      'video/webm;codecs=vp8,opus',
-      'video/webm;codecs=vp9,opus',
-      'video/webm'
-    ];
-    let chosenMime = '';
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
-      chosenMime = preferredMimes.find((m) => MediaRecorder.isTypeSupported(m)) || '';
-    }
-
-    try {
-      const options = {
-        videoBitsPerSecond: 2500000,
-        audioBitsPerSecond: 96000
-      };
-      if (chosenMime) options.mimeType = chosenMime;
-
-      try {
-        mediaRecorder = new MediaRecorder(cameraStream, options);
-      } catch (mrErr1) {
-        try {
-          mediaRecorder = chosenMime
-            ? new MediaRecorder(cameraStream, { mimeType: chosenMime })
-            : new MediaRecorder(cameraStream);
-        } catch (mrErr2) {
-          mediaRecorder = new MediaRecorder(cameraStream);
-        }
-      }
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-          recordedChunks.push(e.data);
-          recordedApproxBytes += e.data.size;
-          // Detener automáticamente antes de llegar a 30 MB para garantizar subida exitosa
-          if (recordedApproxBytes >= 28 * 1024 * 1024 && mediaRecorder.state === 'recording') {
-            stopRecording(true);
-            showToast('Clip listo en el tamaño óptimo (máx. 30 MB).', 'success', 'Video listo');
-          }
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        clearInterval(recordTimerInterval);
-        if (cameraRecBadge) cameraRecBadge.style.display = 'none';
-        if (btnCameraRecord) btnCameraRecord.classList.remove('recording');
-        if (btnCamModePhoto) btnCamModePhoto.disabled = false;
-        if (btnCamModeVideo) btnCamModeVideo.disabled = false;
-
-        const blobType = (mediaRecorder && mediaRecorder.mimeType) || chosenMime || 'video/webm';
-        const blob = new Blob(recordedChunks, { type: blobType });
-        if (blob.size <= 0) {
-          if (pendingFinishAfterRecord) {
-            pendingFinishAfterRecord = false;
-            finishCameraSessionToReview();
-          }
-          return;
-        }
-
-        const ext = blobType.includes('mp4') ? 'mp4' : 'webm';
-        const file = new File([blob], `boda_video_${Date.now()}.${ext}`, { type: blobType.split(';')[0] });
-        file._recordedDuration = Math.max(1, Math.min(recordSeconds || 1, MAX_VIDEO_DURATION));
-        if (recordedPosterBlob) {
-          file._recordedThumbBlob = recordedPosterBlob;
-        }
-
-        const queueEntry = {
-          id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          draftId: null,
-          file,
-          type: 'video',
-          previewUrl: URL.createObjectURL(file)
-        };
-        capturedQueue.push(queueEntry);
-        renderCaptureTray();
-
-        const savePromise = addFilesToStandby([file], { silent: true })
-          .then(({ addedItems, errors }) => {
-            if (errors.length > 0) {
-              const idx = capturedQueue.findIndex((x) => x.id === queueEntry.id);
-              if (idx !== -1) {
-                try { URL.revokeObjectURL(capturedQueue[idx].previewUrl); } catch (e) {}
-                capturedQueue.splice(idx, 1);
-                renderCaptureTray();
-              }
-              showToast(errors[0], 'warning', 'Video no guardado');
-              return;
-            }
-            const savedDraft = addedItems[0] || null;
-            if (!savedDraft) return;
-            if (!capturedQueue.some((x) => x.id === queueEntry.id)) {
-              deleteStandbyItem(savedDraft.id, { skipConfirm: true, silent: true });
-              return;
-            }
-            queueEntry.draftId = savedDraft.id;
-            if (!sessionCaptureIds.includes(savedDraft.id)) {
-              sessionCaptureIds.push(savedDraft.id);
-            }
-          })
-          .catch(() => {})
-          .finally(() => {
-            pendingCaptureSaves.delete(savePromise);
-            if (pendingFinishAfterRecord) {
-              pendingFinishAfterRecord = false;
-              finishCameraSessionToReview();
-            }
-          });
-        pendingCaptureSaves.add(savePromise);
-      };
-
-      try {
-        mediaRecorder.start(1000);
-      } catch (startErr) {
-        mediaRecorder.start();
-      }
-      if (btnCameraRecord) btnCameraRecord.classList.add('recording');
-      if (cameraRecBadge) cameraRecBadge.style.display = 'flex';
-      if (btnCamModePhoto) btnCamModePhoto.disabled = true;
-      if (btnCamModeVideo) btnCamModeVideo.disabled = true;
-
-      recordSeconds = 0;
-      if (cameraRecTimer) cameraRecTimer.textContent = '00:00';
-      recordTimerInterval = setInterval(() => {
-        recordSeconds++;
-        const mins = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
-        const secs = String(recordSeconds % 60).padStart(2, '0');
-        if (cameraRecTimer) cameraRecTimer.textContent = `${mins}:${secs}`;
-        if (recordSeconds >= MAX_VIDEO_DURATION) {
-          stopRecording(true);
-        }
-      }, 1000);
-    } catch (err) {
-      showToast('Tu navegador no permite grabar video en vivo desde aquí.', 'error', 'Video no compatible');
-    }
-  }
-
-  function stopRecording(save = true) {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      if (!save) {
-        mediaRecorder.ondataavailable = null;
-        mediaRecorder.onstop = null;
-      }
-      try { mediaRecorder.stop(); } catch (e) {}
-    }
-    clearInterval(recordTimerInterval);
-    if (cameraRecBadge) cameraRecBadge.style.display = 'none';
-    if (btnCameraRecord) btnCameraRecord.classList.remove('recording');
-    if (btnCamModePhoto) btnCamModePhoto.disabled = false;
-    if (btnCamModeVideo) btnCamModeVideo.disabled = false;
-  }
-
-  function isPrivateOrLocalHost(host) {
-    if (!host) return true;
-    const h = String(host).toLowerCase();
-    if (h === 'localhost' || h === '127.0.0.1' || h === '::1' || h.endsWith('.local')) return true;
-    if (/^10\./.test(h) || /^192\.168\./.test(h)) return true;
-    if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
-    return false;
-  }
-
-  function tryUpgradePublicHttpToHttps() {
-    if (window.location.protocol === 'http:' && !isPrivateOrLocalHost(window.location.hostname)) {
-      window.location.replace('https://' + window.location.host + window.location.pathname + window.location.search + window.location.hash);
-      return true;
-    }
-    return false;
-  }
-
-  // Listeners de los 3 botones principales en /camara
+  // Listeners de los 3 botones principales en /camara (cámara nativa del teléfono y galería)
   if (btnLivePhotoCamera) {
     btnLivePhotoCamera.addEventListener('click', () => {
       if (isUploadClosed()) {
@@ -2540,17 +1781,9 @@
         applyUploadClosedUI();
         return;
       }
-      if (!canUseLiveCamera()) {
-        if (tryUpgradePublicHttpToHttps()) return;
-        sessionCaptureMode = 'photo';
-        sessionUsedNativeCamera = true;
-        if (!isSecureCameraContext()) {
-          showToast('Tu navegador bloquea la cámara continua en HTTP. Abre el sitio en HTTPS para tomar varias fotos seguidas.', 'info', 'Requiere HTTPS');
-        }
-        openNativeCamera('photo');
-        return;
-      }
-      openLiveCamera('photo');
+      sessionCaptureIds = [];
+      sessionCaptureMode = 'photo';
+      openNativeCamera('photo');
     });
   }
   if (btnLiveVideoCamera) {
@@ -2560,24 +1793,10 @@
         applyUploadClosedUI();
         return;
       }
-      if (!canUseLiveCamera() || typeof MediaRecorder === 'undefined') {
-        if (!canUseLiveCamera() && tryUpgradePublicHttpToHttps()) return;
-        sessionCaptureMode = 'video';
-        sessionUsedNativeCamera = true;
-        if (!isSecureCameraContext()) {
-          showToast('Tu navegador bloquea la cámara continua en HTTP. Abre el sitio en HTTPS para grabar varios videos seguidos.', 'info', 'Requiere HTTPS');
-        }
-        openNativeCamera('video');
-        return;
-      }
-      openLiveCamera('video');
+      sessionCaptureIds = [];
+      sessionCaptureMode = 'video';
+      openNativeCamera('video');
     });
-  }
-  if (btnCamModePhoto) {
-    btnCamModePhoto.addEventListener('click', () => switchLiveCameraMode('photo'));
-  }
-  if (btnCamModeVideo) {
-    btnCamModeVideo.addEventListener('click', () => switchLiveCameraMode('video'));
   }
 
   // Captura directa desde cámara nativa del teléfono (foto y video) -> guarda en caché de sesión y abre selección
@@ -2589,7 +1808,6 @@
       if (files.length === 0) return;
 
       sessionCaptureMode = nativeInput === inputNativeVideoCamera ? 'video' : 'photo';
-      sessionUsedNativeCamera = true;
       const { addedItems, errors } = await addFilesToStandby(files, { silent: true });
       if (errors.length > 0) {
         showToast(errors[0], 'warning', 'Algunos archivos no se agregaron');
@@ -2625,99 +1843,10 @@
     });
   }
 
-  // Controles internos del visor de cámara
-  if (btnCameraShutter) btnCameraShutter.addEventListener('click', snapLivePhoto);
-  if (btnCameraRecord) {
-    btnCameraRecord.addEventListener('click', () => {
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        stopRecording(true);
-      } else {
-        startLiveRecording();
-      }
-    });
-  }
-  if (btnCameraFlip) {
-    btnCameraFlip.addEventListener('click', () => {
-      const next = currentFacingMode === 'environment' ? 'user' : 'environment';
-      startLiveCameraStream(next);
-    });
-  }
-  if (btnCameraClose) {
-    btnCameraClose.addEventListener('click', () => {
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        stopRecording(false);
-      }
-      if (capturedQueue.length > 0 || pendingCaptureSaves.size > 0 || getSessionReviewItems().length > 0) {
-        finishCameraSessionToReview();
-      } else {
-        closeLiveCamera();
-      }
-    });
-  }
-  if (btnCameraPermClose) btnCameraPermClose.addEventListener('click', closeLiveCamera);
-  if (btnCameraPermCancel) btnCameraPermCancel.addEventListener('click', closeLiveCamera);
-  if (cameraPermissionOverlay) {
-    cameraPermissionOverlay.addEventListener('click', (e) => {
-      if (e.target === cameraPermissionOverlay) closeLiveCamera();
-    });
-  }
-  if (btnNativeCameraFallback) {
-    btnNativeCameraFallback.addEventListener('click', () => {
-      const mode = currentCameraMode;
-      closeLiveCamera({ preserveSession: true });
-      sessionUsedNativeCamera = true;
-      openNativeCamera(mode);
-    });
-  }
-  if (btnRetryCameraPermission) {
-    btnRetryCameraPermission.addEventListener('click', async () => {
-      if (!canUseLiveCamera()) {
-        const mode = currentCameraMode;
-        closeLiveCamera({ preserveSession: true });
-        sessionUsedNativeCamera = true;
-        openNativeCamera(mode);
-        return;
-      }
-      btnRetryCameraPermission.disabled = true;
-      btnRetryCameraPermission.textContent = 'Abriendo cámara...';
-      const ok = await startLiveCameraStream(currentFacingMode);
-      if (!ok) {
-        btnRetryCameraPermission.disabled = false;
-        btnRetryCameraPermission.textContent = 'Permitir y Abrir Cámara';
-        showToast('Si el navegador bloquea la cámara, toca "Abrir Cámara del Teléfono".', 'info', 'Cámara alternativa');
-      }
-    });
-  }
-  if (btnPreviewClose) btnPreviewClose.addEventListener('click', closeCapturedItemPreview);
-  if (btnPreviewRemove) {
-    btnPreviewRemove.addEventListener('click', () => {
-      if (previewingQueueId) removeCapturedItem(previewingQueueId);
-    });
-  }
-  if (btnUploadCapturedBatch) {
-    btnUploadCapturedBatch.addEventListener('click', () => {
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        pendingFinishAfterRecord = true;
-        stopRecording(true);
-        return;
-      }
-      finishCameraSessionToReview();
-    });
-  }
-
   // Controles del modal de selección post-captura
   function reopenCameraFromReview() {
-    closeCaptureReview({ silent: true, clearSession: false, keepBodyLocked: true });
-    if (
-      sessionUsedNativeCamera ||
-      !canUseLiveCamera() ||
-      (sessionCaptureMode === 'video' && typeof MediaRecorder === 'undefined')
-    ) {
-      document.body.style.overflow = '';
-      openNativeCamera(sessionCaptureMode);
-      return;
-    }
-    openLiveCamera(sessionCaptureMode, { preserveSession: true });
+    closeCaptureReview({ silent: true, clearSession: false, keepBodyLocked: false });
+    openNativeCamera(sessionCaptureMode);
   }
 
   if (btnReviewCancelTop) {
@@ -4713,7 +3842,9 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      closeLiveCamera();
+      if (captureReviewModal && captureReviewModal.classList.contains('is-open')) {
+        closeCaptureReview();
+      }
       closeLightbox();
       closeMobileDrawer();
       closeGuestModal();

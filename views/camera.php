@@ -45,26 +45,26 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
 
       <!-- LAS 3 OPCIONES PRINCIPALES DE CAPTURA (GUARDAN EN ESPERA EN CACHÉ LOCAL) -->
       <div class="camera-options-grid" id="cameraOptionsGrid" style="<?= $uploadsClosed ? 'display:none;' : '' ?>">
-        <!-- Opción 1: Tomar Fotos (Abre cámara directamente) -->
+        <!-- Opción 1: Tomar Fotos (Abre cámara nativa del teléfono) -->
         <button type="button" class="camera-option-card option-photo" id="btnLivePhotoCamera"<?= $uploadsClosed ? ' disabled' : '' ?>>
           <div class="option-icon-wrap">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
           </div>
           <div class="option-body">
-            <h3>Tomar Fotos</h3>
-            <p>Toma varias fotos y elige cuáles publicar.</p>
+            <h3>Tomar Foto</h3>
+            <p>Usa la cámara de tu teléfono y elige cuáles publicar.</p>
           </div>
-          <span class="option-pill">Multi-foto</span>
+          <span class="option-pill">Cámara</span>
         </button>
 
-        <!-- Opción 2: Tomar Video (Abre cámara de video directamente) -->
+        <!-- Opción 2: Tomar Video (Abre cámara nativa de video del teléfono) -->
         <button type="button" class="camera-option-card option-video" id="btnLiveVideoCamera"<?= $uploadsClosed ? ' disabled' : '' ?>>
           <div class="option-icon-wrap">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
           </div>
           <div class="option-body">
             <h3>Tomar Video</h3>
-            <p>Graba varios clips (máx. 20 s) y elige cuáles publicar.</p>
+            <p>Graba con la cámara de tu teléfono (máx. 20 s) y elige cuáles publicar.</p>
           </div>
           <span class="option-pill">Hasta 20s</span>
         </button>
@@ -180,115 +180,6 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
     </section>
   </main>
 
-  <!-- VISOR DE CÁMARA EN VIVO FULLSCREEN (SIN OPCIÓN DE SUBIR ARCHIVOS) -->
-  <div class="live-camera-modal" id="liveCameraModal" role="dialog" aria-modal="true" aria-label="Cámara de la boda">
-    <!-- Barra Superior de la Cámara -->
-    <div class="live-cam-topbar">
-      <div class="live-cam-mode-pill" id="liveCamModePill">
-        <span class="camera-live-dot"></span>
-        <span id="liveCamModeText">Cámara de Fotos</span>
-      </div>
-
-      <div class="live-cam-top-right">
-        <span class="live-cam-quota-chip" id="liveCamQuotaChip">En espera: 0</span>
-        <button type="button" class="live-cam-icon-btn" id="btnCameraFlip" title="Cambiar cámara (Frontal / Trasera)" aria-label="Cambiar cámara">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M20 10c0-4.418-3.582-8-8-8s-8 3.582-8 8c0 1.954.703 3.743 1.87 5.13L4 17h6v-6L8.43 12.57C7.54 11.66 7 10.4 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.4-.54 2.66-1.43 3.57L14 11v6h6l-1.87-1.87C19.297 13.743 20 11.954 20 10z"></path></svg>
-        </button>
-        <button type="button" class="live-cam-icon-btn" id="btnCameraClose" title="Cerrar cámara" aria-label="Cerrar cámara">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- Visor en Vivo -->
-    <div class="live-cam-viewport">
-      <video id="cameraVideo" playsinline webkit-playsinline autoplay muted></video>
-      <canvas id="cameraCanvas" style="display:none;"></canvas>
-      <div class="camera-flash" id="cameraFlash"></div>
-
-      <!-- Indicador REC (Modo Video) -->
-      <div class="camera-rec-badge" id="cameraRecBadge" style="display:none;">
-        <span class="rec-dot"></span>
-        <span id="cameraRecTimer">00:00</span>
-        <span class="rec-limit-label">/ 00:20</span>
-      </div>
-
-      <!-- Estado de Permiso / Solicitud de Cámara -->
-      <div class="live-cam-permission" id="cameraPermissionOverlay" style="display:none;">
-        <div class="live-cam-perm-card">
-          <button type="button" class="live-cam-perm-close" id="btnCameraPermClose" title="Cerrar" aria-label="Cerrar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
-          <div class="live-cam-perm-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-          </div>
-          <h3 id="cameraPermTitle">Permiso de Cámara Necesario</h3>
-          <p id="cameraPermMessage">
-            Autoriza el acceso a la cámara (y micrófono para video) en tu teléfono para capturar tus recuerdos directamente.
-          </p>
-          <div class="live-cam-perm-actions">
-            <button type="button" class="btn btn-primary" id="btnRetryCameraPermission">
-              Permitir y Abrir Cámara
-            </button>
-            <button type="button" class="btn btn-outline-light" id="btnNativeCameraFallback">
-              Abrir Cámara del Teléfono
-            </button>
-            <button type="button" class="live-cam-perm-dismiss" id="btnCameraPermCancel">
-              Cerrar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Vista Previa Rápida de un Elemento de la Cola -->
-      <div class="live-cam-item-preview" id="cameraItemPreview" style="display:none;">
-        <img id="cameraItemPreviewImg" src="" alt="Vista previa" style="display:none;" />
-        <video id="cameraItemPreviewVideo" playsinline controls style="display:none;"></video>
-        <div class="live-cam-preview-actions">
-          <button type="button" class="btn btn-outline" id="btnPreviewClose">Seguir capturando</button>
-          <button type="button" class="btn btn-danger-soft" id="btnPreviewRemove">Eliminar este</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Panel Inferior: Cola Multi-Captura + Disparador + Ver Carrete -->
-    <div class="live-cam-bottom">
-      <!-- Carrete de Capturas Múltiples de la Sesión -->
-      <div class="live-cam-tray-wrap" id="cameraCaptureTrayWrap" style="display:none;">
-        <div class="live-cam-tray" id="cameraCaptureTray"></div>
-      </div>
-
-      <!-- Selector rápido Foto / Video sin cerrar la cámara -->
-      <div class="live-cam-mode-switch" id="liveCamModeSwitch" role="tablist" aria-label="Cambiar entre foto y video">
-        <button type="button" class="live-cam-mode-tab is-active" id="btnCamModePhoto" data-cam-mode="photo" role="tab" aria-selected="true">Foto</button>
-        <button type="button" class="live-cam-mode-tab" id="btnCamModeVideo" data-cam-mode="video" role="tab" aria-selected="false">Video</button>
-      </div>
-
-      <div class="live-cam-controls-row">
-        <div class="live-cam-left-slot">
-          <span class="live-cam-hint" id="liveCamHint">Toca para capturar</span>
-        </div>
-
-        <!-- Botón Disparador Foto / Grabar Video -->
-        <div class="live-cam-center-slot">
-          <button type="button" class="camera-shutter-btn" id="btnCameraShutter" aria-label="Tomar foto">
-            <span class="shutter-inner"></span>
-          </button>
-
-          <button type="button" class="camera-record-btn" id="btnCameraRecord" style="display:none;" aria-label="Grabar o detener video">
-            <span class="record-inner"></span>
-          </button>
-        </div>
-
-        <!-- Botón Terminar y Elegir Mejores -->
-        <div class="live-cam-right-slot">
-          <button type="button" class="live-cam-upload-btn" id="btnUploadCapturedBatch" style="display:none;">
-            <span>Listo</span>
-            <span class="upload-batch-badge" id="uploadBatchCount">0</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- MODAL DE SELECCIÓN POST-CAPTURA (ELEGIR QUÉ PUBLICAR O GUARDAR EN TEMPORALES) -->
   <div class="capture-review-modal" id="captureReviewModal" role="dialog" aria-modal="true" aria-labelledby="captureReviewTitle">
     <div class="capture-review-shell">
@@ -340,6 +231,6 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
   <script src="/assets/js/vendor/browser-image-compression.js?v=2.0.2"></script>
-  <script src="/assets/js/app.js?v=42"></script>
+  <script src="/assets/js/app.js?v=45"></script>
 </body>
 </html>
