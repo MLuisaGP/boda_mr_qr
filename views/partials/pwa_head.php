@@ -8,7 +8,11 @@ $pageDesc = $pageDesc ?? 'Celebra con nosotros la boda de Michelle y René. Comp
 $themeColor = $themeColor ?? '#4A5842';
 ?>
   <meta charset="UTF-8">
+<?php if (($activePage ?? '') === 'home'): ?>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<?php else: ?>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<?php endif; ?>
   <title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?></title>
   <meta name="description" content="<?= htmlspecialchars($pageDesc, ENT_QUOTES, 'UTF-8') ?>">
   <meta name="theme-color" content="<?= htmlspecialchars($themeColor, ENT_QUOTES, 'UTF-8') ?>">
@@ -37,7 +41,8 @@ $guestbookFontsUrl = 'https://fonts.googleapis.com/css2?family=Ballet&family=Lav
   <link rel="preload" as="style" href="<?= $coreFontsUrl ?>" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="<?= $coreFontsUrl ?>"></noscript>
 <?php if (($activePage ?? '') === 'guestbook'): ?>
+  <link rel="preload" as="image" href="/assets/img/l-m&amp;r.svg?v=2">
   <link rel="preload" as="style" href="<?= $guestbookFontsUrl ?>" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="<?= $guestbookFontsUrl ?>"></noscript>
 <?php endif; ?>
-  <link rel="stylesheet" href="/assets/css/app.css?v=58">
+  <link rel="stylesheet" href="/assets/css/app.css?v=70">

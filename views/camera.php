@@ -17,6 +17,8 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
       data-uploads-closed="<?= $uploadsClosed ? '1' : '0' ?>"
       data-upload-deadline="<?= htmlspecialchars($uploadDeadlineIso, ENT_QUOTES, 'UTF-8') ?>">
 
+<?php require __DIR__ . '/partials/preloader.php'; ?>
+
 <?php require __DIR__ . '/partials/navbar.php'; ?>
 
   <main class="camera-hub-main">
@@ -231,6 +233,6 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
   <script src="/assets/js/vendor/browser-image-compression.js?v=2.0.2"></script>
-  <script src="/assets/js/app.js?v=45"></script>
+  <script src="/assets/js/app.js?v=56"></script>
 </body>
 </html>

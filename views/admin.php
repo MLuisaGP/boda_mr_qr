@@ -154,7 +154,7 @@
       <div class="admin-actions-bar no-print">
         <div class="actions-left">
           <label for="qrUrlInput">Enlace que abrir&#225; el QR</label>
-          <input type="url" id="qrUrlInput" class="admin-url-input" inputmode="url" aria-describedby="qrUrlHelp" required><span id="qrUrlHelp" class="admin-section-note" role="status">Revisa el enlace antes de imprimir.</span>
+          <input type="url" id="qrUrlInput" class="admin-url-input" value="<?= htmlspecialchars((string) ($qrUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-qr-url="<?= htmlspecialchars((string) ($qrUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>" readonly aria-readonly="true" aria-describedby="qrUrlHelp"><span id="qrUrlHelp" class="admin-section-note" role="status">Enlace configurado desde <code>.env</code> (solo lectura).</span>
         </div>
         <div class="actions-right">
           <button id="btnPrintCard" type="button" class="admin-btn admin-btn-gold" disabled>
