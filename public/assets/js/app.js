@@ -65,11 +65,19 @@
   let recordedApproxBytes = 0;
   let recordTimerInterval = null;
   let recordSeconds = 0;
-  let capturedQueue = []; // [{ id, file, type: 'image'|'video', previewUrl }]
+  let capturedQueue = []; // [{ id, draftId, file, type: 'image'|'video', previewUrl }]
   let previewingQueueId = null;
+  let sessionCaptureIds = []; // IDs en standbyItems capturados durante la sesión actual de cámara/video
+  let sessionCaptureMode = 'photo'; // 'photo' | 'video'
+  let sessionUsedNativeCamera = false;
+  let pendingFinishAfterRecord = false;
+  let recordedPosterBlob = null;
+  const pendingCaptureSaves = new Set();
 
   // Acciones pendientes tras identificar invitado
   let pendingFilesBatch = null;
+  let pendingReviewPublishIds = null;
+  let pendingGalleryPublishFiles = null;
   let deferredInstallPrompt = null;
 
   // Referencias DOM
@@ -132,12 +140,32 @@
   const btnPreviewRemove = document.getElementById('btnPreviewRemove');
   const cameraCaptureTrayWrap = document.getElementById('cameraCaptureTrayWrap');
   const cameraCaptureTray = document.getElementById('cameraCaptureTray');
+  const liveCamModeSwitch = document.getElementById('liveCamModeSwitch');
+  const btnCamModePhoto = document.getElementById('btnCamModePhoto');
+  const btnCamModeVideo = document.getElementById('btnCamModeVideo');
   const btnCameraShutter = document.getElementById('btnCameraShutter');
   const btnCameraRecord = document.getElementById('btnCameraRecord');
   const btnCameraFlip = document.getElementById('btnCameraFlip');
   const btnCameraClose = document.getElementById('btnCameraClose');
   const btnUploadCapturedBatch = document.getElementById('btnUploadCapturedBatch');
   const uploadBatchCount = document.getElementById('uploadBatchCount');
+
+  const captureReviewModal = document.getElementById('captureReviewModal');
+  const captureReviewTitle = document.getElementById('captureReviewTitle');
+  const captureReviewSubtitle = document.getElementById('captureReviewSubtitle');
+  const captureReviewToolbar = document.getElementById('captureReviewToolbar');
+  const captureReviewCountText = document.getElementById('captureReviewCountText');
+  const captureReviewGrid = document.getElementById('captureReviewGrid');
+  const captureReviewEmpty = document.getElementById('captureReviewEmpty');
+  const btnReviewCancelTop = document.getElementById('btnReviewCancelTop');
+  const btnReviewSelectAll = document.getElementById('btnReviewSelectAll');
+  const btnReviewDeselectAll = document.getElementById('btnReviewDeselectAll');
+  const btnReviewEmptyRetake = document.getElementById('btnReviewEmptyRetake');
+  const btnReviewCaptureMore = document.getElementById('btnReviewCaptureMore');
+  const btnReviewCaptureMoreLabel = document.getElementById('btnReviewCaptureMoreLabel');
+  const btnReviewSaveLater = document.getElementById('btnReviewSaveLater');
+  const btnReviewPublishNow = document.getElementById('btnReviewPublishNow');
+  const btnReviewPublishLabel = document.getElementById('btnReviewPublishLabel');
 
   const uploadProgress = document.getElementById('uploadProgress');
   const progressBarFill = document.getElementById('progressBarFill');
@@ -854,6 +882,9 @@
     if (liveCameraModal && liveCameraModal.classList.contains('is-open')) {
       closeLiveCamera();
     }
+    if (captureReviewModal && captureReviewModal.classList.contains('is-open')) {
+      closeCaptureReview({ silent: true });
+    }
   }
 
   function syncUploadDeadlineFromApi(data) {
@@ -1040,7 +1071,21 @@
     if (standbyGrid) renderStandbyGrid();
 
     // Ejecutar publicación pendiente si el usuario se identificó al pulsar Publicar
-    if (pendingPublishStandby) {
+    if (pendingReviewPublishIds && pendingReviewPublishIds.length > 0) {
+      const ids = pendingReviewPublishIds.slice();
+      pendingReviewPublishIds = null;
+      const itemsToPublish = ids
+        .map((id) => standbyItems.find((x) => x.id === id))
+        .filter(Boolean);
+      closeCaptureReview({ silent: true, clearSession: true });
+      if (itemsToPublish.length > 0) {
+        publishStandbyItems(itemsToPublish, { skipConfirm: true });
+      }
+    } else if (pendingGalleryPublishFiles && pendingGalleryPublishFiles.length > 0) {
+      const files = pendingGalleryPublishFiles;
+      pendingGalleryPublishFiles = null;
+      publishDirectFiles(files);
+    } else if (pendingPublishStandby) {
       pendingPublishStandby = false;
       publishSelectedStandby();
     } else if (pendingFilesBatch && pendingFilesBatch.length > 0) {
@@ -1442,7 +1487,22 @@
       throw new Error(`El video pesa ${mb} MB y el máximo permitido es de 30 MB.`);
     }
 
-    const { duration, thumbFile } = await extractVideoMetadataAndThumb(file);
+    let duration;
+    let thumbFile;
+    try {
+      const extracted = await extractVideoMetadataAndThumb(file);
+      duration = extracted.duration;
+      thumbFile = extracted.thumbFile;
+    } catch (err) {
+      if (file._recordedThumbBlob && typeof file._recordedDuration === 'number' && file._recordedDuration > 0) {
+        duration = Math.min(file._recordedDuration, MAX_VIDEO_DURATION);
+        thumbFile = file._recordedThumbBlob instanceof File
+          ? file._recordedThumbBlob
+          : new File([file._recordedThumbBlob], `thumb_${Date.now()}.jpg`, { type: file._recordedThumbBlob.type || 'image/jpeg' });
+      } else {
+        throw err;
+      }
+    }
     const mimeType = normalizeVideoMime(file);
 
     return {
@@ -1470,10 +1530,27 @@
 
   function canUseLiveCamera() {
     return Boolean(
-      isSecureCameraContext() &&
-      navigator.mediaDevices &&
-      typeof navigator.mediaDevices.getUserMedia === 'function'
+      (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') ||
+      typeof navigator.getUserMedia === 'function' ||
+      typeof navigator.webkitGetUserMedia === 'function' ||
+      typeof navigator.mozGetUserMedia === 'function'
     );
+  }
+
+  function requestCameraMediaStream(constraints) {
+    if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+      return navigator.mediaDevices.getUserMedia(constraints);
+    }
+    const legacyGetUserMedia =
+      navigator.getUserMedia ||
+      navigator.webkitGetUserMedia ||
+      navigator.mozGetUserMedia;
+    if (typeof legacyGetUserMedia === 'function') {
+      return new Promise((resolve, reject) => {
+        legacyGetUserMedia.call(navigator, constraints, resolve, reject);
+      });
+    }
+    return Promise.reject(new Error('getUserMedia no disponible'));
   }
 
   function openNativeCamera(mode = 'photo') {
@@ -1534,62 +1611,81 @@
     hideCameraPermissionMessage();
 
     if (!canUseLiveCamera()) {
+      const needsHttpsHint = !isSecureCameraContext()
+        ? 'Para tomar varias fotos y videos seguidos sin salir de la cámara, el sitio debe abrirse con HTTPS. Por ahora puedes usar la cámara del teléfono.'
+        : 'Este navegador no soporta la cámara continua en vivo, pero puedes usar la cámara de tu teléfono con el botón de abajo.';
       showCameraPermissionMessage(
         'Usa la cámara de tu teléfono',
-        'Esta conexión no permite el visor web en vivo, pero puedes abrir la cámara de tu teléfono directamente con el botón de abajo.',
+        needsHttpsHint,
         { liveSupported: false }
       );
       return false;
     }
 
     const isVideo = currentCameraMode === 'video';
-    const primaryConstraints = {
-      video: {
-        facingMode: { ideal: facingMode },
-        width: { ideal: isVideo ? 1280 : 1920 },
-        height: { ideal: isVideo ? 720 : 1080 }
-      },
-      audio: isVideo
-    };
+    const constraintAttempts = isVideo
+      ? [
+          {
+            video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: true
+          },
+          { video: { facingMode: { ideal: facingMode } }, audio: true },
+          { video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: true, audio: false }
+        ]
+      : [
+          {
+            video: { facingMode: { ideal: facingMode }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+            audio: false
+          },
+          { video: { facingMode: { ideal: facingMode } }, audio: false },
+          { video: true, audio: false }
+        ];
 
     let stream = null;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia(primaryConstraints);
-    } catch (err) {
-      // Segundo intento con restricciones básicas
+    let lastError = null;
+    let openedVideoWithoutAudio = false;
+
+    for (let i = 0; i < constraintAttempts.length; i++) {
+      const attempt = constraintAttempts[i];
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: isVideo
-        });
-      } catch (err2) {
-        if (reqId !== cameraRequestId || !liveCameraModal || !liveCameraModal.classList.contains('is-open')) {
-          return false;
+        stream = await requestCameraMediaStream(attempt);
+        if (isVideo && attempt.audio === false) {
+          openedVideoWithoutAudio = true;
         }
-        const errName = err2 && err2.name ? err2.name : '';
-        const isDenied = errName === 'NotAllowedError' || errName === 'PermissionDeniedError';
-        const isNotFound = errName === 'NotFoundError' || errName === 'DevicesNotFoundError';
-        if (isDenied) {
-          showCameraPermissionMessage(
-            'Permiso de cámara bloqueado',
-            'Tu navegador bloqueó el acceso a la cámara. Habilita el permiso en la barra de dirección o usa directamente la cámara de tu teléfono.',
-            { liveSupported: true }
-          );
-        } else if (isNotFound) {
-          showCameraPermissionMessage(
-            'No se detectó cámara en vivo',
-            'No se encontró una cámara disponible desde el navegador. Puedes abrir la cámara de tu teléfono con el botón de abajo.',
-            { liveSupported: true }
-          );
-        } else {
-          showCameraPermissionMessage(
-            'No se pudo iniciar la cámara en vivo',
-            'Verifica que ninguna otra app esté usando la cámara, vuelve a intentarlo o abre directamente la cámara de tu teléfono.',
-            { liveSupported: true }
-          );
-        }
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (!stream) {
+      if (reqId !== cameraRequestId || !liveCameraModal || !liveCameraModal.classList.contains('is-open')) {
         return false;
       }
+      const errName = lastError && lastError.name ? lastError.name : '';
+      const isDenied = errName === 'NotAllowedError' || errName === 'PermissionDeniedError';
+      const isNotFound = errName === 'NotFoundError' || errName === 'DevicesNotFoundError';
+      if (isDenied) {
+        showCameraPermissionMessage(
+          'Permiso de cámara bloqueado',
+          'Tu navegador bloqueó el acceso a la cámara. Habilita el permiso en la barra de dirección para tomar varias fotos seguidas, o usa la cámara de tu teléfono.',
+          { liveSupported: true }
+        );
+      } else if (isNotFound) {
+        showCameraPermissionMessage(
+          'No se detectó cámara en vivo',
+          'No se encontró una cámara disponible desde el navegador. Puedes abrir la cámara de tu teléfono con el botón de abajo.',
+          { liveSupported: true }
+        );
+      } else {
+        showCameraPermissionMessage(
+          'No se pudo iniciar la cámara en vivo',
+          'Verifica que ninguna otra app esté usando la cámara, vuelve a intentarlo o abre directamente la cámara de tu teléfono.',
+          { liveSupported: true }
+        );
+      }
+      return false;
     }
 
     // Si el usuario cerró el modal o lanzó otra solicitud mientras esperaba permiso, liberar el stream
@@ -1603,6 +1699,8 @@
     cameraStream = stream;
 
     if (cameraVideo && cameraStream) {
+      cameraVideo.setAttribute('playsinline', '');
+      cameraVideo.setAttribute('webkit-playsinline', '');
       cameraVideo.muted = true;
       cameraVideo.srcObject = cameraStream;
       cameraVideo.classList.toggle('is-mirrored', facingMode === 'user');
@@ -1610,6 +1708,11 @@
         await cameraVideo.play();
       } catch (e) {}
     }
+
+    if (openedVideoWithoutAudio) {
+      showToast('Micrófono no disponible: podrás grabar clips continuos sin audio.', 'info', 'Video sin audio');
+    }
+
     return true;
   }
 
@@ -1629,7 +1732,7 @@
 
     if (liveCamHint) {
       if (count > 0) {
-        liveCamHint.textContent = `${count} ${count === 1 ? 'guardado' : 'guardados'} en espera · Sigue o pulsa Elegir`;
+        liveCamHint.textContent = `${count} ${count === 1 ? 'captura' : 'capturas'} · Sigue o pulsa Listo`;
       } else {
         liveCamHint.textContent = currentCameraMode === 'video' ? 'Graba todos los clips que quieras (máx. 20s)' : 'Toma todas las fotos que quieras';
       }
@@ -1665,6 +1768,10 @@
 
       cameraCaptureTray.appendChild(thumb);
     });
+
+    if (count > 0 && cameraCaptureTrayWrap) {
+      cameraCaptureTrayWrap.scrollLeft = cameraCaptureTrayWrap.scrollWidth;
+    }
   }
 
   function removeCapturedItem(id) {
@@ -1674,6 +1781,7 @@
       try { URL.revokeObjectURL(entry.previewUrl); } catch (e) {}
       capturedQueue.splice(idx, 1);
       if (entry.draftId) {
+        sessionCaptureIds = sessionCaptureIds.filter((sid) => sid !== entry.draftId);
         deleteStandbyItem(entry.draftId, { skipConfirm: true, silent: true });
       }
     }
@@ -1687,6 +1795,36 @@
     });
     capturedQueue = [];
     closeCapturedItemPreview();
+    renderCaptureTray();
+  }
+
+  function getSessionReviewItems() {
+    return sessionCaptureIds
+      .map((id) => standbyItems.find((x) => x.id === id))
+      .filter(Boolean);
+  }
+
+  function getSelectedSessionItems() {
+    return getSessionReviewItems().filter((x) => x.selected);
+  }
+
+  function getSelectedSessionVideoCount() {
+    return getSessionReviewItems().filter((x) => x.selected && x.type === 'video').length;
+  }
+
+  function rebuildCapturedQueueFromSession() {
+    clearCapturedQueue();
+    const items = getSessionReviewItems();
+    items.forEach((draft) => {
+      const previewSource = draft.previewBlob || draft.file;
+      capturedQueue.push({
+        id: `q_${draft.id}`,
+        draftId: draft.id,
+        file: draft.file,
+        type: draft.type,
+        previewUrl: previewSource ? URL.createObjectURL(previewSource) : ''
+      });
+    });
     renderCaptureTray();
   }
 
@@ -1724,7 +1862,50 @@
     }
   }
 
-  async function openLiveCamera(mode) {
+  function updateLiveCameraModeUI() {
+    const isVideo = currentCameraMode === 'video';
+    if (liveCamModeText) {
+      liveCamModeText.textContent = isVideo ? 'Cámara de Video' : 'Cámara de Fotos';
+    }
+    if (btnCameraShutter) btnCameraShutter.style.display = isVideo ? 'none' : 'grid';
+    if (btnCameraRecord) btnCameraRecord.style.display = isVideo ? 'grid' : 'none';
+    if (btnCamModePhoto) {
+      btnCamModePhoto.classList.toggle('is-active', !isVideo);
+      btnCamModePhoto.setAttribute('aria-selected', !isVideo ? 'true' : 'false');
+    }
+    if (btnCamModeVideo) {
+      btnCamModeVideo.classList.toggle('is-active', isVideo);
+      btnCamModeVideo.setAttribute('aria-selected', isVideo ? 'true' : 'false');
+    }
+    renderCaptureTray();
+  }
+
+  async function switchLiveCameraMode(nextMode) {
+    const targetMode = nextMode === 'video' ? 'video' : 'photo';
+    if (targetMode === currentCameraMode) return;
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      showToast('Detén la grabación actual antes de cambiar de modo.', 'info', 'Grabando');
+      return;
+    }
+    if (targetMode === 'video' && typeof MediaRecorder === 'undefined') {
+      showToast('Tu navegador no permite grabar video en vivo desde aquí.', 'warning', 'Video no compatible');
+      return;
+    }
+
+    currentCameraMode = targetMode;
+    sessionCaptureMode = targetMode;
+    updateLiveCameraModeUI();
+
+    // Si cambiamos a video y el stream actual no tiene pista de audio, reiniciar stream para incluir micrófono
+    if (targetMode === 'video') {
+      const hasAudioTrack = Boolean(cameraStream && cameraStream.getAudioTracks().length > 0);
+      if (!hasAudioTrack) {
+        await startLiveCameraStream(currentFacingMode);
+      }
+    }
+  }
+
+  async function openLiveCamera(mode, options = {}) {
     if (!liveCameraModal) return;
     if (isUploadClosed()) {
       showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
@@ -1733,30 +1914,322 @@
     }
 
     currentCameraMode = mode === 'video' ? 'video' : 'photo';
-    clearCapturedQueue();
+    sessionCaptureMode = currentCameraMode;
+    sessionUsedNativeCamera = false;
+    pendingFinishAfterRecord = false;
 
-    if (liveCamModeText) {
-      liveCamModeText.textContent = currentCameraMode === 'video' ? 'Cámara de Video' : 'Cámara de Fotos';
+    if (options.preserveSession) {
+      rebuildCapturedQueueFromSession();
+    } else {
+      sessionCaptureIds = [];
+      clearCapturedQueue();
     }
-    if (btnCameraShutter) btnCameraShutter.style.display = currentCameraMode === 'photo' ? 'grid' : 'none';
-    if (btnCameraRecord) btnCameraRecord.style.display = currentCameraMode === 'video' ? 'grid' : 'none';
+
+    updateLiveCameraModeUI();
 
     liveCameraModal.classList.add('is-open');
     document.body.style.overflow = 'hidden';
     updateLandscapeAllowance();
-    renderCaptureTray();
 
     // Solicita el permiso y abre la cámara inmediatamente tras el clic del usuario
     await startLiveCameraStream(currentFacingMode);
   }
 
-  function closeLiveCamera() {
+  function closeLiveCamera(options = {}) {
+    pendingFinishAfterRecord = false;
     stopCameraStream();
     hideCameraPermissionMessage();
     clearCapturedQueue();
+    if (!options.preserveSession) {
+      sessionCaptureIds = [];
+    }
     if (liveCameraModal) liveCameraModal.classList.remove('is-open');
-    document.body.style.overflow = '';
+    if (!options.keepBodyLocked) {
+      document.body.style.overflow = '';
+    }
     updateLandscapeAllowance();
+  }
+
+  function reconcileSessionSelectionWithQuota() {
+    const remainingTotal = getRemainingPublishSlots();
+    const remainingVideos = getRemainingVideoPublishSlots();
+    let keptTotal = 0;
+    let keptVideos = 0;
+    const items = getSessionReviewItems();
+
+    items.forEach((item) => {
+      if (!item.selected) return;
+      if (keptTotal >= remainingTotal || (item.type === 'video' && keptVideos >= remainingVideos)) {
+        item.selected = false;
+        persistStandbyItem(item).catch(() => {});
+      } else {
+        keptTotal++;
+        if (item.type === 'video') keptVideos++;
+      }
+    });
+  }
+
+  async function finishCameraSessionToReview() {
+    if (pendingCaptureSaves.size > 0) {
+      await Promise.allSettled(Array.from(pendingCaptureSaves));
+    }
+    const items = getSessionReviewItems();
+    if (items.length === 0) {
+      closeLiveCamera();
+      return;
+    }
+    closeLiveCamera({ preserveSession: true, keepBodyLocked: true });
+    openCaptureReview();
+  }
+
+  function openCaptureReview() {
+    if (!captureReviewModal) return;
+    reconcileSessionSelectionWithQuota();
+    captureReviewModal.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    renderCaptureReview();
+  }
+
+  function closeCaptureReview(options = {}) {
+    if (!captureReviewModal) return;
+    const remainingItems = getSessionReviewItems();
+    const remainingCount = remainingItems.length;
+
+    captureReviewModal.classList.remove('is-open');
+    if (!options.keepBodyLocked) {
+      document.body.style.overflow = '';
+    }
+
+    if (options.clearSession !== false) {
+      sessionCaptureIds = [];
+    }
+
+    updateQuotaUI();
+    renderStandbyGrid();
+
+    if (!options.silent && remainingCount > 0) {
+      showToast(
+        remainingCount === 1
+          ? 'Tu captura quedó guardada en Galería Temporal para cuando quieras publicarla.'
+          : `Tus ${remainingCount} capturas quedaron guardadas en Galería Temporal para cuando quieras publicarlas.`,
+        'info',
+        'Guardado en temporales'
+      );
+    }
+  }
+
+  function toggleSessionItemSelection(id) {
+    const item = standbyItems.find((x) => x.id === id);
+    if (!item || isPublishingStandby) return false;
+
+    if (item.selected) {
+      item.selected = false;
+      persistStandbyItem(item).catch(() => {});
+      updateQuotaUI();
+      renderStandbyGrid();
+      renderCaptureReview();
+      return true;
+    }
+
+    const remainingTotal = getRemainingPublishSlots();
+    const remainingVideos = getRemainingVideoPublishSlots();
+    const selectedTotal = getSelectedSessionItems().length;
+    const selectedVideos = getSelectedSessionVideoCount();
+
+    if (remainingTotal <= 0) {
+      showToast(
+        `Ya tienes ${getMaxItems()} recuerdos publicados. Elimina alguno en "Mis Recuerdos Publicados" si deseas subir nuevos.`,
+        'warning',
+        'Cupo publicado lleno'
+      );
+      return false;
+    }
+
+    if (selectedTotal >= remainingTotal) {
+      showToast(
+        `Solo puedes publicar hasta ${remainingTotal} ${remainingTotal === 1 ? 'recuerdo' : 'recuerdos'} más (máximo ${getMaxItems()} en total). Desmarca alguno para elegir este.`,
+        'warning',
+        'Límite de selección'
+      );
+      return false;
+    }
+
+    if (item.type === 'video') {
+      if (remainingVideos <= 0) {
+        showToast(
+          `Ya tienes el máximo de ${getMaxVideos()} videos publicados. ¡Aún puedes publicar fotos!`,
+          'warning',
+          'Límite de videos'
+        );
+        return false;
+      }
+      if (selectedVideos >= remainingVideos) {
+        showToast(
+          `Solo puedes elegir hasta ${remainingVideos} ${remainingVideos === 1 ? 'video' : 'videos'} (máximo ${getMaxVideos()} en total). Desmarca otro video para elegir este.`,
+          'warning',
+          'Límite de videos'
+        );
+        return false;
+      }
+    }
+
+    item.selected = true;
+    persistStandbyItem(item).catch(() => {});
+    updateQuotaUI();
+    renderStandbyGrid();
+    renderCaptureReview();
+    return true;
+  }
+
+  function selectAllSessionItems() {
+    if (isPublishingStandby) return;
+    const items = getSessionReviewItems();
+    const remainingTotal = getRemainingPublishSlots();
+    const remainingVideos = getRemainingVideoPublishSlots();
+    if (remainingTotal <= 0) {
+      showToast(`Ya tienes ${getMaxItems()} recuerdos publicados.`, 'warning', 'Cupo lleno');
+      return;
+    }
+
+    let selTotal = getSelectedSessionItems().length;
+    let selVideos = getSelectedSessionVideoCount();
+
+    items.forEach((item) => {
+      if (item.selected) return;
+      if (selTotal >= remainingTotal) return;
+      if (item.type === 'video' && selVideos >= remainingVideos) return;
+      item.selected = true;
+      selTotal++;
+      if (item.type === 'video') selVideos++;
+      persistStandbyItem(item).catch(() => {});
+    });
+
+    updateQuotaUI();
+    renderStandbyGrid();
+    renderCaptureReview();
+  }
+
+  function deselectAllSessionItems() {
+    if (isPublishingStandby) return;
+    getSessionReviewItems().forEach((item) => {
+      if (item.selected) {
+        item.selected = false;
+        persistStandbyItem(item).catch(() => {});
+      }
+    });
+    updateQuotaUI();
+    renderStandbyGrid();
+    renderCaptureReview();
+  }
+
+  function renderCaptureReview() {
+    if (!captureReviewModal || !captureReviewGrid) return;
+    const items = getSessionReviewItems();
+    const selectedItems = items.filter((x) => x.selected);
+    const selectedCount = selectedItems.length;
+    const remainingTotal = getRemainingPublishSlots();
+    const remainingVideos = getRemainingVideoPublishSlots();
+    const photoCount = items.filter((x) => x.type !== 'video').length;
+    const videoCount = items.filter((x) => x.type === 'video').length;
+    const hasMixed = photoCount > 0 && videoCount > 0;
+    const isVideoOnly = videoCount > 0 && photoCount === 0;
+
+    if (captureReviewTitle) {
+      captureReviewTitle.textContent = hasMixed
+        ? 'Elige qué recuerdos publicar'
+        : (isVideoOnly ? 'Elige qué videos publicar' : 'Elige qué fotos publicar');
+    }
+    if (captureReviewSubtitle) {
+      if (remainingTotal <= 0) {
+        captureReviewSubtitle.textContent = `Cupo lleno (${getMaxItems()}/${getMaxItems()} publicados)`;
+      } else {
+        const showVidQuota = videoCount > 0 || sessionCaptureMode === 'video';
+        captureReviewSubtitle.textContent = `${selectedCount} ${selectedCount === 1 ? 'seleccionado' : 'seleccionados'} · Te quedan ${remainingTotal} espacios${showVidQuota ? ` (${remainingVideos} videos)` : ''}`;
+      }
+    }
+    if (captureReviewCountText) {
+      if (hasMixed) {
+        captureReviewCountText.textContent = `${photoCount} ${photoCount === 1 ? 'foto' : 'fotos'} · ${videoCount} ${videoCount === 1 ? 'video' : 'videos'} en caché`;
+      } else {
+        const noun = isVideoOnly ? (items.length === 1 ? 'video' : 'videos') : (items.length === 1 ? 'foto' : 'fotos');
+        captureReviewCountText.textContent = `${items.length} ${noun} en caché`;
+      }
+    }
+    if (btnReviewCaptureMoreLabel) {
+      btnReviewCaptureMoreLabel.textContent = hasMixed
+        ? 'Seguir capturando'
+        : (sessionCaptureMode === 'video' ? 'Grabar más videos' : 'Tomar más fotos');
+    }
+    if (btnReviewPublishNow) {
+      btnReviewPublishNow.disabled = isPublishingStandby || selectedCount === 0 || isUploadClosed();
+    }
+    if (btnReviewPublishLabel) {
+      btnReviewPublishLabel.textContent = selectedCount > 0
+        ? `Publicar ahora (${selectedCount})`
+        : 'Selecciona al menos uno para publicar';
+    }
+
+    captureReviewGrid.innerHTML = '';
+
+    if (items.length === 0) {
+      if (captureReviewToolbar) captureReviewToolbar.style.display = 'none';
+      if (captureReviewEmpty) captureReviewEmpty.style.display = 'flex';
+      return;
+    }
+
+    if (captureReviewToolbar) captureReviewToolbar.style.display = 'flex';
+    if (captureReviewEmpty) captureReviewEmpty.style.display = 'none';
+
+    items.forEach((item, index) => {
+      const tile = document.createElement('div');
+      const isSelected = Boolean(item.selected);
+      const isVideo = item.type === 'video';
+      const durLabel = isVideo && item.duration ? ` · ${Math.round(item.duration)}s` : '';
+
+      tile.className = `standby-tile${isSelected ? ' is-selected' : ''}`;
+      tile.setAttribute('role', 'button');
+      tile.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+
+      tile.innerHTML = `
+        ${item.thumbUrl
+          ? `<img src="${escapeHtml(item.thumbUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async" />`
+          : `<video muted playsinline preload="metadata"></video>`
+        }
+        <span class="standby-select-badge" aria-hidden="true">${isSelected ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>' : ''}</span>
+        <button type="button" class="standby-delete-btn" title="Eliminar del caché" aria-label="Eliminar del caché">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+        ${isVideo ? `<span class="standby-vid-pill">VID${escapeHtml(durLabel)}</span>` : ''}
+        <button type="button" class="standby-preview-btn" title="Ver en pantalla completa" aria-label="Ver en pantalla completa">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        </button>
+      `;
+
+      if (!item.thumbUrl && isVideo) {
+        const vEl = tile.querySelector('video');
+        if (vEl) {
+          if (!item.fullUrl) item.fullUrl = URL.createObjectURL(item.file);
+          vEl.src = item.fullUrl;
+        }
+      }
+
+      tile.addEventListener('click', (e) => {
+        if (e.target.closest('.standby-delete-btn')) {
+          e.stopPropagation();
+          deleteStandbyItem(item.id, { skipConfirm: true, silent: true });
+          showToast('Eliminada del caché.', 'info', 'Eliminada');
+          return;
+        }
+        if (e.target.closest('.standby-preview-btn')) {
+          e.stopPropagation();
+          openLightboxAtIndex(index, items, 'standby');
+          return;
+        }
+        toggleSessionItemSelection(item.id);
+      });
+
+      captureReviewGrid.appendChild(tile);
+    });
   }
 
   function snapLivePhoto() {
@@ -1774,6 +2247,9 @@
     if (cameraFlash) {
       cameraFlash.classList.add('flash-active');
       setTimeout(() => cameraFlash.classList.remove('flash-active'), 140);
+    }
+    if (navigator.vibrate) {
+      try { navigator.vibrate(14); } catch (e) {}
     }
 
     const vw = cameraVideo.videoWidth || 1280;
@@ -1798,20 +2274,66 @@
     ctx.drawImage(cameraVideo, 0, 0, cw, ch);
     ctx.restore();
 
-    cameraCanvas.toBlob(async (blob) => {
+    cameraCanvas.toBlob((blob) => {
       if (!blob) return;
       const rawFile = new File([blob], `boda_foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
-      const { addedItems } = await addFilesToStandby([rawFile], { silent: true });
-      const savedDraft = addedItems[0] || null;
-      capturedQueue.push({
+      const queueEntry = {
         id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        draftId: savedDraft ? savedDraft.id : null,
+        draftId: null,
         file: rawFile,
         type: 'image',
         previewUrl: URL.createObjectURL(rawFile)
-      });
+      };
+      // Mostrar inmediatamente en el carrete para ráfaga continua sin pausas
+      capturedQueue.push(queueEntry);
       renderCaptureTray();
+
+      const savePromise = addFilesToStandby([rawFile], { silent: true })
+        .then(({ addedItems }) => {
+          const savedDraft = addedItems[0] || null;
+          if (!savedDraft) return;
+          // Si el usuario quitó la miniatura antes de terminar el guardado, borrarla de inmediato
+          if (!capturedQueue.some((x) => x.id === queueEntry.id)) {
+            deleteStandbyItem(savedDraft.id, { skipConfirm: true, silent: true });
+            return;
+          }
+          queueEntry.draftId = savedDraft.id;
+          if (!sessionCaptureIds.includes(savedDraft.id)) {
+            sessionCaptureIds.push(savedDraft.id);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          pendingCaptureSaves.delete(savePromise);
+        });
+      pendingCaptureSaves.add(savePromise);
     }, 'image/jpeg', 0.92);
+  }
+
+  function captureCurrentVideoPosterBlob() {
+    return new Promise((resolve) => {
+      if (!cameraVideo || !cameraCanvas || cameraVideo.readyState < 2 || !cameraVideo.videoWidth) {
+        resolve(null);
+        return;
+      }
+      const vw = cameraVideo.videoWidth || 640;
+      const vh = cameraVideo.videoHeight || 360;
+      const maxDim = 480;
+      const r = Math.min(1, maxDim / Math.max(vw, vh));
+      const cw = Math.max(1, Math.round(vw * r));
+      const ch = Math.max(1, Math.round(vh * r));
+      cameraCanvas.width = cw;
+      cameraCanvas.height = ch;
+      const ctx = cameraCanvas.getContext('2d');
+      ctx.save();
+      if (currentFacingMode === 'user') {
+        ctx.translate(cw, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(cameraVideo, 0, 0, cw, ch);
+      ctx.restore();
+      cameraCanvas.toBlob((blob) => resolve(blob || null), 'image/jpeg', 0.82);
+    });
   }
 
   function startLiveRecording() {
@@ -1824,6 +2346,8 @@
 
     recordedChunks = [];
     recordedApproxBytes = 0;
+    recordedPosterBlob = null;
+    captureCurrentVideoPosterBlob().then((b) => { recordedPosterBlob = b; }).catch(() => {});
 
     const preferredMimes = [
       'video/mp4;codecs=avc1',
@@ -1844,7 +2368,17 @@
       };
       if (chosenMime) options.mimeType = chosenMime;
 
-      mediaRecorder = new MediaRecorder(cameraStream, options);
+      try {
+        mediaRecorder = new MediaRecorder(cameraStream, options);
+      } catch (mrErr1) {
+        try {
+          mediaRecorder = chosenMime
+            ? new MediaRecorder(cameraStream, { mimeType: chosenMime })
+            : new MediaRecorder(cameraStream);
+        } catch (mrErr2) {
+          mediaRecorder = new MediaRecorder(cameraStream);
+        }
+      }
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
@@ -1858,37 +2392,83 @@
         }
       };
 
-      mediaRecorder.onstop = async () => {
+      mediaRecorder.onstop = () => {
         clearInterval(recordTimerInterval);
         if (cameraRecBadge) cameraRecBadge.style.display = 'none';
         if (btnCameraRecord) btnCameraRecord.classList.remove('recording');
+        if (btnCamModePhoto) btnCamModePhoto.disabled = false;
+        if (btnCamModeVideo) btnCamModeVideo.disabled = false;
 
         const blobType = (mediaRecorder && mediaRecorder.mimeType) || chosenMime || 'video/webm';
         const blob = new Blob(recordedChunks, { type: blobType });
-        if (blob.size <= 0) return;
+        if (blob.size <= 0) {
+          if (pendingFinishAfterRecord) {
+            pendingFinishAfterRecord = false;
+            finishCameraSessionToReview();
+          }
+          return;
+        }
 
         const ext = blobType.includes('mp4') ? 'mp4' : 'webm';
         const file = new File([blob], `boda_video_${Date.now()}.${ext}`, { type: blobType.split(';')[0] });
         file._recordedDuration = Math.max(1, Math.min(recordSeconds || 1, MAX_VIDEO_DURATION));
-        const { addedItems, errors } = await addFilesToStandby([file], { silent: true });
-        if (errors.length > 0) {
-          showToast(errors[0], 'warning', 'Video no guardado');
-          return;
+        if (recordedPosterBlob) {
+          file._recordedThumbBlob = recordedPosterBlob;
         }
-        const savedDraft = addedItems[0] || null;
-        capturedQueue.push({
+
+        const queueEntry = {
           id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          draftId: savedDraft ? savedDraft.id : null,
+          draftId: null,
           file,
           type: 'video',
           previewUrl: URL.createObjectURL(file)
-        });
+        };
+        capturedQueue.push(queueEntry);
         renderCaptureTray();
+
+        const savePromise = addFilesToStandby([file], { silent: true })
+          .then(({ addedItems, errors }) => {
+            if (errors.length > 0) {
+              const idx = capturedQueue.findIndex((x) => x.id === queueEntry.id);
+              if (idx !== -1) {
+                try { URL.revokeObjectURL(capturedQueue[idx].previewUrl); } catch (e) {}
+                capturedQueue.splice(idx, 1);
+                renderCaptureTray();
+              }
+              showToast(errors[0], 'warning', 'Video no guardado');
+              return;
+            }
+            const savedDraft = addedItems[0] || null;
+            if (!savedDraft) return;
+            if (!capturedQueue.some((x) => x.id === queueEntry.id)) {
+              deleteStandbyItem(savedDraft.id, { skipConfirm: true, silent: true });
+              return;
+            }
+            queueEntry.draftId = savedDraft.id;
+            if (!sessionCaptureIds.includes(savedDraft.id)) {
+              sessionCaptureIds.push(savedDraft.id);
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            pendingCaptureSaves.delete(savePromise);
+            if (pendingFinishAfterRecord) {
+              pendingFinishAfterRecord = false;
+              finishCameraSessionToReview();
+            }
+          });
+        pendingCaptureSaves.add(savePromise);
       };
 
-      mediaRecorder.start(400);
+      try {
+        mediaRecorder.start(1000);
+      } catch (startErr) {
+        mediaRecorder.start();
+      }
       if (btnCameraRecord) btnCameraRecord.classList.add('recording');
       if (cameraRecBadge) cameraRecBadge.style.display = 'flex';
+      if (btnCamModePhoto) btnCamModePhoto.disabled = true;
+      if (btnCamModeVideo) btnCamModeVideo.disabled = true;
 
       recordSeconds = 0;
       if (cameraRecTimer) cameraRecTimer.textContent = '00:00';
@@ -1917,6 +2497,25 @@
     clearInterval(recordTimerInterval);
     if (cameraRecBadge) cameraRecBadge.style.display = 'none';
     if (btnCameraRecord) btnCameraRecord.classList.remove('recording');
+    if (btnCamModePhoto) btnCamModePhoto.disabled = false;
+    if (btnCamModeVideo) btnCamModeVideo.disabled = false;
+  }
+
+  function isPrivateOrLocalHost(host) {
+    if (!host) return true;
+    const h = String(host).toLowerCase();
+    if (h === 'localhost' || h === '127.0.0.1' || h === '::1' || h.endsWith('.local')) return true;
+    if (/^10\./.test(h) || /^192\.168\./.test(h)) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+    return false;
+  }
+
+  function tryUpgradePublicHttpToHttps() {
+    if (window.location.protocol === 'http:' && !isPrivateOrLocalHost(window.location.hostname)) {
+      window.location.replace('https://' + window.location.host + window.location.pathname + window.location.search + window.location.hash);
+      return true;
+    }
+    return false;
   }
 
   // Listeners de los 3 botones principales en /camara
@@ -1927,11 +2526,14 @@
         applyUploadClosedUI();
         return;
       }
-      // Si la conexión no soporta cámara web en vivo (ej. HTTP en teléfono), abrir cámara nativa al instante
       if (!canUseLiveCamera()) {
-        if (!openNativeCamera('photo')) {
-          openLiveCamera('photo');
+        if (tryUpgradePublicHttpToHttps()) return;
+        sessionCaptureMode = 'photo';
+        sessionUsedNativeCamera = true;
+        if (!isSecureCameraContext()) {
+          showToast('Tu navegador bloquea la cámara continua en HTTP. Abre el sitio en HTTPS para tomar varias fotos seguidas.', 'info', 'Requiere HTTPS');
         }
+        openNativeCamera('photo');
         return;
       }
       openLiveCamera('photo');
@@ -1945,23 +2547,46 @@
         return;
       }
       if (!canUseLiveCamera() || typeof MediaRecorder === 'undefined') {
-        if (!openNativeCamera('video')) {
-          openLiveCamera('video');
+        if (!canUseLiveCamera() && tryUpgradePublicHttpToHttps()) return;
+        sessionCaptureMode = 'video';
+        sessionUsedNativeCamera = true;
+        if (!isSecureCameraContext()) {
+          showToast('Tu navegador bloquea la cámara continua en HTTP. Abre el sitio en HTTPS para grabar varios videos seguidos.', 'info', 'Requiere HTTPS');
         }
+        openNativeCamera('video');
         return;
       }
       openLiveCamera('video');
     });
   }
+  if (btnCamModePhoto) {
+    btnCamModePhoto.addEventListener('click', () => switchLiveCameraMode('photo'));
+  }
+  if (btnCamModeVideo) {
+    btnCamModeVideo.addEventListener('click', () => switchLiveCameraMode('video'));
+  }
 
-  // Captura directa desde cámara nativa del teléfono (foto y video) -> guarda en espera (caché local)
+  // Captura directa desde cámara nativa del teléfono (foto y video) -> guarda en caché de sesión y abre selección
   [inputNativePhotoCamera, inputNativeVideoCamera].forEach((nativeInput) => {
     if (!nativeInput) return;
-    nativeInput.addEventListener('change', () => {
+    nativeInput.addEventListener('change', async () => {
       const files = Array.from(nativeInput.files || []);
       nativeInput.value = '';
-      if (files.length > 0) {
-        addFilesToStandby(files, { scrollToStandby: true });
+      if (files.length === 0) return;
+
+      sessionCaptureMode = nativeInput === inputNativeVideoCamera ? 'video' : 'photo';
+      sessionUsedNativeCamera = true;
+      const { addedItems, errors } = await addFilesToStandby(files, { silent: true });
+      if (errors.length > 0) {
+        showToast(errors[0], 'warning', 'Algunos archivos no se agregaron');
+      }
+      addedItems.forEach((item) => {
+        if (!sessionCaptureIds.includes(item.id)) {
+          sessionCaptureIds.push(item.id);
+        }
+      });
+      if (sessionCaptureIds.length > 0) {
+        openCaptureReview();
       }
     });
   });
@@ -1976,11 +2601,12 @@
       inputUploadDevice.click();
     });
 
+    // Subir desde galería del teléfono -> publicación directa sin caché temporal
     inputUploadDevice.addEventListener('change', () => {
       const files = Array.from(inputUploadDevice.files || []);
       inputUploadDevice.value = '';
       if (files.length > 0) {
-        addFilesToStandby(files, { scrollToStandby: true });
+        publishDirectFiles(files);
       }
     });
   }
@@ -2002,7 +2628,18 @@
       startLiveCameraStream(next);
     });
   }
-  if (btnCameraClose) btnCameraClose.addEventListener('click', closeLiveCamera);
+  if (btnCameraClose) {
+    btnCameraClose.addEventListener('click', () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording(false);
+      }
+      if (capturedQueue.length > 0 || pendingCaptureSaves.size > 0 || getSessionReviewItems().length > 0) {
+        finishCameraSessionToReview();
+      } else {
+        closeLiveCamera();
+      }
+    });
+  }
   if (btnCameraPermClose) btnCameraPermClose.addEventListener('click', closeLiveCamera);
   if (btnCameraPermCancel) btnCameraPermCancel.addEventListener('click', closeLiveCamera);
   if (cameraPermissionOverlay) {
@@ -2013,7 +2650,8 @@
   if (btnNativeCameraFallback) {
     btnNativeCameraFallback.addEventListener('click', () => {
       const mode = currentCameraMode;
-      closeLiveCamera();
+      closeLiveCamera({ preserveSession: true });
+      sessionUsedNativeCamera = true;
       openNativeCamera(mode);
     });
   }
@@ -2021,7 +2659,8 @@
     btnRetryCameraPermission.addEventListener('click', async () => {
       if (!canUseLiveCamera()) {
         const mode = currentCameraMode;
-        closeLiveCamera();
+        closeLiveCamera({ preserveSession: true });
+        sessionUsedNativeCamera = true;
         openNativeCamera(mode);
         return;
       }
@@ -2043,20 +2682,73 @@
   }
   if (btnUploadCapturedBatch) {
     btnUploadCapturedBatch.addEventListener('click', () => {
-      const count = capturedQueue.length;
-      closeLiveCamera();
-      if (count > 0) {
-        showToast(
-          count === 1
-            ? 'Tu captura está en espera. Selecciónala y pulsa Publicar cuando estés listo.'
-            : `${count} capturas guardadas en espera. Elige tus mejores y pulsa Publicar.`,
-          'info',
-          'Guardado en espera'
-        );
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        pendingFinishAfterRecord = true;
+        stopRecording(true);
+        return;
       }
-      if (standbySection) {
-        standbySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      finishCameraSessionToReview();
+    });
+  }
+
+  // Controles del modal de selección post-captura
+  function reopenCameraFromReview() {
+    closeCaptureReview({ silent: true, clearSession: false, keepBodyLocked: true });
+    if (
+      sessionUsedNativeCamera ||
+      !canUseLiveCamera() ||
+      (sessionCaptureMode === 'video' && typeof MediaRecorder === 'undefined')
+    ) {
+      document.body.style.overflow = '';
+      openNativeCamera(sessionCaptureMode);
+      return;
+    }
+    openLiveCamera(sessionCaptureMode, { preserveSession: true });
+  }
+
+  if (btnReviewCancelTop) {
+    btnReviewCancelTop.addEventListener('click', () => closeCaptureReview());
+  }
+  if (btnReviewSaveLater) {
+    btnReviewSaveLater.addEventListener('click', () => closeCaptureReview());
+  }
+  if (btnReviewCaptureMore) {
+    btnReviewCaptureMore.addEventListener('click', reopenCameraFromReview);
+  }
+  if (btnReviewEmptyRetake) {
+    btnReviewEmptyRetake.addEventListener('click', reopenCameraFromReview);
+  }
+  if (btnReviewSelectAll) {
+    btnReviewSelectAll.addEventListener('click', selectAllSessionItems);
+  }
+  if (btnReviewDeselectAll) {
+    btnReviewDeselectAll.addEventListener('click', deselectAllSessionItems);
+  }
+  if (btnReviewPublishNow) {
+    btnReviewPublishNow.addEventListener('click', () => {
+      if (isPublishingStandby) return;
+      if (isUploadClosed()) {
+        showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
+        applyUploadClosedUI();
+        return;
       }
+
+      reconcileSessionSelectionWithQuota();
+      const selected = getSelectedSessionItems();
+      if (selected.length === 0) {
+        showToast('Selecciona al menos una foto o video para publicar.', 'warning', 'Nada seleccionado');
+        return;
+      }
+
+      if (!currentGuest) {
+        pendingReviewPublishIds = selected.map((x) => x.id);
+        promptGuestName(true);
+        showToast('Escribe tu nombre para publicar tus recuerdos al instante.', 'info', 'Identifícate');
+        return;
+      }
+
+      closeCaptureReview({ silent: true, clearSession: true });
+      publishStandbyItems(selected, { skipConfirm: true });
     });
   }
 
@@ -2327,13 +3019,18 @@
           errors.push(`"${f.name || 'Video'}" pesa ${mb} MB y el máximo permitido es de 30 MB.`);
           continue;
         }
-        try {
-          const meta = await extractVideoMetadataAndThumb(f);
-          duration = meta.duration;
-          previewBlob = meta.thumbFile;
-        } catch (vidErr) {
-          errors.push((vidErr && vidErr.message) || 'No se pudo validar el video seleccionado.');
-          continue;
+        if (f._recordedThumbBlob && typeof f._recordedDuration === 'number' && f._recordedDuration > 0) {
+          duration = Math.min(f._recordedDuration, MAX_VIDEO_DURATION);
+          previewBlob = f._recordedThumbBlob;
+        } else {
+          try {
+            const meta = await extractVideoMetadataAndThumb(f);
+            duration = meta.duration;
+            previewBlob = meta.thumbFile;
+          } catch (vidErr) {
+            errors.push((vidErr && vidErr.message) || 'No se pudo validar el video seleccionado.');
+            continue;
+          }
         }
       } else {
         previewBlob = await createLightImagePreviewBlob(f);
@@ -2402,6 +3099,9 @@
       persistStandbyItem(item).catch(() => {});
       updateQuotaUI();
       renderStandbyGrid();
+      if (captureReviewModal && captureReviewModal.classList.contains('is-open')) {
+        renderCaptureReview();
+      }
       return true;
     }
 
@@ -2451,6 +3151,9 @@
     persistStandbyItem(item).catch(() => {});
     updateQuotaUI();
     renderStandbyGrid();
+    if (captureReviewModal && captureReviewModal.classList.contains('is-open')) {
+      renderCaptureReview();
+    }
     return true;
   }
 
@@ -2470,11 +3173,15 @@
     }
 
     const [removed] = standbyItems.splice(idx, 1);
+    sessionCaptureIds = sessionCaptureIds.filter((sid) => sid !== id);
     revokeStandbyItemUrls(removed);
     await removeStandbyRecordFromDB(id);
 
     updateQuotaUI();
     renderStandbyGrid();
+    if (captureReviewModal && captureReviewModal.classList.contains('is-open')) {
+      renderCaptureReview();
+    }
 
     if (!options.silent) {
       showToast('Captura quitada del carrete en espera.', 'info', 'Eliminada');
@@ -2788,19 +3495,33 @@
       return;
     }
 
-    const vidCount = selected.filter((i) => i.type === 'video').length;
-    const summaryText = selected.length === 1
-      ? 'Se optimizará y publicará 1 recuerdo en la galería para que Michelle, René y todos los invitados puedan verlo.'
-      : `Se optimizarán y publicarán ${selected.length} recuerdos${vidCount > 0 ? ` (incluyendo ${vidCount} ${vidCount === 1 ? 'video' : 'videos'})` : ''} en la galería pública de la boda.`;
+    await publishStandbyItems(selected, { skipConfirm: true });
+  }
 
-    const confirmed = await showConfirmDialog({
-      title: selected.length === 1 ? '¿Publicar este recuerdo?' : `¿Publicar ${selected.length} recuerdos?`,
-      message: summaryText,
-      confirmText: 'Sí, publicar ahora',
-      cancelText: 'Seguir eligiendo',
-      variant: 'success'
-    });
-    if (!confirmed) return;
+  async function publishStandbyItems(selected, options = {}) {
+    if (isPublishingStandby || !Array.isArray(selected) || selected.length === 0) return;
+
+    if (isUploadClosed()) {
+      showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
+      applyUploadClosedUI();
+      return;
+    }
+
+    if (!options.skipConfirm) {
+      const vidCount = selected.filter((i) => i.type === 'video').length;
+      const summaryText = selected.length === 1
+        ? 'Se optimizará y publicará 1 recuerdo en la galería para que Michelle, René y todos los invitados puedan verlo.'
+        : `Se optimizarán y publicarán ${selected.length} recuerdos${vidCount > 0 ? ` (incluyendo ${vidCount} ${vidCount === 1 ? 'video' : 'videos'})` : ''} en la galería pública de la boda.`;
+
+      const confirmed = await showConfirmDialog({
+        title: selected.length === 1 ? '¿Publicar este recuerdo?' : `¿Publicar ${selected.length} recuerdos?`,
+        message: summaryText,
+        confirmText: 'Sí, publicar ahora',
+        cancelText: 'Seguir eligiendo',
+        variant: 'success'
+      });
+      if (!confirmed) return;
+    }
 
     isPublishingStandby = true;
     renderStandbyGrid();
@@ -2827,6 +3548,9 @@
       );
       if (isVid && typeof draftItem.duration === 'number' && draftItem.duration > 0) {
         fileForUpload._recordedDuration = draftItem.duration;
+      }
+      if (isVid && draftItem.previewBlob) {
+        fileForUpload._recordedThumbBlob = draftItem.previewBlob;
       }
 
       if (progressText) {
@@ -2859,6 +3583,7 @@
           const [removed] = standbyItems.splice(liveIdx, 1);
           revokeStandbyItemUrls(removed);
         }
+        sessionCaptureIds = sessionCaptureIds.filter((sid) => sid !== draftItem.id);
         await removeStandbyRecordFromDB(draftItem.id);
 
         if (currentGuest) {
@@ -2896,6 +3621,151 @@
 
     if (skippedErrors.length > 0) {
       showToast(skippedErrors[0], 'error', 'Algunos archivos no se publicaron');
+    }
+  }
+
+  async function publishDirectFiles(rawFiles) {
+    const files = Array.from(rawFiles || []);
+    if (files.length === 0 || isPublishingStandby) return;
+
+    if (isUploadClosed()) {
+      showToast(UPLOAD_CLOSED_MSG, 'warning', 'Subidas cerradas');
+      applyUploadClosedUI();
+      return;
+    }
+
+    if (!currentGuest) {
+      pendingGalleryPublishFiles = files;
+      promptGuestName(true);
+      showToast('Escribe tu nombre para publicar tus fotos y videos al instante.', 'info', 'Identifícate');
+      return;
+    }
+
+    let remainingTotal = getRemainingPublishSlots();
+    let remainingVideos = getRemainingVideoPublishSlots();
+    if (remainingTotal <= 0) {
+      showToast(
+        `Ya tienes ${getMaxItems()} recuerdos publicados. Elimina alguno abajo si deseas publicar nuevos.`,
+        'warning',
+        'Cupo publicado lleno'
+      );
+      return;
+    }
+
+    const queue = [];
+    const skippedErrors = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const isVid = isVideoFile(f);
+      const isImg = isImageFile(f);
+
+      if (!isVid && !isImg) {
+        skippedErrors.push(`${f.name || 'Archivo'}: formato no compatible.`);
+        continue;
+      }
+      if (remainingTotal <= 0) {
+        skippedErrors.push(`Solo puedes publicar hasta ${getMaxItems()} recuerdos en total; algunos archivos se omitieron.`);
+        break;
+      }
+      if (isVid) {
+        if (remainingVideos <= 0) {
+          skippedErrors.push(`Ya alcanzaste el máximo de ${getMaxVideos()} videos publicados.`);
+          continue;
+        }
+        if (f.size > MAX_VIDEO_SIZE) {
+          const mb = (f.size / (1024 * 1024)).toFixed(1);
+          skippedErrors.push(`"${f.name || 'Video'}" pesa ${mb} MB y el máximo permitido es de 30 MB.`);
+          continue;
+        }
+        remainingVideos--;
+      }
+
+      remainingTotal--;
+      queue.push({ file: f, isVid });
+    }
+
+    if (queue.length === 0) {
+      if (skippedErrors.length > 0) {
+        showToast(skippedErrors[0], 'warning', 'No se pudieron subir');
+      }
+      return;
+    }
+
+    isPublishingStandby = true;
+    renderStandbyGrid();
+
+    if (uploadProgress) {
+      uploadProgress.style.display = 'block';
+      uploadProgress.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    if (progressBarFill) progressBarFill.style.width = '4%';
+
+    let uploadedOk = 0;
+
+    for (let i = 0; i < queue.length; i++) {
+      const { file, isVid } = queue[i];
+      const idxLabel = `${i + 1} de ${queue.length}`;
+
+      if (progressText) {
+        progressText.textContent = isVid
+          ? `Validando video y portada ${idxLabel}...`
+          : `Optimizando foto a WebP ${idxLabel}...`;
+      }
+
+      let prepared;
+      try {
+        prepared = isVid
+          ? await processVideoForUpload(file)
+          : await processImageForUpload(file);
+      } catch (procErr) {
+        skippedErrors.push((procErr && procErr.message) || 'No se pudo procesar el archivo.');
+        continue;
+      }
+
+      const { ok, res } = await uploadPreparedMediaToR2(prepared, (fraction) => {
+        const overall = Math.min(100, Math.max(4, Math.round(((i + fraction) / queue.length) * 100)));
+        if (progressBarFill) progressBarFill.style.width = `${overall}%`;
+        if (progressText) progressText.textContent = `Publicando ${idxLabel} · ${overall}%`;
+      });
+
+      if (ok) {
+        uploadedOk++;
+        if (currentGuest) {
+          if (res.guest_item_count !== undefined) currentGuest.item_count = res.guest_item_count;
+          if (res.guest_video_count !== undefined) currentGuest.video_count = res.guest_video_count;
+          updateQuotaUI();
+        }
+      } else {
+        skippedErrors.push((res && res.error) || 'Error al publicar archivo');
+        if (res && res.uploads_closed) {
+          break;
+        }
+      }
+    }
+
+    isPublishingStandby = false;
+    if (uploadProgress) uploadProgress.style.display = 'none';
+    if (progressBarFill) progressBarFill.style.width = '0%';
+
+    reconcileStandbySelectionWithQuota();
+    updateQuotaUI();
+    renderStandbyGrid();
+
+    if (uploadedOk > 0) {
+      showToast(
+        uploadedOk === 1
+          ? '¡Tu recuerdo se publicó en el álbum de la boda! Ya todos pueden verlo.'
+          : `¡${uploadedOk} recuerdos publicados en el álbum! Ya todos los invitados pueden verlos.`,
+        'success',
+        uploadedOk === 1 ? 'Recuerdo publicado' : 'Recuerdos publicados'
+      );
+      if (myUploadsGrid) loadMyUploads();
+      if (galleryGrid) loadGallery(false);
+    }
+
+    if (skippedErrors.length > 0) {
+      showToast(skippedErrors[0], 'warning', 'Algunos archivos no se publicaron');
     }
   }
 

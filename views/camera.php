@@ -26,7 +26,7 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
         <span class="section-tag">Álbum en Vivo</span>
         <h1 class="camera-hub-title">Comparte tus Momentos</h1>
         <p class="camera-hub-desc">
-          Toma todas las fotos y videos que quieras: se guardarán en espera en tu dispositivo. Después selecciona tus mejores 24 recuerdos (máximo 4 videos de hasta 20 s) y pulsa <strong>Publicar</strong>. Disponible hasta el <?= htmlspecialchars($uploadDeadlineLabel, ENT_QUOTES, 'UTF-8') ?>.
+          Toma varias fotos o videos, elige tus favoritos y publícalos al instante (hasta 24 recuerdos, máx. 4 videos de 20 s), o sube directo desde tu galería. Disponible hasta el <?= htmlspecialchars($uploadDeadlineLabel, ENT_QUOTES, 'UTF-8') ?>.
         </p>
 
       </header>
@@ -52,9 +52,9 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
           </div>
           <div class="option-body">
             <h3>Tomar Fotos</h3>
-            <p>Toma todas las fotos y elije las mejores.</p>
+            <p>Toma varias fotos y elige cuáles publicar.</p>
           </div>
-          <span class="option-pill">Sin Límite</span>
+          <span class="option-pill">Multi-foto</span>
         </button>
 
         <!-- Opción 2: Tomar Video (Abre cámara de video directamente) -->
@@ -64,21 +64,21 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
           </div>
           <div class="option-body">
             <h3>Tomar Video</h3>
-            <p>Hasta de 20s para publicar.</p>
+            <p>Graba varios clips (máx. 20 s) y elige cuáles publicar.</p>
           </div>
-          <span class="option-pill">En Espera</span>
+          <span class="option-pill">Hasta 20s</span>
         </button>
 
-        <!-- Opción 3: Subir de Galería (Selección múltiple de fotos y videos) -->
+        <!-- Opción 3: Subir de Galería (Selección múltiple y publicación inmediata) -->
         <button type="button" class="camera-option-card option-gallery" id="btnUploadFromDevice"<?= $uploadsClosed ? ' disabled' : '' ?>>
           <div class="option-icon-wrap">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
           </div>
           <div class="option-body">
             <h3>Subir de Galería</h3>
-            <p>Agrega fotos o videos de tu teléfono.</p>
+            <p>Elige varias fotos o videos y publícalos al instante.</p>
           </div>
-          <span class="option-pill">Preselección</span>
+          <span class="option-pill">Directo</span>
         </button>
       </div>
 
@@ -202,7 +202,7 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
 
     <!-- Visor en Vivo -->
     <div class="live-cam-viewport">
-      <video id="cameraVideo" playsinline autoplay muted></video>
+      <video id="cameraVideo" playsinline webkit-playsinline autoplay muted></video>
       <canvas id="cameraCanvas" style="display:none;"></canvas>
       <div class="camera-flash" id="cameraFlash"></div>
 
@@ -256,6 +256,12 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
         <div class="live-cam-tray" id="cameraCaptureTray"></div>
       </div>
 
+      <!-- Selector rápido Foto / Video sin cerrar la cámara -->
+      <div class="live-cam-mode-switch" id="liveCamModeSwitch" role="tablist" aria-label="Cambiar entre foto y video">
+        <button type="button" class="live-cam-mode-tab is-active" id="btnCamModePhoto" data-cam-mode="photo" role="tab" aria-selected="true">Foto</button>
+        <button type="button" class="live-cam-mode-tab" id="btnCamModeVideo" data-cam-mode="video" role="tab" aria-selected="false">Video</button>
+      </div>
+
       <div class="live-cam-controls-row">
         <div class="live-cam-left-slot">
           <span class="live-cam-hint" id="liveCamHint">Toca para capturar</span>
@@ -275,7 +281,7 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
         <!-- Botón Terminar y Elegir Mejores -->
         <div class="live-cam-right-slot">
           <button type="button" class="live-cam-upload-btn" id="btnUploadCapturedBatch" style="display:none;">
-            <span>Elegir</span>
+            <span>Listo</span>
             <span class="upload-batch-badge" id="uploadBatchCount">0</span>
           </button>
         </div>
@@ -283,9 +289,57 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
     </div>
   </div>
 
+  <!-- MODAL DE SELECCIÓN POST-CAPTURA (ELEGIR QUÉ PUBLICAR O GUARDAR EN TEMPORALES) -->
+  <div class="capture-review-modal" id="captureReviewModal" role="dialog" aria-modal="true" aria-labelledby="captureReviewTitle">
+    <div class="capture-review-shell">
+      <header class="capture-review-header">
+        <div class="capture-review-heading">
+          <h2 class="capture-review-title" id="captureReviewTitle">Elige qué publicar</h2>
+          <p class="capture-review-subtitle" id="captureReviewSubtitle">0 seleccionados</p>
+        </div>
+        <button type="button" class="capture-review-close" id="btnReviewCancelTop" title="Cancelar y guardar en temporales" aria-label="Cancelar y guardar en temporales">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </header>
+
+      <div class="capture-review-toolbar" id="captureReviewToolbar">
+        <span class="capture-review-count" id="captureReviewCountText">0 capturas</span>
+        <div class="capture-review-quick-actions">
+          <button type="button" class="btn-standby-ghost" id="btnReviewSelectAll">Elegir todo</button>
+          <button type="button" class="btn-standby-ghost" id="btnReviewDeselectAll">Desmarcar</button>
+        </div>
+      </div>
+
+      <div class="capture-review-body">
+        <div class="capture-review-grid" id="captureReviewGrid"></div>
+        <div class="capture-review-empty" id="captureReviewEmpty" style="display:none;">
+          <p>Eliminaste todas las capturas de esta sesión.</p>
+          <button type="button" class="btn btn-primary" id="btnReviewEmptyRetake">Volver a capturar</button>
+        </div>
+      </div>
+
+      <footer class="capture-review-footer">
+        <p class="capture-review-note">Las capturas que no publiques (o si cancelas) quedarán guardadas en tu <strong>Galería Temporal</strong>.</p>
+        <div class="capture-review-secondary-row">
+          <button type="button" class="capture-review-btn-more" id="btnReviewCaptureMore">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            <span id="btnReviewCaptureMoreLabel">Tomar más fotos</span>
+          </button>
+          <button type="button" class="capture-review-btn-cancel" id="btnReviewSaveLater">
+            Cancelar
+          </button>
+        </div>
+        <button type="button" class="capture-review-btn-publish" id="btnReviewPublishNow" disabled>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          <span id="btnReviewPublishLabel">Publicar ahora</span>
+        </button>
+      </footer>
+    </div>
+  </div>
+
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
   <script src="/assets/js/vendor/browser-image-compression.js?v=2.0.2"></script>
-  <script src="/assets/js/app.js?v=39"></script>
+  <script src="/assets/js/app.js?v=41"></script>
 </body>
 </html>
