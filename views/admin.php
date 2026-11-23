@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel de Administración · Boda Michelle & René</title>
   
-  <link rel="stylesheet" href="/assets/css/admin.css?v=13">
+  <link rel="stylesheet" href="/assets/css/admin.css?v=18">
   <link rel="icon" type="image/svg+xml" href="/assets/img/m&amp;r.svg">
 </head>
 <body class="admin-dashboard">
@@ -174,10 +174,9 @@
     <div class="admin-modal-content">
       <button class="admin-modal-close" id="msgModalClose" type="button" aria-label="Cerrar dedicatoria"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.18em; color:var(--gold-primary); margin-bottom:8px;">
-        Dedicatoria para los Novios
+        Dedicatoria para los novios
       </div>
-      <h3 id="msgModalAuthor" style="font-family:var(--font-serif); font-size:2rem; color:var(--gold-light); margin-bottom:4px;"></h3>
-      <div id="msgModalDate" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:20px;"></div>
+      <h3 id="msgModalAuthor" style="font-family:var(--font-serif); font-size:2rem; color:var(--gold-light); margin-bottom:4px; padding-left: 12px;"></h3>
       
       <div id="msgModalBody" style="font-size:1.05rem; line-height:1.7; color:var(--text-dim); background:var(--admin-surface-light); padding:22px; border-radius:14px; border:1px solid rgba(201,160,80,0.2); max-height:400px; overflow-y:auto;"></div>
     </div>
@@ -208,62 +207,13 @@
     </div>
   </div>
 
-  <!-- Modal de Descarga Masiva Directa desde Cloudflare R2 (Cyberduck / rclone) -->
-  <?php
-    $r2Host = htmlspecialchars((string) ($r2Info['host'] ?? '<ACCOUNT_ID>.r2.cloudflarestorage.com'), ENT_QUOTES, 'UTF-8');
-    $r2Bucket = htmlspecialchars((string) ($r2Info['bucket'] ?? '<TU_BUCKET>'), ENT_QUOTES, 'UTF-8');
-    $r2Endpoint = htmlspecialchars((string) ($r2Info['endpoint'] ?? 'https://<ACCOUNT_ID>.r2.cloudflarestorage.com'), ENT_QUOTES, 'UTF-8');
-    $rcloneCmd = 'rclone copy r2:' . ($r2Info['bucket'] ?: '<TU_BUCKET>') . '/media ./Boda_Michelle_y_Rene --progress --transfers 8';
-  ?>
-  <div class="admin-modal-backdrop" id="adminR2GuideModal" role="dialog" aria-modal="true" aria-labelledby="r2GuideTitle">
-    <div class="admin-modal-content" style="max-width:640px;">
-      <button class="admin-modal-close" id="r2GuideModalClose" type="button" aria-label="Cerrar"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
-      <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.18em; color:var(--gold-primary); margin-bottom:8px;">
-        Descarga Directa sin Límites · Egress $0
-      </div>
-      <h3 id="r2GuideTitle" style="font-family:var(--font-serif); font-size:1.85rem; color:var(--gold-light); margin-bottom:10px;">
-        Descargar Todo el Álbum desde Cloudflare R2
-      </h3>
-      <p style="font-size:0.9rem; color:var(--text-dim); line-height:1.6; margin-bottom:18px;">
-        Para descargar todas las fotos (1920px) y videos en alta calidad a máxima velocidad sin sobrecargar el hosting compartido, conéctate directamente a la carpeta <code style="color:var(--gold-light);">media/</code> de tu bucket con <strong>Cyberduck</strong> o <strong>rclone</strong>. Las miniaturas viven aparte en <code style="color:var(--gold-light);">thumbs/</code> para no duplicar archivos.
-      </p>
-
-      <div style="background:var(--admin-surface-light); border:1px solid rgba(201,160,80,0.22); border-radius:12px; padding:16px; margin-bottom:14px;">
-        <div style="font-size:0.8rem; font-weight:700; color:var(--gold-light); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:10px;">
-          Opción 1 · Cyberduck (Interfaz gráfica Windows / Mac)
-        </div>
-        <ul style="margin:0; padding-left:18px; font-size:0.85rem; color:var(--text-dim); line-height:1.7;">
-          <li>Protocolo: <strong>Amazon S3 (Cloudflare R2)</strong></li>
-          <li>Servidor: <code id="r2HostCode" style="color:var(--text-white);"><?= $r2Host ?></code></li>
-          <li>Ruta / Carpeta: <code style="color:var(--text-white);">/<?= $r2Bucket ?>/media</code></li>
-          <li>Claves: usa tu <code>R2_ACCESS_KEY_ID</code> y <code>R2_SECRET_ACCESS_KEY</code> del archivo <code>.env</code>.</li>
-        </ul>
-      </div>
-
-      <div style="background:var(--admin-surface-light); border:1px solid rgba(201,160,80,0.22); border-radius:12px; padding:16px; margin-bottom:18px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;">
-          <div style="font-size:0.8rem; font-weight:700; color:var(--gold-light); text-transform:uppercase; letter-spacing:0.1em;">
-            Opción 2 · rclone (Línea de comandos ultrarrápida)
-          </div>
-          <button type="button" id="btnCopyRcloneCmd" class="admin-btn admin-btn-outline" style="padding:5px 10px; font-size:0.75rem;">
-            Copiar comando
-          </button>
-        </div>
-        <pre id="r2RcloneCmd" style="margin:0; padding:12px; background:var(--admin-surface-light); border-radius:8px; color:var(--text-white); font-size:0.8rem; overflow-x:auto; white-space:pre-wrap; word-break:break-all;"><?= htmlspecialchars($rcloneCmd, ENT_QUOTES, 'UTF-8') ?></pre>
-        <div style="font-size:0.78rem; color:var(--text-muted); margin-top:8px;">
-          Endpoint R2 para <code>rclone config</code>: <code><?= $r2Endpoint ?></code> (provider: <code>Cloudflare</code>, region: <code>auto</code>).
-        </div>
-      </div>
-
-      <div style="text-align:right;">
-        <button type="button" id="r2GuideModalOk" class="admin-btn admin-btn-gold">Entendido</button>
-      </div>
-    </div>
-  </div>
+  <?php require __DIR__ . '/partials/admin_zip_modal.php'; ?>
 
   <!-- Contenedor de Notificaciones Toast del Panel -->
   <div class="admin-toast-container" id="adminToastContainer" aria-live="polite" aria-atomic="false"></div>
 
-  <script src="/assets/js/admin.js?v=10"></script>
+  <?php require __DIR__ . '/partials/admin_lightbox.php'; ?>
+  <script src="/assets/js/admin.js?v=14"></script>
+  <script src="/assets/js/admin-zip.js?v=4"></script>
 </body>
 </html>
