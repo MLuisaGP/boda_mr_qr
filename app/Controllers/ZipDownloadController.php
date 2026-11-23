@@ -31,12 +31,35 @@ class ZipDownloadController extends Controller {
         try {
             if ($post && $action === 'manifest') {
                 session_write_close();
-                // Entire published album manifest; browser downloads originals directly from R2.
-                $rows = Database::getConnection()->query(
-                    'SELECT id, file_path, original_name, file_size, media_type FROM media WHERE is_approved = 1 ORDER BY id ASC'
-                )->fetchAll(PDO::FETCH_ASSOC);
-                if (!$rows) {
-                    throw new AlbumZipException('Todavía no hay recuerdos para descargar.');
+                $hasIds = array_key_exists('ids', $input) && $input['ids'] !== null;
+                if ($hasIds) {
+                    if (!is_array($input['ids'])) {
+                        throw new AlbumZipException('Selección de recuerdos no válida.');
+                    }
+                    $selectedIds = array_values(array_unique(array_filter(
+                        array_map('intval', $input['ids']),
+                        static fn (int $v): bool => $v > 0
+                    )));
+                    if (!$selectedIds) {
+                        throw new AlbumZipException('Selecciona al menos un recuerdo para descargar.');
+                    }
+                    $placeholders = implode(',', array_fill(0, count($selectedIds), '?'));
+                    $stmt = Database::getConnection()->prepare(
+                        "SELECT id, file_path, original_name, file_size, media_type FROM media WHERE is_approved = 1 AND id IN ({$placeholders}) ORDER BY id ASC"
+                    );
+                    $stmt->execute($selectedIds);
+                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    if (!$rows) {
+                        throw new AlbumZipException('No se encontraron recuerdos válidos en tu selección.');
+                    }
+                } else {
+                    // Entire published album manifest; browser downloads originals directly from R2.
+                    $rows = Database::getConnection()->query(
+                        'SELECT id, file_path, original_name, file_size, media_type FROM media WHERE is_approved = 1 ORDER BY id ASC'
+                    )->fetchAll(PDO::FETCH_ASSOC);
+                    if (!$rows) {
+                        throw new AlbumZipException('Todavía no hay recuerdos para descargar.');
+                    }
                 }
                 $items = [];
                 $totalBytes = 0;
@@ -53,7 +76,7 @@ class ZipDownloadController extends Controller {
                 }
                 Response::json([
                     'success' => true,
-                    'filename' => 'Album_Michelle_y_Rene.zip',
+                    'filename' => $hasIds ? 'Seleccion_Michelle_y_Rene.zip' : 'Album_Michelle_y_Rene.zip',
                     'total' => count($items),
                     'total_bytes' => $totalBytes,
                     'items' => $items,

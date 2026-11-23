@@ -1,0 +1,825 @@
+/* =====================================================================
+   LIBRO DE FIRMAS — VERSIÓN PDF / IMPRESIÓN
+   Fiel al diseño editorial «Libro de Honor» de Michelle & René
+   ===================================================================== */
+
+@font-face {
+  font-family: 'La Luxes Script';
+  src: local('La Luxes Script'), local('LaLuxesScript'), local('La-Luxes-Script');
+  font-display: swap;
+}
+
+:root {
+  --pdf-ivory: #FAF7F2;
+  --pdf-olive: #4A5842;
+  --pdf-olive-dark: #2D3A27;
+  --pdf-olive-deep: #161E13;
+  --pdf-gold: #C9A050;
+  --pdf-gold-light: #F4E2B7;
+  --pdf-gold-dark: #8F6B28;
+  --pdf-text: #1F281B;
+  --pdf-text-secondary: #53614E;
+  --pdf-font-serif: 'Cormorant Garamond', Georgia, serif;
+  --pdf-font-sans: 'Plus Jakarta Sans', 'Montserrat', system-ui, -apple-system, sans-serif;
+  --pdf-font-script: 'Corinthia', 'Alex Brush', cursive;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  min-height: 100%;
+  background: #ECE7DE;
+  color: var(--pdf-text);
+  font-family: var(--pdf-font-sans);
+  -webkit-font-smoothing: antialiased;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+/* =====================================================================
+   BARRA SUPERIOR DE CONTROLES (SOLO PANTALLA, OCULTA AL IMPRIMIR / PDF)
+   ===================================================================== */
+.pdf-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(250, 247, 242, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(201, 160, 80, 0.32);
+  box-shadow: 0 4px 20px rgba(31, 40, 27, 0.08);
+  padding: 12px 20px;
+}
+
+.pdf-toolbar-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pdf-toolbar-left,
+.pdf-toolbar-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pdf-toolbar-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pdf-toolbar-title {
+  font-family: var(--pdf-font-serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--pdf-olive-dark);
+  line-height: 1.1;
+}
+
+.pdf-toolbar-summary {
+  font-size: 0.76rem;
+  color: var(--pdf-text-secondary);
+}
+
+.pdf-order-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--pdf-text-secondary);
+}
+
+.pdf-order-select {
+  min-height: 38px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(74, 88, 66, 0.28);
+  background: #FFFDF9;
+  color: var(--pdf-olive-dark);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-family: var(--pdf-font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.pdf-btn-outline {
+  background: transparent;
+  border-color: rgba(74, 88, 66, 0.3);
+  color: var(--pdf-olive);
+}
+
+.pdf-btn-outline:hover {
+  background: rgba(74, 88, 66, 0.08);
+  border-color: var(--pdf-olive);
+}
+
+.pdf-btn-primary {
+  background: var(--pdf-olive);
+  color: var(--pdf-ivory);
+  box-shadow: 0 4px 12px rgba(74, 88, 66, 0.22);
+}
+
+.pdf-btn-primary:hover {
+  background: var(--pdf-olive-dark);
+}
+
+.pdf-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.pdf-toolbar-tip {
+  max-width: 960px;
+  margin: 8px auto 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(201, 160, 80, 0.2);
+  font-size: 0.74rem;
+  color: var(--pdf-text-secondary);
+}
+
+.pdf-toolbar-tip strong {
+  color: var(--pdf-olive-dark);
+}
+
+/* =====================================================================
+   LIENZO DE PREVISUALIZACIÓN EN PANTALLA
+   ===================================================================== */
+.pdf-book-preview {
+  padding: 28px 16px 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.pdf-sheet {
+  position: relative;
+  width: 215.9mm;
+  height: 279.4mm;
+  overflow: hidden;
+  box-shadow: 0 18px 46px rgba(22, 30, 19, 0.24), 0 4px 14px rgba(22, 30, 19, 0.12);
+  border-radius: 3px;
+  background: #FFFDF8;
+  flex-shrink: 0;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+/* =====================================================================
+   HOJA 1: PORTADA DEL LIBRO DE HONOR (IGUAL AL LIBRO CERRADO)
+   ===================================================================== */
+.pdf-sheet-cover {
+  background: linear-gradient(145deg, #32402B 0%, #1F291B 58%, #161E13 100%);
+  padding: 14mm 14mm 14mm 20mm;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-cover-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 14mm;
+  background: linear-gradient(90deg, #11170E 0%, #2C3826 55%, #12180F 100%);
+  border-right: 1px solid rgba(201, 160, 80, 0.42);
+}
+
+.pdf-cover-ribbon {
+  position: absolute;
+  top: 0;
+  right: 22mm;
+  width: 11mm;
+  height: 24mm;
+  background: linear-gradient(135deg, #DFBA73 0%, #C9A050 50%, #9C742D 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  z-index: 4;
+}
+
+.pdf-cover-frame {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  padding: 20mm 16mm 18mm;
+  border: 1.5px solid rgba(201, 160, 80, 0.58);
+  box-shadow:
+    inset 0 0 0 4px rgba(22, 30, 19, 0.45),
+    inset 0 0 0 5px rgba(201, 160, 80, 0.28);
+}
+
+.pdf-cover-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-cover-kicker {
+  font-family: var(--pdf-font-sans);
+  font-size: 8.5pt;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--pdf-gold-light);
+}
+
+.pdf-cover-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.pdf-cover-monogram {
+  width: 58mm;
+  height: auto;
+  max-height: 58mm;
+  object-fit: contain;
+  margin-bottom: 6mm;
+  opacity: 0.96;
+}
+
+.pdf-cover-ornament {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--pdf-gold);
+  margin-bottom: 4px;
+}
+
+.pdf-cover-ornament span {
+  width: 34mm;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--pdf-gold), transparent);
+}
+
+.pdf-cover-eyebrow {
+  font-family: var(--pdf-font-sans);
+  font-size: 10pt;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--pdf-gold);
+}
+
+.pdf-cover-names {
+  font-family: var(--pdf-font-serif);
+  font-size: 42pt;
+  font-weight: 500;
+  line-height: 1.08;
+  color: #FAF7F2;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+}
+
+.pdf-cover-amp {
+  font-family: 'Tangerine', cursive;
+  font-size: 1.28em;
+  font-weight: 400;
+  color: var(--pdf-gold-light);
+  margin: 0 4px;
+}
+
+.pdf-cover-date {
+  font-family: var(--pdf-font-serif);
+  font-size: 14pt;
+  letter-spacing: 0.26em;
+  color: rgba(244, 226, 183, 0.88);
+  margin-top: 2px;
+}
+
+.pdf-cover-divider {
+  width: 44mm;
+  height: 1px;
+  margin: 10px auto;
+  background: linear-gradient(90deg, transparent, rgba(201, 160, 80, 0.7), transparent);
+}
+
+.pdf-cover-subtitle {
+  max-width: 120mm;
+  font-family: var(--pdf-font-serif);
+  font-style: italic;
+  font-size: 13.5pt;
+  line-height: 1.55;
+  color: rgba(250, 247, 242, 0.82);
+}
+
+.pdf-cover-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  color: rgba(244, 226, 183, 0.78);
+}
+
+.pdf-cover-count {
+  font-family: var(--pdf-font-sans);
+  font-size: 8.5pt;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--pdf-gold-light);
+}
+
+/* =====================================================================
+   CONTRAPORTADA DEL LIBRO DE HONOR
+   ===================================================================== */
+.pdf-sheet-backcover {
+  background: linear-gradient(215deg, #32402B 0%, #1F291B 58%, #161E13 100%);
+  padding: 14mm 20mm 14mm 14mm;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-backcover-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 14mm;
+  background: linear-gradient(270deg, #11170E 0%, #2C3826 55%, #12180F 100%);
+  border-left: 1px solid rgba(201, 160, 80, 0.42);
+}
+
+.pdf-backcover-frame {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  padding: 22mm 18mm 18mm;
+  border: 1.5px solid rgba(201, 160, 80, 0.58);
+  box-shadow:
+    inset 0 0 0 4px rgba(22, 30, 19, 0.45),
+    inset 0 0 0 5px rgba(201, 160, 80, 0.28);
+}
+
+.pdf-backcover-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 132mm;
+}
+
+.pdf-backcover-eyebrow {
+  font-family: var(--pdf-font-sans);
+  font-size: 8.5pt;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--pdf-gold);
+}
+
+.pdf-backcover-quote {
+  font-family: var(--pdf-font-serif);
+  font-style: italic;
+  font-size: 18pt;
+  line-height: 1.62;
+  color: #FAF7F2;
+  font-weight: 400;
+}
+
+.pdf-backcover-closing {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdf-backcover-love {
+  font-family: var(--pdf-font-serif);
+  font-size: 11.5pt;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(244, 226, 183, 0.85);
+}
+
+.pdf-backcover-sign {
+  font-family: 'Italianno', 'Tangerine', cursive;
+  font-size: 40pt;
+  line-height: 1.08;
+  color: var(--pdf-gold-light);
+}
+
+.pdf-backcover-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-backcover-monogram {
+  width: 28mm;
+  height: auto;
+  opacity: 0.9;
+}
+
+.pdf-backcover-date {
+  font-family: var(--pdf-font-serif);
+  font-size: 11pt;
+  letter-spacing: 0.24em;
+  color: rgba(244, 226, 183, 0.78);
+}
+
+/* =====================================================================
+   HOJAS INTERIORES DE PERGAMINO (PURA HOJA, SIN BORDE EXTERIOR)
+   ===================================================================== */
+.pdf-sheet-page {
+  background: transparent;
+  padding: 0;
+  display: flex;
+}
+
+.pdf-paper-page {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 15mm 17mm 13mm 23mm;
+  background-color: #FFFDF8;
+  background-image:
+    /* Margen vertical sutil tipo cuaderno de honor */
+    linear-gradient(
+      90deg,
+      transparent 16mm,
+      rgba(201, 160, 80, 0.28) 16mm,
+      rgba(201, 160, 80, 0.28) 16.35mm,
+      transparent 16.35mm
+    ),
+    /* Renglones tenues de papel de firmas */
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 29px,
+      rgba(201, 160, 80, 0.1) 30px
+    );
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.pdf-paper-running-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(201, 160, 80, 0.34);
+  font-family: var(--pdf-font-serif);
+  font-size: 10.5pt;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  color: rgba(124, 96, 42, 0.9);
+}
+
+.pdf-paper-entries {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+/* Cada firma escrita directamente sobre el papel */
+.pdf-signature-entry {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 12px 8px 14px;
+  border-bottom: 1px dashed rgba(201, 160, 80, 0.36);
+}
+
+.pdf-signature-entry:last-child,
+.pdf-signature-entry.is-continued {
+  border-bottom: none;
+}
+
+.pdf-signature-entry.is-continuation {
+  padding-top: 6px;
+}
+
+.pdf-signature-entry:nth-child(odd) {
+  transform: rotate(-0.3deg);
+  padding-right: 14px;
+}
+
+.pdf-signature-entry:nth-child(even) {
+  transform: rotate(0.28deg);
+  padding-left: 12px;
+}
+
+.pdf-sig-message {
+  margin: 0 0 6px;
+  white-space: pre-line;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.pdf-sig-footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.pdf-sig-author {
+  opacity: 0.9;
+  text-align: right;
+}
+
+/* =====================================================================
+   LAS 7 TIPOGRAFÍAS MANUSCRITAS (MISMA PALETA Y PROPORCIÓN QUE EL LIBRO)
+   ===================================================================== */
+
+/* 1. Ballet — Caligrafía Spenceriana ornamentada */
+.sig-font-ballet .pdf-sig-message {
+  font-family: 'Ballet', cursive;
+  font-size: 22pt;
+  line-height: 1.32;
+  color: #3E232C;
+}
+
+.sig-font-ballet .pdf-sig-author {
+  font-family: 'Ballet', cursive;
+  font-size: 16.5pt;
+  line-height: 1.18;
+  color: #6E3345;
+}
+
+/* 2. Lavishly Yours — Caligrafía fluida y elegante */
+.sig-font-lavishly_yours .pdf-sig-message {
+  font-family: 'Lavishly Yours', cursive;
+  font-size: 24pt;
+  line-height: 1.18;
+  color: #242E1F;
+}
+
+.sig-font-lavishly_yours .pdf-sig-author {
+  font-family: 'Lavishly Yours', cursive;
+  font-size: 18pt;
+  line-height: 1.08;
+  color: #4A5842;
+}
+
+/* 3. Tangerine — Caligrafía nupcial clásica estilizada */
+.sig-font-tangerine .pdf-sig-message {
+  font-family: 'Tangerine', cursive;
+  font-size: 26pt;
+  font-weight: 700;
+  line-height: 1.14;
+  color: #3B2B1E;
+}
+
+.sig-font-tangerine .pdf-sig-author {
+  font-family: 'Tangerine', cursive;
+  font-size: 19pt;
+  font-weight: 700;
+  line-height: 1.06;
+  color: #7D5920;
+}
+
+/* 4. Annie Use Your Telescope — Letra manuscrita alta y espontánea */
+.sig-font-annie_use_your_telescope .pdf-sig-message {
+  font-family: 'Annie Use Your Telescope', cursive;
+  font-size: 16pt;
+  line-height: 1.34;
+  color: #253646;
+}
+
+.sig-font-annie_use_your_telescope .pdf-sig-author {
+  font-family: 'Annie Use Your Telescope', cursive;
+  font-size: 13pt;
+  font-weight: 600;
+  line-height: 1.18;
+  color: #364B5E;
+}
+
+/* 5. Indie Flower — Letra a mano casual y amigable */
+.sig-font-indie_flower .pdf-sig-message {
+  font-family: 'Indie Flower', cursive;
+  font-size: 13pt;
+  line-height: 1.42;
+  color: #253646;
+}
+
+.sig-font-indie_flower .pdf-sig-author {
+  font-family: 'Indie Flower', cursive;
+  font-size: 11pt;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #364B5E;
+}
+
+/* 6. Oooh Baby — Manuscrita cálida y natural */
+.sig-font-oooh_baby .pdf-sig-message {
+  font-family: 'Oooh Baby', cursive;
+  font-size: 17.5pt;
+  line-height: 1.32;
+  color: #2F3A28;
+}
+
+.sig-font-oooh_baby .pdf-sig-author {
+  font-family: 'Oooh Baby', cursive;
+  font-size: 14pt;
+  line-height: 1.16;
+  color: #55664B;
+}
+
+/* 7. Italianno — Caligrafía italiana refinada */
+.sig-font-italianno .pdf-sig-message {
+  font-family: 'Italianno', cursive;
+  font-size: 25pt;
+  line-height: 1.16;
+  color: #352820;
+}
+
+.sig-font-italianno .pdf-sig-author {
+  font-family: 'Italianno', cursive;
+  font-size: 18.5pt;
+  line-height: 1.08;
+  color: #7A5630;
+}
+
+/* Ajuste automático para dedicatorias muy extensas (sin recortar jamás) */
+.pdf-signature-entry.is-long-entry.sig-font-ballet .pdf-sig-message {
+  font-size: 18.5pt;
+  line-height: 1.26;
+}
+.pdf-signature-entry.is-long-entry.sig-font-lavishly_yours .pdf-sig-message {
+  font-size: 20pt;
+  line-height: 1.14;
+}
+.pdf-signature-entry.is-long-entry.sig-font-tangerine .pdf-sig-message {
+  font-size: 21.5pt;
+  line-height: 1.1;
+}
+.pdf-signature-entry.is-long-entry.sig-font-annie_use_your_telescope .pdf-sig-message {
+  font-size: 13.5pt;
+  line-height: 1.28;
+}
+.pdf-signature-entry.is-long-entry.sig-font-indie_flower .pdf-sig-message {
+  font-size: 11.2pt;
+  line-height: 1.35;
+}
+.pdf-signature-entry.is-long-entry.sig-font-oooh_baby .pdf-sig-message {
+  font-size: 14.8pt;
+  line-height: 1.26;
+}
+.pdf-signature-entry.is-long-entry.sig-font-italianno .pdf-sig-message {
+  font-size: 21pt;
+  line-height: 1.12;
+}
+
+/* Pie de página de cada hoja */
+.pdf-paper-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+  margin-top: 8px;
+  border-top: 1px solid rgba(201, 160, 80, 0.28);
+  font-family: var(--pdf-font-serif);
+  font-size: 9.5pt;
+  letter-spacing: 0.08em;
+  color: rgba(124, 96, 42, 0.85);
+}
+
+/* Estado vacío sobre el pergamino */
+.pdf-paper-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20mm 12mm;
+  color: var(--pdf-olive);
+}
+
+.pdf-paper-empty-title {
+  font-family: 'Italianno', cursive;
+  font-size: 32pt;
+  color: var(--pdf-olive-dark);
+  margin-bottom: 10px;
+}
+
+.pdf-paper-empty-sub {
+  font-family: var(--pdf-font-serif);
+  font-style: italic;
+  font-size: 13pt;
+  color: var(--pdf-text-secondary);
+  max-width: 115mm;
+}
+
+/* Contenedor oculto para medir alturas reales con fuentes cargadas */
+.pdf-measure-stage {
+  position: fixed;
+  left: -99999px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Responsive en pantalla para ver las hojas cómodamente en móvil/laptop */
+@media screen and (max-width: 860px) {
+  .pdf-book-preview {
+    padding: 16px 8px 40px;
+    gap: 18px;
+  }
+
+  .pdf-sheet {
+    transform-origin: top center;
+  }
+}
+
+/* =====================================================================
+   IMPRESIÓN / GUARDAR COMO PDF (HOJA CARTA VERTICAL EXACTA)
+   ===================================================================== */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 0;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  .no-print,
+  .pdf-toolbar,
+  .pdf-measure-stage {
+    display: none !important;
+  }
+
+  .pdf-book-preview {
+    display: block !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  .pdf-sheet {
+    width: 215.9mm !important;
+    height: 279.4mm !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .pdf-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

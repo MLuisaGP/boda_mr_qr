@@ -91,6 +91,19 @@ function harness({ failCors = false, holdManifest = false, usePicker = false } =
         if (holdManifest) {
           await new Promise((resolve, reject) => options.signal.addEventListener('abort', () => reject(new DOMException('', 'AbortError'))));
         }
+        if (Array.isArray(body.ids)) {
+          const items = manifest.items.filter((item) => body.ids.includes(item.id));
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              filename: 'Seleccion_Michelle_y_Rene.zip',
+              total: items.length,
+              total_bytes: items.reduce((sum, item) => sum + item.size, 0),
+              items
+            })
+          };
+        }
         return { ok: true, json: async () => manifest };
       }
       if (failCors && !failedOnce) {
@@ -116,6 +129,7 @@ function harness({ failCors = false, holdManifest = false, usePicker = false } =
 
   return {
     get,
+    windowObj,
     fetchedUrls,
     stats: () => ({ saves, lastBlob, written: Buffer.concat(writtenChunks), writerClosed, writerAborted })
   };
@@ -175,5 +189,16 @@ const tick = async () => { for (let i = 0; i < 20; i++) await new Promise((resol
   assert.equal(stopped.get('albumZipRetry').hidden, false);
   assert.equal(stopped.stats().saves, 0);
 
-  console.log('PASS: client-side ZIP64 (Blob + streaming picker), direct R2 fetches, valid ZIP binary, CORS guidance, retry and abort.');
+  // 5. Selected-only ZIP sends ids in manifest request and packages only matching items.
+  const selected = harness();
+  selected.windowObj.startAdminZipDownload([2]);
+  await tick();
+  const selReq = selected.fetchedUrls.find(r => r.url === '/api/zip-download');
+  assert.deepEqual(JSON.parse(selReq.options.body), { action: 'manifest', ids: [2] });
+  assert.equal(selected.fetchedUrls.filter(r => r.url.startsWith('https://cdn.example.invalid/')).length, 1);
+  const selZipBuf = Buffer.from(await selected.stats().lastBlob.arrayBuffer());
+  assert.ok(!selZipBuf.includes(Buffer.from('Fotos/1_boda.webp')), 'Unselected item must not be in ZIP.');
+  assert.ok(selZipBuf.includes(Buffer.from('Videos/2_baile.mp4')), 'Selected item missing from ZIP.');
+
+  console.log('PASS: client-side ZIP64 (Blob + streaming picker + selected ids), direct R2 fetches, valid ZIP binary, CORS guidance, retry and abort.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
