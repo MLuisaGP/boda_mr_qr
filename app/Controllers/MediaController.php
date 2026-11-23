@@ -503,7 +503,69 @@ class MediaController extends Controller {
         }
 
         Media::delete($mediaId);
+        $this->deleteStorageFiles($item);
 
+        $guestId = $guest ? (int) $guest['id'] : 0;
+
+        Response::success('Recuerdo eliminado correctamente.', [
+            'guest_item_count' => $guestId > 0 ? Guest::getItemCount($guestId) : 0,
+            'guest_max_items' => Guest::MAX_ITEMS,
+            'guest_video_count' => $guestId > 0 ? Guest::getVideoCount($guestId) : 0,
+            'guest_max_videos' => Guest::MAX_VIDEOS,
+        ]);
+    }
+
+    public function destroyBulk(): void {
+        AuthHelper::requireAdmin();
+
+        $input = $this->getJsonInput();
+        $rawIds = $input['ids'] ?? [];
+        if (!is_array($rawIds)) {
+            Response::error('Lista de recuerdos no válida.', 422);
+        }
+
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $rawIds),
+            static fn (int $v): bool => $v > 0
+        )));
+
+        if (!$ids) {
+            Response::error('Selecciona al menos un recuerdo para eliminar.', 422);
+        }
+
+        if (count($ids) > 500) {
+            Response::error('Puedes eliminar hasta 500 recuerdos a la vez.', 422);
+        }
+
+        $pdo = Database::getConnection();
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $pdo->prepare("SELECT `id`, `file_path`, `thumb_path` FROM `media` WHERE `id` IN ({$placeholders})");
+        $stmt->execute($ids);
+        $items = $stmt->fetchAll();
+
+        if (!$items) {
+            Response::error('Los recuerdos seleccionados no existen o ya fueron eliminados.', 404);
+        }
+
+        $foundIds = array_map(static fn (array $row): int => (int) $row['id'], $items);
+        $delPlaceholders = implode(',', array_fill(0, count($foundIds), '?'));
+        $delStmt = $pdo->prepare("DELETE FROM `media` WHERE `id` IN ({$delPlaceholders})");
+        $delStmt->execute($foundIds);
+
+        foreach ($items as $item) {
+            $this->deleteStorageFiles($item);
+        }
+
+        $count = count($foundIds);
+        $label = $count === 1 ? '1 recuerdo eliminado correctamente.' : "{$count} recuerdos eliminados correctamente.";
+
+        Response::success($label, [
+            'deleted_count' => $count,
+            'deleted_ids' => $foundIds,
+        ]);
+    }
+
+    private function deleteStorageFiles(array $item): void {
         // Eliminar objeto(s) en Cloudflare R2 o en disco local si es legacy
         $storedPath = (string) ($item['file_path'] ?? '');
         $thumbPath = (string) ($item['thumb_path'] ?? '');
@@ -527,14 +589,5 @@ class MediaController extends Controller {
                 }
             }
         }
-
-        $guestId = $guest ? (int) $guest['id'] : 0;
-
-        Response::success('Recuerdo eliminado correctamente.', [
-            'guest_item_count' => $guestId > 0 ? Guest::getItemCount($guestId) : 0,
-            'guest_max_items' => Guest::MAX_ITEMS,
-            'guest_video_count' => $guestId > 0 ? Guest::getVideoCount($guestId) : 0,
-            'guest_max_videos' => Guest::MAX_VIDEOS,
-        ]);
     }
 }

@@ -15,7 +15,7 @@
   const MAX_ITEMS = 24; // Máximo 24 recuerdos publicados por invitado
   const MAX_VIDEOS = 4; // Máximo 4 videos publicados dentro de los 24 recuerdos
   const GALLERY_PAGE_SIZE = 24; // Recuerdos por página en /galeria
-  const SIGNATURE_FONTS = ['qwigley', 'sacramento', 'indie_flower', 'la_luxes_script'];
+  const SIGNATURE_FONTS = ['ballet', 'lavishly_yours', 'tangerine', 'annie_use_your_telescope', 'indie_flower', 'oooh_baby', 'italianno'];
   const UPLOAD_DEADLINE_FALLBACK = '2026-12-21T23:59:59-06:00';
   const UPLOAD_CLOSED_MSG = 'El periodo para subir fotos y videos cerró el 21 de diciembre de 2026. ¡Gracias por compartir tus recuerdos!';
   const STANDBY_DB_NAME = 'boda_mr_standby_db';

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel de Administración · Boda Michelle & René</title>
   
-  <link rel="stylesheet" href="/assets/css/admin.css?v=18">
+  <link rel="stylesheet" href="/assets/css/admin.css?v=22">
   <link rel="icon" type="image/svg+xml" href="/assets/img/m&amp;r.svg">
 </head>
 <body class="admin-dashboard">
@@ -27,7 +27,7 @@
         <svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg> <?= htmlspecialchars($adminUser['full_name'] ?? 'Novios') ?> (<?= htmlspecialchars($adminUser['role'] ?? 'admin') ?>)
       </span>
       <a href="/" class="admin-btn admin-btn-outline" target="_blank" rel="noopener">
-        Ver sitio ↗
+        Ver sitio <svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
       </a>
       <button id="btnLogout" class="admin-btn admin-btn-outline">
         Cerrar Sesión
@@ -89,6 +89,26 @@
         <label><span>Tipo</span><select id="adminMediaType"><option value="all">Fotos y videos</option><option value="image">Solo fotos</option><option value="video">Solo videos</option></select></label>
         <label><span>Ordenar por</span><select id="adminMediaSort"><option value="recent">M&#225;s recientes</option><option value="popular">M&#225;s queridos</option><option value="oldest">M&#225;s antiguos</option></select></label>
       </div>
+      <div class="admin-selection-bar no-print" id="adminSelectionBar" aria-label="Selecci&#243;n m&#250;ltiple de recuerdos">
+        <div class="admin-selection-left">
+          <label class="admin-select-all-label">
+            <input type="checkbox" id="adminSelectVisible" class="admin-checkbox">
+            <span>Seleccionar visibles</span>
+          </label>
+          <span class="admin-selection-count" id="adminSelectionCount" role="status" aria-live="polite">0 seleccionados</span>
+          <button type="button" class="admin-btn admin-btn-outline admin-btn-compact" id="btnClearSelection" hidden>Limpiar</button>
+        </div>
+        <div class="admin-selection-actions" id="adminSelectionActions" hidden>
+          <button type="button" class="admin-btn admin-btn-gold admin-btn-compact" id="btnZipSelected">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            ZIP seleccionados
+          </button>
+          <button type="button" class="admin-btn admin-btn-danger admin-btn-compact" id="btnDeleteSelected">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6m4-6v6"/></svg>
+            Eliminar seleccionados
+          </button>
+        </div>
+      </div>
       <p class="admin-results" id="adminMediaResults" role="status" aria-live="polite"></p>
       <div class="media-manager-grid" id="adminMediaGrid" aria-busy="true">
         <!-- Renderizado dinámico vía admin.js -->
@@ -98,7 +118,19 @@
 
     <!-- SECCIÓN 2: LIBRO DE FIRMAS (Lectura y Moderación) -->
     <div id="sectionGuestbook" role="tabpanel" aria-labelledby="tab-guestbook" style="display:none;">
-      <div class="admin-section-heading"><div><h2 class="admin-section-title">Palabras para guardar</h2><p class="admin-section-note">Lee cada mensaje completo antes de moderarlo.</p></div><label class="admin-search"><span>Buscar dedicatorias</span><input type="search" id="adminGuestbookSearch" placeholder="Invitado o mensaje"></label></div>
+      <div class="admin-section-heading">
+        <div>
+          <h2 class="admin-section-title">Palabras para guardar</h2>
+          <p class="admin-section-note">Lee cada mensaje completo antes de moderarlo o genera el libro en PDF para conservarlo.</p>
+        </div>
+        <div class="admin-guestbook-toolbar">
+          <label class="admin-search"><span>Buscar dedicatorias</span><input type="search" id="adminGuestbookSearch" placeholder="Invitado o mensaje"></label>
+          <a href="/novios/firmas-pdf" target="_blank" rel="noopener" id="btnExportGuestbookPdf" class="admin-btn admin-btn-gold">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 18 15 15"></polyline></svg>
+            Generar PDF
+          </a>
+        </div>
+      </div>
       <p class="admin-results" id="adminGuestbookResults" role="status" aria-live="polite"></p>
       <div class="admin-table-shell">
         <table class="guestbook-table">
@@ -209,11 +241,30 @@
 
   <?php require __DIR__ . '/partials/admin_zip_modal.php'; ?>
 
+  <!-- Modal de Progreso de Eliminación -->
+  <div class="admin-modal-backdrop" id="adminDeleteProgressModal" role="dialog" aria-modal="true" aria-labelledby="deleteProgressTitle" aria-describedby="deleteProgressDescription">
+    <div class="admin-modal-content admin-zip-dialog">
+      <span class="admin-eyebrow">Eliminando recuerdos</span>
+      <h3 id="deleteProgressTitle" class="admin-section-title">Eliminando elementos</h3>
+      <p id="deleteProgressDescription" class="admin-section-note">Estamos eliminando los archivos seleccionados del &#225;lbum y del almacenamiento. Mant&#233;n esta p&#225;gina abierta.</p>
+      <div id="deleteProgressWrap" class="admin-zip-progress-wrap" aria-busy="true">
+        <div class="admin-zip-progress-heading">
+          <span id="deleteProgressStage">Iniciando eliminaci&#243;n…</span>
+          <strong id="deleteProgressPercent">0%</strong>
+        </div>
+        <div id="deleteProgressBar" class="admin-progress-track" role="progressbar" aria-label="Progreso de eliminaci&#243;n de recuerdos" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="deleteProgressFill" class="admin-progress-fill"></div>
+        </div>
+        <p id="deleteProgressStatus" class="admin-section-note" role="status" aria-live="polite">Procesando solicitud…</p>
+      </div>
+    </div>
+  </div>
+
   <!-- Contenedor de Notificaciones Toast del Panel -->
   <div class="admin-toast-container" id="adminToastContainer" aria-live="polite" aria-atomic="false"></div>
 
   <?php require __DIR__ . '/partials/admin_lightbox.php'; ?>
-  <script src="/assets/js/admin.js?v=14"></script>
-  <script src="/assets/js/admin-zip.js?v=5"></script>
+  <script src="/assets/js/admin.js?v=18"></script>
+  <script src="/assets/js/admin-zip.js?v=6"></script>
 </body>
 </html>

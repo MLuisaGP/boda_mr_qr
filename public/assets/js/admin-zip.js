@@ -147,6 +147,27 @@
 
   let running = false;
   let abortController = null;
+  let activeIds = null;
+
+  function normalizeIds(ids) {
+    if (!Array.isArray(ids)) return null;
+    const clean = Array.from(new Set(ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)));
+    return clean.length ? clean : null;
+  }
+
+  function updateModalCopy(ids) {
+    const titleEl = byId('r2GuideTitle');
+    const descEl = byId('albumZipDescription');
+    if (ids && ids.length) {
+      if (titleEl) titleEl.textContent = 'Descargar selección';
+      if (descEl) descEl.textContent = ids.length === 1
+        ? 'Incluye 1 recuerdo seleccionado en un archivo comprimido.'
+        : 'Incluye los ' + ids.length + ' recuerdos seleccionados en un archivo comprimido.';
+    } else {
+      if (titleEl) titleEl.textContent = 'Descargar álbum';
+      if (descEl) descEl.textContent = 'Incluye todas las fotos y videos publicados en un archivo comprimido.';
+    }
+  }
 
   function update(percent, stage, message) {
     if (percent === null) {
@@ -164,11 +185,12 @@
     return value >= 1073741824 ? (value / 1073741824).toFixed(2) + ' GB' : (value / 1048576).toFixed(1) + ' MB';
   }
 
-  async function fetchManifest(signal) {
+  async function fetchManifest(signal, ids) {
+    const payload = ids && ids.length ? { action: 'manifest', ids } : { action: 'manifest' };
     const response = await fetch('/api/zip-download', {
       method: 'POST', credentials: 'same-origin', cache: 'no-store', signal,
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({ action: 'manifest' })
+      body: JSON.stringify(payload)
     });
     let result;
     try { result = await response.json(); }
@@ -203,8 +225,13 @@
     }
   }
 
-  async function begin() {
+  async function begin(requestedIds = null) {
     if (running) return;
+
+    const selectedIds = normalizeIds(requestedIds);
+    activeIds = selectedIds;
+    savedZipName = selectedIds ? 'Seleccion_Michelle_y_Rene.zip' : 'Album_Michelle_y_Rene.zip';
+    updateModalCopy(selectedIds);
 
     // Request file handle synchronously inside the user click gesture when supported (streams straight to disk).
     let fileHandle = null;
@@ -216,7 +243,7 @@
         });
       } catch (error) {
         if (error && error.name === 'AbortError') {
-          update(0, 'Descarga cancelada', 'Elige una ubicación cuando estés listo para guardar el álbum.');
+          update(0, 'Descarga cancelada', 'Elige una ubicación cuando estés listo para guardar el archivo.');
           return;
         }
         // Fallback to in-memory Blob download if picker fails for another reason.
@@ -235,7 +262,7 @@
     stop.disabled = false;
     retry.hidden = true;
     byId('albumZipProgressWrap').setAttribute('aria-busy', 'true');
-    update(null, 'Obteniendo lista', 'Consultando todas las fotos y videos publicados…');
+    update(null, 'Obteniendo lista', selectedIds ? 'Consultando los recuerdos seleccionados…' : 'Consultando todas las fotos y videos publicados…');
 
     let writable = null;
     const blobParts = fileHandle ? null : [];
@@ -252,11 +279,11 @@
     };
 
     try {
-      const manifest = await fetchManifest(signal);
+      const manifest = await fetchManifest(signal, selectedIds);
       const items = Array.isArray(manifest.items) ? manifest.items : [];
       if (!items.length) throw new Error('Todavía no hay recuerdos para descargar.');
 
-      savedZipName = manifest.filename || 'Album_Michelle_y_Rene.zip';
+      savedZipName = manifest.filename || savedZipName;
       const totalItems = items.length;
       const totalBytes = Number(manifest.total_bytes) || 0;
       let downloadedBytes = 0;
@@ -355,8 +382,9 @@
     }
   }
 
-  button.addEventListener('click', begin);
-  retry.addEventListener('click', begin);
+  button.addEventListener('click', () => begin(null));
+  retry.addEventListener('click', () => begin(activeIds));
+  window.startAdminZipDownload = (ids) => begin(ids);
   stop.addEventListener('click', () => {
     stop.disabled = true;
     abortController?.abort();

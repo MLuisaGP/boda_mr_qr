@@ -27,6 +27,8 @@
   }
 
   let allMediaItems = [];
+  let visibleMediaItems = [];
+  const selectedMediaIds = new Set();
   let allGuestbookEntries = [];
   let adminMediaPage = 0;
   let adminMediaTotal = 0;
@@ -36,8 +38,15 @@
   const mediaType = document.getElementById('adminMediaType');
   const mediaSort = document.getElementById('adminMediaSort');
   const mediaResults = document.getElementById('adminMediaResults');
+  const selectVisibleCheckbox = document.getElementById('adminSelectVisible');
+  const selectionCountEl = document.getElementById('adminSelectionCount');
+  const btnClearSelection = document.getElementById('btnClearSelection');
+  const selectionActionsEl = document.getElementById('adminSelectionActions');
+  const btnZipSelected = document.getElementById('btnZipSelected');
+  const btnDeleteSelected = document.getElementById('btnDeleteSelected');
   const guestbookSearch = document.getElementById('adminGuestbookSearch');
   const guestbookResults = document.getElementById('adminGuestbookResults');
+  const btnExportGuestbookPdf = document.getElementById('btnExportGuestbookPdf');
   const loadMoreButton = document.getElementById('btnAdminLoadMore');
 
   // DOM Elements
@@ -69,6 +78,17 @@
   const confirmModalText = document.getElementById('confirmModalText');
   const btnConfirmOk = document.getElementById('btnConfirmOk');
   const btnConfirmCancel = document.getElementById('btnConfirmCancel');
+  const deleteProgressModal = document.getElementById('adminDeleteProgressModal');
+  const deleteProgressTitle = document.getElementById('deleteProgressTitle');
+  const deleteProgressStage = document.getElementById('deleteProgressStage');
+  const deleteProgressPercent = document.getElementById('deleteProgressPercent');
+  const deleteProgressBar = document.getElementById('deleteProgressBar');
+  const deleteProgressFill = document.getElementById('deleteProgressFill');
+  const deleteProgressStatus = document.getElementById('deleteProgressStatus');
+  const deleteProgressWrap = document.getElementById('deleteProgressWrap');
+  let deleteProgressTimer = null;
+  let deleteProgressValue = 0;
+  let deleteProgressCap = 0;
   let confirmCallback = null;
 
   const btnPrintCard = document.getElementById('btnPrintCard');
@@ -326,9 +346,44 @@
     return filtered.sort((a,b) => sort === 'popular' ? Number(b.likes_count || 0) - Number(a.likes_count || 0) : sort === 'oldest' ? Number(a.id) - Number(b.id) : Number(b.id) - Number(a.id));
   }
 
+  function syncSelectionUI() {
+    const count = selectedMediaIds.size;
+    if (selectionCountEl) {
+      selectionCountEl.textContent = count === 1 ? '1 seleccionado' : count + ' seleccionados';
+    }
+    if (btnClearSelection) btnClearSelection.hidden = count === 0;
+    if (selectionActionsEl) selectionActionsEl.hidden = count === 0;
+    if (btnZipSelected) btnZipSelected.disabled = count === 0;
+    if (btnDeleteSelected) btnDeleteSelected.disabled = count === 0 || deletingMedia;
+
+    if (selectVisibleCheckbox) {
+      const visibleCount = visibleMediaItems.length;
+      const visibleSelected = visibleMediaItems.filter((item) => selectedMediaIds.has(Number(item.id))).length;
+      selectVisibleCheckbox.disabled = visibleCount === 0;
+      selectVisibleCheckbox.checked = visibleCount > 0 && visibleSelected === visibleCount;
+      selectVisibleCheckbox.indeterminate = visibleSelected > 0 && visibleSelected < visibleCount;
+    }
+  }
+
+  function toggleMediaSelection(id, checked) {
+    const numId = Number(id);
+    if (!Number.isInteger(numId) || numId <= 0) return;
+    if (checked) selectedMediaIds.add(numId);
+    else selectedMediaIds.delete(numId);
+    const card = mediaGrid ? mediaGrid.querySelector('.admin-media-card[data-id="' + numId + '"]') : null;
+    if (card) {
+      card.classList.toggle('selected', checked);
+      const cb = card.querySelector('.admin-media-checkbox');
+      if (cb && cb.checked !== checked) cb.checked = checked;
+    }
+    syncSelectionUI();
+  }
+
   function applyMediaFilters() {
     const items = filterAdminMedia(allMediaItems, mediaSearch ? mediaSearch.value : '', mediaType ? mediaType.value : 'all', mediaSort ? mediaSort.value : 'recent');
+    visibleMediaItems = items;
     renderMediaGrid(items);
+    syncSelectionUI();
     if (mediaResults) mediaResults.textContent = items.length + ' visibles de ' + allMediaItems.length + ' cargados de ' + adminMediaTotal + ' en total' + (adminMediaHasMore ? '. Hay más recuerdos por cargar.' : '');
     if (loadMoreButton) { loadMoreButton.hidden = !adminMediaHasMore; loadMoreButton.disabled = adminMediaLoading; }
   }
@@ -446,13 +501,17 @@
 
     items.forEach(item => {
       const card = document.createElement('div');
-      card.className = 'admin-media-card';
+      const isSelected = selectedMediaIds.has(Number(item.id));
+      card.className = 'admin-media-card' + (isSelected ? ' selected' : '');
       card.dataset.id = item.id;
 
       const isVideo = item.media_type === 'video';
       const previewSrc = item.thumb_url || item.url;
       card.innerHTML = `
-        ${isVideo ? `<div class="admin-card-select-wrap" style="pointer-events:none;"><span style="background:rgba(0,0,0,0.72); color:#F5E6C4; border:1px solid rgba(201,160,80,0.45); font-size:0.65rem; font-weight:700; padding:3px 7px; border-radius:999px; letter-spacing:0.08em;">VIDEO</span></div>` : ''}
+        <label class="admin-card-select-wrap" title="Seleccionar recuerdo">
+          <input type="checkbox" class="admin-checkbox admin-media-checkbox" data-id="${item.id}" ${isSelected ? 'checked' : ''} aria-label="Seleccionar recuerdo de ${escapeHtml(item.guest_name || 'Invitado')}">
+        </label>
+        ${isVideo ? `<div class="admin-card-type-badge" aria-hidden="true"><span>VIDEO</span></div>` : ''}
         ${isVideo && !item.thumb_url ? `
           <video class="admin-media-preview" src="${escapeHtml(item.url)}" preload="metadata" muted></video>
         ` : `
@@ -469,6 +528,17 @@
           </div>
         </div>
       `;
+
+      const selectWrap = card.querySelector('.admin-card-select-wrap');
+      const checkbox = card.querySelector('.admin-media-checkbox');
+      if (selectWrap) {
+        selectWrap.addEventListener('click', (event) => event.stopPropagation());
+      }
+      if (checkbox) {
+        checkbox.addEventListener('change', () => {
+          toggleMediaSelection(item.id, checkbox.checked);
+        });
+      }
 
       // Preview click to open full resolution
       const prev = card.querySelector('.admin-media-preview');
@@ -497,11 +567,70 @@
     });
   }
 
+  function stopDeleteProgressTimer() {
+    if (deleteProgressTimer) {
+      clearInterval(deleteProgressTimer);
+      deleteProgressTimer = null;
+    }
+  }
+
+  function renderDeleteProgress(percent) {
+    deleteProgressValue = Math.max(0, Math.min(100, percent));
+    const rounded = Math.floor(deleteProgressValue);
+    if (deleteProgressBar) deleteProgressBar.setAttribute('aria-valuenow', String(rounded));
+    if (deleteProgressFill) deleteProgressFill.style.width = deleteProgressValue.toFixed(1) + '%';
+    if (deleteProgressPercent) deleteProgressPercent.textContent = rounded + '%';
+  }
+
+  function startDeleteProgressEstimate(targetCap) {
+    deleteProgressCap = Math.max(deleteProgressValue, Math.min(95, targetCap));
+    if (deleteProgressTimer) return;
+    deleteProgressTimer = setInterval(() => {
+      if (deleteProgressValue >= deleteProgressCap) return;
+      const step = Math.max(0.3, (deleteProgressCap - deleteProgressValue) * 0.085);
+      renderDeleteProgress(Math.min(deleteProgressCap, deleteProgressValue + step));
+    }, 120);
+  }
+
+  function openDeleteProgress(total) {
+    if (!deleteProgressModal) return;
+    stopDeleteProgressTimer();
+    if (deleteProgressTitle) {
+      deleteProgressTitle.textContent = total === 1 ? 'Eliminando recuerdo' : 'Eliminando ' + total + ' recuerdos';
+    }
+    if (deleteProgressWrap) deleteProgressWrap.setAttribute('aria-busy', 'true');
+    if (deleteProgressFill) deleteProgressFill.classList.add('is-active');
+    renderDeleteProgress(6);
+    updateDeleteProgress(6, 'Eliminando…', total === 1
+      ? 'Borrando el recuerdo del álbum y del almacenamiento. Mantén esta página abierta.'
+      : 'Preparando eliminación de ' + total + ' recuerdos. Mantén esta página abierta.');
+    deleteProgressModal.classList.add('active');
+  }
+
+  function updateDeleteProgress(percent, stage, message) {
+    if (typeof percent === 'number' && !Number.isNaN(percent)) {
+      renderDeleteProgress(Math.max(deleteProgressValue, percent));
+    }
+    if (deleteProgressStage) deleteProgressStage.textContent = stage;
+    if (deleteProgressStatus) deleteProgressStatus.textContent = message;
+  }
+
+  function closeDeleteProgress() {
+    stopDeleteProgressTimer();
+    if (!deleteProgressModal) return;
+    if (deleteProgressWrap) deleteProgressWrap.setAttribute('aria-busy', 'false');
+    if (deleteProgressFill) deleteProgressFill.classList.remove('is-active');
+    deleteProgressModal.classList.remove('active');
+  }
+
   // Eliminar multimedia como Admin
   async function deleteMedia(mediaId) {
     if (deletingMedia) return;
     deletingMedia = true;
     lb('lightboxDeleteBtn').disabled = true;
+    syncSelectionUI();
+    openDeleteProgress(1);
+    startDeleteProgressEstimate(86);
     try {
       const res = await fetch('/api/media/delete', {
         method: 'POST',
@@ -510,19 +639,173 @@
       });
       const data = await res.json();
       if (res.ok && data.success) {
+        selectedMediaIds.delete(Number(mediaId));
+        startDeleteProgressEstimate(95);
+        updateDeleteProgress(90, 'Actualizando álbum…', 'El recuerdo fue eliminado. Actualizando la vista…');
         if (mediaLightbox.classList.contains('active')) closeMediaPreview();
+        await Promise.all([loadMedia(), loadStats()]);
+        stopDeleteProgressTimer();
+        updateDeleteProgress(100, 'Eliminación completada', 'El recuerdo fue eliminado correctamente.');
+        await new Promise((resolve) => setTimeout(resolve, 260));
+        closeDeleteProgress();
         showAdminToast('El recuerdo se eliminó permanentemente del álbum.', 'success', 'Recuerdo eliminado');
-        loadMedia();
-        loadStats();
       } else {
+        closeDeleteProgress();
         showAdminToast(data.error || 'No se pudo eliminar el recuerdo.', 'error', 'Error al eliminar');
       }
     } catch (e) {
+      closeDeleteProgress();
       showAdminToast('No se pudo conectar con el servidor. Intenta nuevamente.', 'error', 'Sin conexión');
     } finally {
       deletingMedia = false;
+      closeDeleteProgress();
       lb('lightboxDeleteBtn').disabled = false;
+      syncSelectionUI();
     }
+  }
+
+  async function deleteSelectedMedia(ids) {
+    if (deletingMedia || !ids.length) return;
+    deletingMedia = true;
+    syncSelectionUI();
+    const total = ids.length;
+    const chunkSize = 5;
+    let totalDeleted = 0;
+    let processed = 0;
+    let lastError = '';
+
+    openDeleteProgress(total);
+    try {
+      for (let i = 0; i < total; i += chunkSize) {
+        const batch = ids.slice(i, i + chunkSize);
+        const batchEnd = Math.min(i + batch.length, total);
+        const batchCap = Math.min(92, ((processed + batch.length * 0.88) / total) * 94);
+        startDeleteProgressEstimate(batchCap);
+        updateDeleteProgress(
+          null,
+          'Eliminando elementos',
+          'Eliminando ' + (i + 1) + (batchEnd > i + 1 ? '–' + batchEnd : '') + ' de ' + total + ' recuerdos… Mantén esta página abierta.'
+        );
+
+        const res = await fetch('/api/media/delete-bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: batch })
+        });
+        let data = {};
+        try { data = await res.json(); } catch (_) {}
+
+        if (res.ok && data.success) {
+          const deletedIds = Array.isArray(data.deleted_ids) ? data.deleted_ids : batch;
+          deletedIds.forEach((id) => selectedMediaIds.delete(Number(id)));
+          totalDeleted += Number(data.deleted_count || deletedIds.length);
+        } else {
+          lastError = data.error || 'No se pudieron eliminar algunos recuerdos.';
+        }
+
+        processed += batch.length;
+        updateDeleteProgress(
+          Math.min(94, (processed / total) * 94),
+          'Eliminando elementos',
+          processed + ' de ' + total + ' recuerdos procesados…'
+        );
+      }
+
+      if (totalDeleted > 0) {
+        startDeleteProgressEstimate(97);
+        updateDeleteProgress(94, 'Actualizando álbum…', 'Guardando cambios y actualizando la galería…');
+        await Promise.all([loadMedia(), loadStats()]);
+        stopDeleteProgressTimer();
+        updateDeleteProgress(100, 'Eliminación completada', 'Se actualizaron los recuerdos correctamente.');
+        await new Promise((resolve) => setTimeout(resolve, 280));
+        closeDeleteProgress();
+        if (lastError) {
+          showAdminToast(
+            'Se eliminaron ' + totalDeleted + ' de ' + total + ' recuerdos. ' + lastError,
+            'warning',
+            'Eliminación parcial'
+          );
+        } else {
+          showAdminToast(
+            totalDeleted === 1 ? '1 recuerdo eliminado permanentemente del álbum.' : totalDeleted + ' recuerdos eliminados permanentemente del álbum.',
+            'success',
+            'Recuerdos eliminados'
+          );
+        }
+      } else {
+        closeDeleteProgress();
+        showAdminToast(lastError || 'No se pudieron eliminar los recuerdos seleccionados.', 'error', 'Error al eliminar');
+      }
+    } catch (e) {
+      closeDeleteProgress();
+      if (totalDeleted > 0) {
+        loadMedia();
+        loadStats();
+        showAdminToast('Se eliminaron ' + totalDeleted + ' recuerdos antes de perder la conexión.', 'warning', 'Conexión interrumpida');
+      } else {
+        showAdminToast('No se pudo conectar con el servidor. Intenta nuevamente.', 'error', 'Sin conexión');
+      }
+    } finally {
+      deletingMedia = false;
+      closeDeleteProgress();
+      syncSelectionUI();
+    }
+  }
+
+  if (selectVisibleCheckbox) {
+    selectVisibleCheckbox.addEventListener('change', () => {
+      const check = selectVisibleCheckbox.checked;
+      visibleMediaItems.forEach((item) => {
+        if (check) selectedMediaIds.add(Number(item.id));
+        else selectedMediaIds.delete(Number(item.id));
+      });
+      if (mediaGrid) {
+        mediaGrid.querySelectorAll('.admin-media-card').forEach((card) => {
+          const id = Number(card.dataset.id);
+          const isSelected = selectedMediaIds.has(id);
+          card.classList.toggle('selected', isSelected);
+          const cb = card.querySelector('.admin-media-checkbox');
+          if (cb) cb.checked = isSelected;
+        });
+      }
+      syncSelectionUI();
+    });
+  }
+
+  if (btnClearSelection) {
+    btnClearSelection.addEventListener('click', () => {
+      selectedMediaIds.clear();
+      if (mediaGrid) {
+        mediaGrid.querySelectorAll('.admin-media-card.selected').forEach((card) => {
+          card.classList.remove('selected');
+          const cb = card.querySelector('.admin-media-checkbox');
+          if (cb) cb.checked = false;
+        });
+      }
+      syncSelectionUI();
+    });
+  }
+
+  if (btnZipSelected) {
+    btnZipSelected.addEventListener('click', () => {
+      const ids = Array.from(selectedMediaIds);
+      if (!ids.length) return;
+      if (r2GuideModal) r2GuideModal.classList.add('active');
+      if (typeof window.startAdminZipDownload === 'function') {
+        window.startAdminZipDownload(ids);
+      }
+    });
+  }
+
+  if (btnDeleteSelected) {
+    btnDeleteSelected.addEventListener('click', () => {
+      const ids = Array.from(selectedMediaIds);
+      if (!ids.length || deletingMedia) return;
+      const msg = ids.length === 1
+        ? '¿Eliminar el recuerdo seleccionado? Se borrará permanentemente. Esta acción no se puede deshacer.'
+        : '¿Eliminar los ' + ids.length + ' recuerdos seleccionados? Se borrarán permanentemente. Esta acción no se puede deshacer.';
+      showConfirm(msg, () => deleteSelectedMedia(ids));
+    });
   }
 
   // =====================================================================
@@ -779,6 +1062,14 @@
 
   [mediaSearch, mediaType, mediaSort].filter(Boolean).forEach((control) => control.addEventListener(control === mediaSearch ? 'input' : 'change', applyMediaFilters));
   if (guestbookSearch) guestbookSearch.addEventListener('input', applyGuestbookFilter);
+  if (btnExportGuestbookPdf) {
+    btnExportGuestbookPdf.addEventListener('click', (event) => {
+      if (allGuestbookEntries.length === 0) {
+        event.preventDefault();
+        showAdminToast('Aún no hay dedicatorias para generar el PDF del libro de firmas.', 'warning', 'Libro sin firmas');
+      }
+    });
+  }
   if (loadMoreButton) loadMoreButton.addEventListener('click', () => loadMedia(true));
   document.addEventListener('click', (event) => {
     const retry = event.target.closest('[data-admin-retry]');
@@ -807,7 +1098,7 @@
     });
   }
 
-  const dialogs = [confirmModal, msgModal, r2GuideModal, printModal, mediaLightbox].filter(Boolean);
+  const dialogs = [confirmModal, msgModal, r2GuideModal, deleteProgressModal, printModal, mediaLightbox].filter(Boolean);
   let modalReturnFocus = null;
   const focusableSelector = 'button:not([disabled]), a[href], input, select, textarea, [tabindex="0"]';
   const syncDialogs = () => {

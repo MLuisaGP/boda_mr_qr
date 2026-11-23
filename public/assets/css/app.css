@@ -7685,8 +7685,8 @@ html:has(body.page-guestbook) {
   flex-direction: column;
   justify-content: center;
   min-height: 0;
-  overflow: hidden;
-  padding: 5px 6px 6px;
+  overflow: visible;
+  padding: 3px 10px 4px;
   border-bottom: 1px dashed rgba(201, 160, 80, 0.3);
   transition: background-color 0.2s ease;
 }
@@ -7696,13 +7696,13 @@ html:has(body.page-guestbook) {
 }
 
 .book-signature-entry:nth-child(odd) {
-  transform: rotate(-0.35deg);
+  transform: rotate(-0.3deg);
   padding-right: 12px;
 }
 
 .book-signature-entry:nth-child(even) {
-  transform: rotate(0.32deg);
-  padding-left: 10px;
+  transform: rotate(0.28deg);
+  padding-left: 12px;
 }
 
 .book-signature-entry.is-clickable {
@@ -7715,7 +7715,8 @@ html:has(body.page-guestbook) {
 }
 
 .book-sig-message {
-  margin: 0 0 3px;
+  margin: -0.08em -0.14em 2px -0.1em;
+  padding: 0.14em 0.22em 0.12em 0.14em;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: var(--sig-lines, 2);
@@ -7731,6 +7732,7 @@ html:has(body.page-guestbook) {
   justify-content: flex-end;
   gap: 8px;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .book-sig-author {
@@ -7738,86 +7740,160 @@ html:has(body.page-guestbook) {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  padding: 0.14em 0.26em 0.14em 0.16em;
+  margin: -0.1em -0.16em -0.1em 0;
   opacity: 0.86;
 }
 
 /* =====================================================================
-   LAS 4 TIPOGRAFÍAS MANUSCRITAS (CALIBRADAS POR ESCALA Y TINTA)
+   LAS 7 TIPOGRAFÍAS MANUSCRITAS (CALIBRADAS PARA 5 FIRMAS SIN RECORTES)
    ===================================================================== */
 
-/* 1. Qwigley — Caligrafía artística con trazos expresivos */
-.sig-font-qwigley .book-sig-message {
-  font-family: 'Qwigley', cursive;
-  font-size: clamp(1.42rem, 4.9vw, 1.92rem);
-  line-height: 1.06;
+/* 1. Ballet — Caligrafía Spenceriana ornamentada (trazos altos y fluidos) */
+.sig-font-ballet .book-sig-message {
+  font-family: 'Ballet', cursive;
+  font-size: clamp(0.92rem, 2.9vw, 1.16rem);
+  line-height: 1.48;
+  padding: 0.22em 0.34em 0.2em 0.24em;
+  margin: -0.14em -0.2em 1px -0.16em;
+  color: #3E232C;
+}
+
+.sig-font-ballet .book-sig-author {
+  font-family: 'Ballet', cursive;
+  font-size: clamp(0.76rem, 2.2vw, 0.92rem);
+  line-height: 1.38;
+  padding: 0.18em 0.32em 0.18em 0.22em;
+  color: #6E3345;
+}
+
+/* 2. Lavishly Yours — Caligrafía fluida y elegante */
+.sig-font-lavishly_yours .book-sig-message {
+  font-family: 'Lavishly Yours', cursive;
+  font-size: clamp(1.12rem, 3.6vw, 1.44rem);
+  line-height: 1.24;
+  padding: 0.18em 0.28em 0.16em 0.18em;
   color: #242E1F;
 }
 
-.sig-font-qwigley .book-sig-author {
-  font-family: 'Qwigley', cursive;
-  font-size: clamp(0.92rem, 2.7vw, 1.12rem);
-  line-height: 1;
+.sig-font-lavishly_yours .book-sig-author {
+  font-family: 'Lavishly Yours', cursive;
+  font-size: clamp(0.84rem, 2.4vw, 1.02rem);
+  line-height: 1.22;
+  padding: 0.16em 0.28em 0.14em 0.18em;
   color: #4A5842;
 }
 
-/* 2. Sacramento — Cursiva monolineal clásica y delicada */
-.sig-font-sacramento .book-sig-message {
-  font-family: 'Sacramento', cursive;
-  font-size: clamp(1.18rem, 4vw, 1.54rem);
-  line-height: 1.22;
+/* 3. Tangerine — Caligrafía nupcial clásica estilizada */
+.sig-font-tangerine .book-sig-message {
+  font-family: 'Tangerine', cursive;
+  font-size: clamp(1.2rem, 3.9vw, 1.54rem);
+  font-weight: 700;
+  line-height: 1.16;
+  padding: 0.14em 0.24em 0.14em 0.14em;
   color: #3B2B1E;
 }
 
-.sig-font-sacramento .book-sig-author {
-  font-family: 'Sacramento', cursive;
-  font-size: clamp(0.82rem, 2.4vw, 1rem);
-  line-height: 1.08;
+.sig-font-tangerine .book-sig-author {
+  font-family: 'Tangerine', cursive;
+  font-size: clamp(0.9rem, 2.6vw, 1.08rem);
+  font-weight: 700;
+  line-height: 1.15;
+  padding: 0.12em 0.24em 0.12em 0.14em;
   color: #7D5920;
 }
 
-/* 3. Indie Flower — Letra a mano casual y amigable */
+/* 4. Annie Use Your Telescope — Letra manuscrita alta y espontánea */
+.sig-font-annie_use_your_telescope .book-sig-message {
+  font-family: 'Annie Use Your Telescope', cursive;
+  font-size: clamp(0.88rem, 2.7vw, 1.08rem);
+  line-height: 1.26;
+  padding: 0.1em 0.16em 0.1em 0.1em;
+  color: #253646;
+}
+
+.sig-font-annie_use_your_telescope .book-sig-author {
+  font-family: 'Annie Use Your Telescope', cursive;
+  font-size: clamp(0.7rem, 2vw, 0.84rem);
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.1em 0.16em;
+  color: #364B5E;
+}
+
+/* 5. Indie Flower — Letra a mano casual y amigable */
 .sig-font-indie_flower .book-sig-message {
   font-family: 'Indie Flower', cursive;
-  font-size: clamp(0.86rem, 2.75vw, 1.04rem);
-  line-height: 1.32;
+  font-size: clamp(0.8rem, 2.4vw, 0.96rem);
+  line-height: 1.28;
+  padding: 0.08em 0.14em;
   color: #253646;
 }
 
 .sig-font-indie_flower .book-sig-author {
   font-family: 'Indie Flower', cursive;
-  font-size: clamp(0.66rem, 1.95vw, 0.76rem);
+  font-size: clamp(0.64rem, 1.85vw, 0.74rem);
   font-weight: 600;
-  line-height: 1.15;
+  line-height: 1.2;
+  padding: 0.08em 0.14em;
   color: #364B5E;
 }
 
-/* 4. La Luxes Script — Caligrafía nupcial de lujo (con fallback Luxurious Script) */
-.sig-font-la_luxes_script .book-sig-message {
-  font-family: 'La Luxes Script', 'Luxurious Script', 'Alex Brush', cursive;
-  font-size: clamp(1.48rem, 5.1vw, 2.02rem);
-  line-height: 1.05;
-  color: #3E232C;
+/* 6. Oooh Baby — Manuscrita cálida y natural */
+.sig-font-oooh_baby .book-sig-message {
+  font-family: 'Oooh Baby', cursive;
+  font-size: clamp(0.94rem, 3vw, 1.18rem);
+  line-height: 1.26;
+  padding: 0.12em 0.2em 0.12em 0.12em;
+  color: #2F3A28;
 }
 
-.sig-font-la_luxes_script .book-sig-author {
-  font-family: 'La Luxes Script', 'Luxurious Script', 'Alex Brush', cursive;
-  font-size: clamp(0.94rem, 2.8vw, 1.15rem);
-  line-height: 1;
-  color: #6E3345;
+.sig-font-oooh_baby .book-sig-author {
+  font-family: 'Oooh Baby', cursive;
+  font-size: clamp(0.74rem, 2.1vw, 0.88rem);
+  line-height: 1.2;
+  padding: 0.1em 0.2em;
+  color: #55664B;
 }
 
-/* Ajuste fino cuando hay 4 firmas por página */
-.book-paper-entries[data-slots="4"] .sig-font-qwigley .book-sig-message {
-  font-size: clamp(1.34rem, 4.3vw, 1.72rem);
+/* 7. Italianno — Caligrafía italiana refinada */
+.sig-font-italianno .book-sig-message {
+  font-family: 'Italianno', cursive;
+  font-size: clamp(1.18rem, 3.8vw, 1.5rem);
+  line-height: 1.18;
+  padding: 0.16em 0.28em 0.14em 0.16em;
+  color: #352820;
 }
-.book-paper-entries[data-slots="4"] .sig-font-sacramento .book-sig-message {
-  font-size: clamp(1.12rem, 3.5vw, 1.42rem);
+
+.sig-font-italianno .book-sig-author {
+  font-family: 'Italianno', cursive;
+  font-size: clamp(0.88rem, 2.5vw, 1.06rem);
+  line-height: 1.16;
+  padding: 0.14em 0.26em 0.14em 0.16em;
+  color: #7A5630;
+}
+
+/* Ajuste fino cuando hay 4 firmas por página (espacio más holgado) */
+.book-paper-entries[data-slots="4"] .sig-font-ballet .book-sig-message {
+  font-size: clamp(1rem, 3.2vw, 1.26rem);
+}
+.book-paper-entries[data-slots="4"] .sig-font-lavishly_yours .book-sig-message {
+  font-size: clamp(1.2rem, 3.9vw, 1.54rem);
+}
+.book-paper-entries[data-slots="4"] .sig-font-tangerine .book-sig-message {
+  font-size: clamp(1.28rem, 4.2vw, 1.66rem);
+}
+.book-paper-entries[data-slots="4"] .sig-font-annie_use_your_telescope .book-sig-message {
+  font-size: clamp(0.94rem, 2.9vw, 1.14rem);
 }
 .book-paper-entries[data-slots="4"] .sig-font-indie_flower .book-sig-message {
-  font-size: clamp(0.84rem, 2.5vw, 0.98rem);
+  font-size: clamp(0.84rem, 2.5vw, 1rem);
 }
-.book-paper-entries[data-slots="4"] .sig-font-la_luxes_script .book-sig-message {
-  font-size: clamp(1.38rem, 4.5vw, 1.82rem);
+.book-paper-entries[data-slots="4"] .sig-font-oooh_baby .book-sig-message {
+  font-size: clamp(1rem, 3.2vw, 1.26rem);
+}
+.book-paper-entries[data-slots="4"] .sig-font-italianno .book-sig-message {
+  font-size: clamp(1.26rem, 4.1vw, 1.62rem);
 }
 
 /* Estado vacío sobre el pergamino */
@@ -7833,8 +7909,8 @@ html:has(body.page-guestbook) {
 }
 
 .book-paper-empty-title {
-  font-family: 'Sacramento', cursive;
-  font-size: clamp(1.7rem, 5.5vw, 2.2rem);
+  font-family: 'Italianno', cursive;
+  font-size: clamp(2rem, 6.2vw, 2.55rem);
   color: var(--color-olive-dark);
   margin-bottom: 6px;
 }
@@ -7980,7 +8056,8 @@ html:has(body.page-guestbook) {
   display: block;
   -webkit-line-clamp: unset;
   overflow: visible;
-  margin-bottom: 14px;
+  margin: 0 0 14px;
+  padding: 0.16em 0.24em;
 }
 
 .book-sig-modal-body .book-sig-footer {
@@ -7990,6 +8067,9 @@ html:has(body.page-guestbook) {
 
 .book-sig-modal-body .book-sig-author {
   white-space: normal;
+  overflow: visible;
+  margin: 0;
+  padding: 0.14em 0.24em;
   max-width: 100%;
 }
 
@@ -8048,11 +8128,11 @@ html:has(body.page-guestbook) {
 }
 
 .book-signing-author {
-  font-family: 'Sacramento', cursive;
-  font-size: 1.55rem;
+  font-family: 'Italianno', cursive;
+  font-size: 1.85rem;
   line-height: 1.1;
   color: var(--color-gold-dark);
-  min-height: 1.7rem;
+  min-height: 1.9rem;
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;

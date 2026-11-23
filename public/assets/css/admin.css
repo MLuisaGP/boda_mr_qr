@@ -1232,7 +1232,12 @@ html:has(.admin-dashboard)::-webkit-scrollbar-thumb { background:rgba(74,88,66,.
 #albumZipProgress::-webkit-progress-bar { background:rgba(74,88,66,.12); border-radius:999px; }
 #albumZipProgress::-webkit-progress-value { background:#4A5842; border-radius:999px; }
 #albumZipProgress::-moz-progress-bar { background:#4A5842; border-radius:999px; }
-#albumZipStatus { margin-top:12px; min-height:3em; }
+.admin-progress-track { position:relative; width:100%; height:14px; border-radius:999px; overflow:hidden; background:rgba(74,88,66,.14); }
+.admin-progress-fill { position:relative; width:0%; height:100%; border-radius:999px; background:#4A5842; transition:width .24s ease-out; overflow:hidden; }
+.admin-progress-fill.is-active::after { content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(250,247,242,.32),transparent); transform:translateX(-100%); animation:adminProgressSheen 1.4s ease-in-out infinite; }
+@keyframes adminProgressSheen { to { transform:translateX(100%); } }
+#albumZipStatus,
+#deleteProgressStatus { margin-top:12px; min-height:3em; }
 .admin-zip-dialog .admin-confirm-actions { flex-wrap:wrap; }
 .admin-zip-dialog [hidden] { display:none !important; }
 .admin-dashboard .media-manager-grid { display:flex; flex-wrap:wrap; justify-content:center; align-items:stretch; gap:18px; }
@@ -1259,4 +1264,134 @@ html:has(.admin-dashboard)::-webkit-scrollbar-thumb { background:rgba(74,88,66,.
 @media (max-width:640px) {
   .admin-dashboard .media-manager-grid { gap:10px; }
   .admin-dashboard .admin-media-card { flex-basis:calc((100% - 10px)/2); }
+}
+
+/* Selección múltiple en el álbum del panel */
+.admin-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--admin-card-border);
+  border-radius: 12px;
+  background: rgba(255, 253, 249, 0.9);
+}
+.admin-selection-left,
+.admin-selection-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.admin-select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: #2D3A27;
+  font-size: 0.78rem;
+  font-weight: 500;
+  user-select: none;
+}
+.admin-selection-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.admin-dashboard .admin-btn-compact {
+  min-height: 36px;
+  padding: 7px 14px;
+  font-size: 0.72rem;
+}
+.admin-dashboard .admin-checkbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #4A5842;
+}
+.admin-dashboard .admin-card-select-wrap {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 12;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(250, 247, 242, 0.88);
+  border: 1px solid rgba(74, 88, 66, 0.28);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.admin-dashboard .admin-card-select-wrap:hover {
+  background: #FAF7F2;
+  border-color: #4A5842;
+}
+.admin-dashboard .admin-media-card.selected {
+  border-color: #4A5842;
+  box-shadow: 0 0 0 3px #4A5842, var(--shadow-card);
+}
+.admin-dashboard .admin-media-card.selected .admin-card-select-wrap {
+  background: #FAF7F2;
+  border-color: #4A5842;
+}
+.admin-dashboard .admin-card-type-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  pointer-events: none;
+}
+.admin-dashboard .admin-card-type-badge span {
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.72);
+  color: #F5E6C4;
+  border: 1px solid rgba(201, 160, 80, 0.45);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.08em;
+}
+@media (max-width: 640px) {
+  .admin-selection-bar {
+    padding: 10px 12px;
+  }
+  .admin-selection-actions {
+    width: 100%;
+  }
+  .admin-selection-actions .admin-btn {
+    flex: 1 1 0;
+  }
+}
+
+/* Barra de acciones del Libro de Firmas (búsqueda + exportar PDF) */
+.admin-guestbook-toolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.admin-guestbook-toolbar .admin-search {
+  min-width: 220px;
+}
+.admin-guestbook-toolbar #btnExportGuestbookPdf {
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .admin-guestbook-toolbar {
+    width: 100%;
+  }
+  .admin-guestbook-toolbar .admin-search {
+    flex: 1 1 200px;
+  }
+  .admin-guestbook-toolbar #btnExportGuestbookPdf {
+    width: 100%;
+  }
 }

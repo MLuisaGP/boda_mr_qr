@@ -27,6 +27,7 @@ $router->post('/api/media/confirm', [MediaController::class, 'confirm']);
 $router->post('/api/media', [MediaController::class, 'store']);
 $router->delete('/api/media/{id}', [MediaController::class, 'destroy']);
 $router->post('/api/media/delete', [MediaController::class, 'destroy']);
+$router->post('/api/media/delete-bulk', [MediaController::class, 'destroyBulk']);
 
 // Likes
 $router->post('/api/like', [LikeController::class, 'toggle']);
