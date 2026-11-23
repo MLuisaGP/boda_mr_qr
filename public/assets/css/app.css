@@ -8249,14 +8249,14 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 .standby-select-badge,
 .standby-tile.is-selected .standby-select-badge,
 .standby-delete-btn {
-  background: transparent;
+  background: #00000050;
   backdrop-filter: blur(14px) saturate(130%);
   -webkit-backdrop-filter: blur(14px) saturate(130%);
   box-shadow: 0 4px 10px rgba(0,0,0,.34);
   text-shadow: 0 2px 3px rgba(0,0,0,.4);
 }
 .standby-select-badge { color: #192016; border-color: currentColor; }
-.standby-tile.is-selected .standby-select-badge { color: var(--color-gold); border-color: currentColor; }
+.standby-tile.is-selected .standby-select-badge { color: white; border-color: currentColor; }
 .standby-delete-btn { color: #CD2D2D; border-color: currentColor; }
 .standby-delete-btn svg, .btn-publish-standby svg { filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
 .btn-mini-gallery, .btn-mini-gallery:hover { background: transparent; color: var(--color-olive-dark); }
@@ -8268,14 +8268,14 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 .standby-preview-btn { border-color: rgba(255,255,255,.3); }
 
 /* Mosaico con alturas alternadas independientes del archivo original. */
-.gallery-grid.gallery-wall { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); grid-auto-rows: 4px; grid-auto-flow: row dense; gap: 10px; align-items: stretch; width: 100%; }
+.gallery-grid.gallery-wall { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); grid-auto-rows: 4px; grid-auto-flow: row dense; gap: 10px; align-items: stretch; width: 100%; }
 .gallery-wall .gallery-grid-item { position: relative; display: block; width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; margin: 0; border-radius: 12px; opacity: 1; transform: none; transition-delay: 0s !important; }
 .gallery-wall .gallery-item-aspect { position: absolute; inset: 0; width: 100%; height: 100%; }
 .gallery-wall .gallery-item-media { width: 100%; height: 100%; object-fit: cover; }
 .gallery-wall video.gallery-item-media { min-height: 0; }
-@media (max-width: 1000px) { .gallery-grid.gallery-wall { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (max-width: 1200px) { .gallery-grid.gallery-wall { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+@media (max-width: 900px) { .gallery-grid.gallery-wall { grid-template-columns: repeat(3, minmax(0,1fr)); } }
 @media (max-width: 600px) { .gallery-grid.gallery-wall { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-.gallery-grid.gallery-wall.is-sparse { grid-template-columns: minmax(0,1fr); }
 .gallery-wall .gallery-item-overlay { opacity: 1; background: linear-gradient(to top, rgba(15,22,12,.66), transparent 45%); }
 .gallery-wall .gallery-item-author { opacity: 0; transform: translateY(5px); transition: opacity .2s ease, transform .2s ease; }
 .gallery-wall .gallery-grid-item:hover .gallery-item-author, .gallery-wall .gallery-grid-item:focus-within .gallery-item-author { opacity: 1; transform: none; }
@@ -8285,8 +8285,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--color-gold-dark
 @media (hover: none) { .gallery-wall .gallery-item-author, .gallery-wall .gallery-owner-badge { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .gallery-wall .gallery-item-author, .gallery-wall .gallery-item-media { transition: none; } }
 
-/* Pocos recuerdos populares comparten una sola fila y altura. */
-.gallery-grid.gallery-wall.is-level-row { grid-template-columns: repeat(var(--gallery-small-count), minmax(0,1fr)); }
+/* Los recuerdos populares conservan la misma altura y las columnas adaptables. */
 /* La barra conserva su fondo fuera del libro y acompana el sentido del scroll. */
 .site-nav { transition: transform .32s cubic-bezier(.22,1,.36,1); }
 .site-nav.is-scroll-hidden { transform: translateY(-110%); pointer-events: none; }

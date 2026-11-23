@@ -3149,12 +3149,15 @@
     const levelRow = currentFilter === 'popular' && sparse && tiles.length > 0;
     galleryGrid.classList.toggle('is-sparse', sparse);
     galleryGrid.classList.toggle('is-level-row', levelRow);
-    galleryGrid.style.setProperty('--gallery-small-count', Math.max(1, tiles.length));
     if (!tiles.length) return;
     // La misma cuadricula sirve a Todos, Mis Fotos y Mas Queridas.
-    const columns = levelRow ? tiles.length : sparse ? 1 : window.innerWidth <= 600 ? 2 : window.innerWidth <= 1000 ? 3 : 4;
+    const columns = getComputedStyle(galleryGrid).gridTemplateColumns.split(' ').length;
     const width = (galleryGrid.clientWidth - (columns - 1) * 10) / columns;
     tiles.forEach((tile, index) => {
+      const rowStart = Math.floor(index / columns) * columns;
+      const rowCount = Math.min(columns, tiles.length - rowStart);
+      const offset = Math.floor((columns - rowCount) / 2);
+      tile.style.gridColumnStart = String(offset + index % columns + 1);
       tile.style.gridRowEnd = 'span ' + getGalleryTileSpan(width, levelRow ? 0 : index, sparse);
     });
   }
