@@ -3626,7 +3626,27 @@
         target.has_liked = data.has_liked;
         target.likes_count = data.likes_count;
         if (galleryGrid) {
-          syncGalleryTileLike(mediaId, data.has_liked, data.likes_count);
+          if (currentFilter === 'popular' && !data.has_liked && !(lightbox && lightbox.classList.contains('active'))) {
+            const galleryIdx = allMediaCache.findIndex((i) => Number(i.id) === Number(mediaId));
+            if (galleryIdx >= 0) {
+              allMediaCache.splice(galleryIdx, 1);
+              galleryLoadedItemIds.delete(Number(mediaId));
+              galleryTotal = Math.max(0, galleryTotal - 1);
+            }
+            const tileToRemove = galleryGrid.querySelector(`.gallery-grid-item[data-media-id="${String(mediaId)}"]`);
+            if (tileToRemove) tileToRemove.remove();
+            layoutGalleryMosaic();
+            if (allMediaCache.length === 0) {
+              if (galleryHasMore) {
+                loadNextGalleryPage();
+              } else {
+                if (galleryEmpty) galleryEmpty.style.display = 'flex';
+                updateGalleryPaginationUI(false);
+              }
+            }
+          } else {
+            syncGalleryTileLike(mediaId, data.has_liked, data.likes_count);
+          }
         }
         const activeLightboxItem = currentLightboxItems[currentLightboxIndex];
         if (lightbox && lightbox.classList.contains('active') && activeLightboxItem && Number(activeLightboxItem.id) === Number(mediaId)) {
@@ -3845,11 +3865,19 @@
 
     if (lightboxDownloadBtn) {
       lightboxDownloadBtn.href = mediaUrl;
-      const fallbackName = isVideo ? 'recuerdo_boda.mp4' : 'recuerdo_boda.webp';
+      const fallbackName = isVideo ? 'recuerdo_boda.mp4' : 'recuerdo_boda.jpg';
       const downloadName = isStandby ? (item.name || fallbackName) : (item.original_name || fallbackName);
       lightboxDownloadBtn.setAttribute('download', downloadName);
       lightboxDownloadBtn.dataset.downloadUrl = mediaUrl;
       lightboxDownloadBtn.dataset.downloadName = downloadName;
+      lightboxDownloadBtn.dataset.mediaType = isVideo ? 'video' : 'image';
+      if (!isStandby && !isVideo && window.BodaMediaDownload) {
+        window.BodaMediaDownload.prefetchMedia({
+          url: mediaUrl,
+          fileName: downloadName,
+          mediaType: 'image',
+        });
+      }
     }
 
     lightbox.classList.add('active');
@@ -3932,16 +3960,75 @@
     });
   }
 
-  // Descarga directa compatible con URLs remotas cross-origin (Cloudflare R2)
+  // Guardar foto o video en las Fotos / Galería del dispositivo (iOS Share Sheet + Android JPEG/MP4)
   if (lightboxDownloadBtn) {
     lightboxDownloadBtn.addEventListener('click', async (e) => {
       const url = lightboxDownloadBtn.dataset.downloadUrl || lightboxDownloadBtn.href;
       const fileName = lightboxDownloadBtn.dataset.downloadName || 'recuerdo_boda';
-      if (!url || !/^https?:\/\//i.test(url) || url.startsWith(window.location.origin)) {
-        return;
-      }
+      const mediaType = lightboxDownloadBtn.dataset.mediaType || '';
+      if (!url || url === '#') return;
+
       e.preventDefault();
+      if (lightboxDownloadBtn.dataset.downloading === '1') return;
+
+      const currentItem = currentLightboxItems[currentLightboxIndex];
+      const sourceBlob = currentLightboxSource === 'standby' && currentItem && currentItem.file
+        ? currentItem.file
+        : null;
+
+      lightboxDownloadBtn.dataset.downloading = '1';
+      lightboxDownloadBtn.classList.add('is-downloading');
+      lightboxDownloadBtn.setAttribute('aria-busy', 'true');
+
       try {
+        if (window.BodaMediaDownload) {
+          const result = await window.BodaMediaDownload.saveMediaToDevice({
+            url,
+            fileName,
+            mediaType,
+            sourceBlob,
+            onSlowFetch: ({ isVideo }) => {
+              showToast(
+                isVideo
+                  ? 'Preparando el video para guardarlo en tus Fotos...'
+                  : 'Preparando la foto para guardarla en tus Fotos...',
+                'info',
+                'Preparando descarga'
+              );
+            },
+          });
+
+          if (result.status === 'needs-retry') {
+            showToast(result.message, 'info', 'Listo para guardar en Fotos');
+          } else if (result.status === 'downloaded') {
+            if (result.platform === 'ios') {
+              showToast(
+                result.isVideo
+                  ? 'Descarga iniciada. Usa Compartir → «Guardar video» para pasarlo a Fotos.'
+                  : 'Si no aparece en Fotos, mantén presionada la imagen y elige «Guardar en Fotos».',
+                'info',
+                'Guardar en Fotos'
+              );
+            } else if (result.platform === 'android') {
+              showToast(
+                result.isVideo
+                  ? 'Video guardado en la galería / descargas de tu dispositivo.'
+                  : 'Foto guardada en la galería / descargas de tu dispositivo.',
+                'success',
+                'Guardado en tus fotos'
+              );
+            }
+          } else if (result.status === 'opened') {
+            showToast(
+              'Se abrió el recuerdo en otra pestaña para guardarlo en tu dispositivo.',
+              'info',
+              'Guardar recuerdo'
+            );
+          }
+          return;
+        }
+
+        // Respaldo si el módulo compartido no cargó
         const res = await fetch(url, { mode: 'cors' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const blob = await res.blob();
@@ -3952,9 +4039,13 @@
         document.body.appendChild(a);
         a.click();
         a.remove();
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 2500);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
       } catch (err) {
         window.open(url, '_blank', 'noopener');
+      } finally {
+        delete lightboxDownloadBtn.dataset.downloading;
+        lightboxDownloadBtn.classList.remove('is-downloading');
+        lightboxDownloadBtn.removeAttribute('aria-busy');
       }
     });
   }

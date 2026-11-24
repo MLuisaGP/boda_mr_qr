@@ -3628,6 +3628,25 @@ body.loading.app-page-enter {
   color: #F5F5F5;
 }
 
+.lightbox-download.is-downloading,
+.btn-download-single.is-downloading {
+  opacity: 0.55;
+  pointer-events: none;
+  animation: lightboxDownloadPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes lightboxDownloadPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lightbox-download.is-downloading,
+  .btn-download-single.is-downloading {
+    animation: none;
+  }
+}
+
 .lightbox-delete {
   color: #FF7875;
 }

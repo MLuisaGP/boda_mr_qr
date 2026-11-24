@@ -309,17 +309,54 @@
   // =====================================================================
   // 3. GESTIÓN MULTIMEDIA (Thumbnails R2, Descarga Individual y Borrado)
   // =====================================================================
-  async function downloadSingleMedia(url, fileName) {
-    if (!url || !/^https?:\/\//i.test(url) || url.startsWith(window.location.origin)) {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName || 'recuerdo_boda';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      return;
+  async function downloadSingleMedia(url, fileName, mediaType, triggerEl) {
+    if (!url) return;
+    if (triggerEl && triggerEl.dataset.downloading === '1') return;
+    if (triggerEl) {
+      triggerEl.dataset.downloading = '1';
+      triggerEl.classList.add('is-downloading');
+      triggerEl.setAttribute('aria-busy', 'true');
     }
     try {
+      if (window.BodaMediaDownload) {
+        const result = await window.BodaMediaDownload.saveMediaToDevice({
+          url,
+          fileName: fileName || 'recuerdo_boda',
+          mediaType: mediaType || '',
+          onSlowFetch: ({ isVideo }) => {
+            showAdminToast(
+              isVideo
+                ? 'Preparando el video para guardarlo en tus Fotos...'
+                : 'Preparando la foto para guardarla en tus Fotos...',
+              'info',
+              'Preparando descarga'
+            );
+          },
+        });
+        if (result.status === 'needs-retry') {
+          showAdminToast(result.message, 'info', 'Listo para guardar en Fotos');
+        } else if (result.status === 'downloaded' && result.platform === 'ios') {
+          showAdminToast(
+            result.isVideo
+              ? 'Descarga iniciada. Usa Compartir → «Guardar video» para pasarlo a Fotos.'
+              : 'Si no aparece en Fotos, mantén presionada la imagen y elige «Guardar en Fotos».',
+            'info',
+            'Guardar en Fotos'
+          );
+        } else if (result.status === 'downloaded' && result.platform === 'android') {
+          showAdminToast(
+            result.isVideo
+              ? 'Video guardado en la galería / descargas de tu dispositivo.'
+              : 'Foto guardada en la galería / descargas de tu dispositivo.',
+            'success',
+            'Guardado en tus fotos'
+          );
+        } else if (result.status === 'opened') {
+          showAdminToast('Se abrió el recuerdo en otra pestaña para guardarlo en tu dispositivo.', 'info', 'Guardar recuerdo');
+        }
+        return;
+      }
+
       const res = await fetch(url, { mode: 'cors' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const blob = await res.blob();
@@ -330,9 +367,15 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 2500);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
     } catch (e) {
       window.open(url, '_blank', 'noopener');
+    } finally {
+      if (triggerEl) {
+        delete triggerEl.dataset.downloading;
+        triggerEl.classList.remove('is-downloading');
+        triggerEl.removeAttribute('aria-busy');
+      }
     }
   }
 
@@ -458,6 +501,13 @@
     lb('lightboxCounter').textContent = (previewIndex + 1) + ' / ' + items.length;
     lb('lightboxPrev').hidden = lb('lightboxNext').hidden = items.length < 2;
     lb('lightboxDownloadBtn').href = item.url;
+    if (item.media_type !== 'video' && window.BodaMediaDownload) {
+      window.BodaMediaDownload.prefetchMedia({
+        url: item.url,
+        fileName: item.original_name || 'foto_boda.jpg',
+        mediaType: 'image',
+      });
+    }
     mediaLightbox.classList.add('active');
   }
 
@@ -472,7 +522,7 @@
   lb('lightboxDownloadBtn').addEventListener('click', (event) => {
     event.preventDefault();
     const item = previewItems[previewIndex];
-    if (item) downloadSingleMedia(item.url, item.original_name);
+    if (item) downloadSingleMedia(item.url, item.original_name, item.media_type, lb('lightboxDownloadBtn'));
   });
   lb('lightboxDeleteBtn').addEventListener('click', () => {
     const item = previewItems[previewIndex];
@@ -555,7 +605,12 @@
       if (dlBtn) {
         dlBtn.addEventListener('click', (e) => {
           e.preventDefault();
-          downloadSingleMedia(item.url, item.original_name || (isVideo ? 'video_boda.mp4' : 'foto_boda.webp'));
+          downloadSingleMedia(
+            item.url,
+            item.original_name || (isVideo ? 'video_boda.mp4' : 'foto_boda.jpg'),
+            item.media_type,
+            dlBtn
+          );
         });
       }
 

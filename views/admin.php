@@ -264,7 +264,8 @@
   <div class="admin-toast-container" id="adminToastContainer" aria-live="polite" aria-atomic="false"></div>
 
   <?php require __DIR__ . '/partials/admin_lightbox.php'; ?>
-  <script src="/assets/js/admin.js?v=18"></script>
+  <script src="/assets/js/media-download.js?v=1"></script>
+  <script src="/assets/js/admin.js?v=19"></script>
   <script src="/assets/js/admin-zip.js?v=6"></script>
 </body>
 </html>

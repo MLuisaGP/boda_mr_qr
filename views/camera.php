@@ -233,6 +233,7 @@ $uploadDeadlineLabel = (string) ($uploadDeadlineLabel ?? '21 de diciembre de 202
 <?php require __DIR__ . '/partials/shared_modals.php'; ?>
 
   <script src="/assets/js/vendor/browser-image-compression.js?v=2.0.2"></script>
-  <script src="/assets/js/app.js?v=56"></script>
+  <script src="/assets/js/media-download.js?v=1"></script>
+  <script src="/assets/js/app.js?v=57"></script>
 </body>
 </html>

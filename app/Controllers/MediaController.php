@@ -50,9 +50,11 @@ class MediaController extends Controller {
     public function index(): void {
         AuthHelper::startSession();
         $guest = AuthHelper::getGuest();
+        $guestToken = $guest
+            ? (string) $guest['token']
+            : trim((string) (AuthHelper::getGuestToken() ?: ($_COOKIE['like_device_token'] ?? '')));
         AuthHelper::closeSession();
         $guestId = $guest ? (int) $guest['id'] : 0;
-        $guestToken = $guest ? $guest['token'] : '';
 
         $filter = trim((string) ($_GET['filter'] ?? 'all'));
         $page = max(1, (int) ($_GET['page'] ?? 1));

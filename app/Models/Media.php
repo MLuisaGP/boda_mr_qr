@@ -62,28 +62,39 @@ class Media {
     public static function listItems(string $filter = 'all', int $limit = 24, int $offset = 0, int $currentGuestId = 0, string $currentGuestToken = ''): array {
         $pdo = Database::getConnection();
 
-        $where = ['`is_approved` = 1'];
+        $where = ['m.`is_approved` = 1'];
         $params = [];
 
         if ($filter === 'my') {
             if ($currentGuestId <= 0) {
                 return ['items' => [], 'total' => 0];
             }
-            $where[] = '`guest_id` = :my_guest_id';
+            $where[] = 'm.`guest_id` = :my_guest_id';
             $params[':my_guest_id'] = $currentGuestId;
         }
 
-        if ($filter === 'popular') {
-            $where[] = '`likes_count` > 0';
+        if ($filter === 'popular' && $currentGuestToken === '') {
+            return ['items' => [], 'total' => 0];
         }
 
         $whereSql = implode(' AND ', $where);
+        $joinSql = $filter === 'popular'
+            ? 'INNER JOIN `media_likes` ml ON (ml.`media_id` = m.`id` AND ml.`guest_token` = :current_guest_token)'
+            : 'LEFT JOIN `media_likes` ml ON (ml.`media_id` = m.`id` AND ml.`guest_token` = :current_guest_token)';
         $orderBy = $filter === 'popular'
-            ? 'm.`likes_count` DESC, m.`created_at` DESC, m.`id` DESC'
+            ? 'ml.`created_at` DESC, m.`created_at` DESC, m.`id` DESC'
             : 'm.`created_at` DESC, m.`id` DESC';
 
-        $cntStmt = $pdo->prepare("SELECT COUNT(*) FROM `media` WHERE {$whereSql}");
-        $cntStmt->execute($params);
+        if ($filter === 'popular') {
+            $cntStmt = $pdo->prepare("SELECT COUNT(DISTINCT m.`id`) FROM `media` m {$joinSql} WHERE {$whereSql}");
+            $cntStmt->bindValue(':current_guest_token', $currentGuestToken, PDO::PARAM_STR);
+        } else {
+            $cntStmt = $pdo->prepare("SELECT COUNT(*) FROM `media` m WHERE {$whereSql}");
+        }
+        foreach ($params as $k => $v) {
+            $cntStmt->bindValue($k, $v);
+        }
+        $cntStmt->execute();
         $total = (int) $cntStmt->fetchColumn();
 
         $sql = "
@@ -93,7 +104,7 @@ class Media {
                 (CASE WHEN m.`guest_id` = :current_guest_id THEN 1 ELSE 0 END) AS `is_owner`,
                 (CASE WHEN ml.`id` IS NOT NULL THEN 1 ELSE 0 END) AS `has_liked`
             FROM `media` m
-            LEFT JOIN `media_likes` ml ON (ml.`media_id` = m.`id` AND ml.`guest_token` = :current_guest_token)
+            {$joinSql}
             WHERE {$whereSql}
             ORDER BY {$orderBy}
             LIMIT :limit OFFSET :offset
