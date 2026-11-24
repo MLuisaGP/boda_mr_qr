@@ -382,7 +382,10 @@
     }
   }
 
-  button.addEventListener('click', () => begin(null));
+  button.addEventListener('click', () => {
+    if (button.disabled) return;
+    begin(null);
+  });
   retry.addEventListener('click', () => begin(activeIds));
   window.startAdminZipDownload = (ids) => begin(ids);
   stop.addEventListener('click', () => {

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel de Administración · Boda Michelle & René</title>
   
-  <link rel="stylesheet" href="/assets/css/admin.css?v=22">
+  <link rel="stylesheet" href="/assets/css/admin.css?v=23">
   <link rel="icon" type="image/svg+xml" href="/assets/img/m&amp;r.svg">
 </head>
 <body class="admin-dashboard">
@@ -55,11 +55,6 @@
         <div class="stat-label">Invitados Activos</div>
         <div class="stat-value" id="statGuests">&mdash;</div>
         <div class="stat-desc">Dispositivos registrados</div></a>
-      <div class="stat-card storage">
-        <div class="stat-label">Almacenamiento Usado</div>
-        <div class="stat-value" id="statStorage">&mdash;</div>
-        <div class="stat-desc">En Cloudflare R2</div>
-      </div>
     </div>
 
     <!-- Pestañas Principales -->
@@ -77,7 +72,7 @@
         </div>
 
         <div class="actions-right">
-          <button id="btnOpenR2Guide" type="button" class="admin-btn admin-btn-gold">
+          <button id="btnOpenR2Guide" type="button" class="admin-btn admin-btn-gold" disabled aria-disabled="true" title="No hay fotos ni videos disponibles para descargar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             Descargar todo el &#225;lbum
           </button>
@@ -125,7 +120,7 @@
         </div>
         <div class="admin-guestbook-toolbar">
           <label class="admin-search"><span>Buscar dedicatorias</span><input type="search" id="adminGuestbookSearch" placeholder="Invitado o mensaje"></label>
-          <a href="/novios/firmas-pdf" target="_blank" rel="noopener" id="btnExportGuestbookPdf" class="admin-btn admin-btn-gold">
+          <a data-href="/novios/firmas-pdf" target="_blank" rel="noopener" id="btnExportGuestbookPdf" class="admin-btn admin-btn-gold is-disabled" aria-disabled="true" tabindex="-1" title="No hay dedicatorias disponibles para generar el PDF">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 18 15 15"></polyline></svg>
             Generar PDF
           </a>
@@ -154,7 +149,7 @@
       <div class="admin-actions-bar no-print">
         <div class="actions-left">
           <label for="qrUrlInput">Enlace que abrir&#225; el QR</label>
-          <input type="url" id="qrUrlInput" class="admin-url-input" value="<?= htmlspecialchars((string) ($qrUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-qr-url="<?= htmlspecialchars((string) ($qrUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>" readonly aria-readonly="true" aria-describedby="qrUrlHelp"><span id="qrUrlHelp" class="admin-section-note" role="status">Enlace configurado desde <code>.env</code> (solo lectura).</span>
+          <input type="url" id="qrUrlInput" class="admin-url-input" value="<?= htmlspecialchars((string) ($qrUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-qr-url="<?= htmlspecialchars((string) ($qrUrl ?? ''), ENT_QUOTES, 'UTF-8') ?>" readonly aria-readonly="true" aria-describedby="qrUrlHelp"><span id="qrUrlHelp" class="admin-section-note" role="status">Si el c&#243;digo QR no funciona correctamente, favor de avisar al desarrollador.</span>
         </div>
         <div class="actions-right">
           <button id="btnPrintCard" type="button" class="admin-btn admin-btn-gold" disabled>
@@ -265,7 +260,7 @@
 
   <?php require __DIR__ . '/partials/admin_lightbox.php'; ?>
   <script src="/assets/js/media-download.js?v=1"></script>
-  <script src="/assets/js/admin.js?v=19"></script>
-  <script src="/assets/js/admin-zip.js?v=6"></script>
+  <script src="/assets/js/admin.js?v=20"></script>
+  <script src="/assets/js/admin-zip.js?v=7"></script>
 </body>
 </html>

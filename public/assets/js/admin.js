@@ -53,7 +53,6 @@
   const statMedia = document.getElementById('statMedia');
   const statGuestbook = document.getElementById('statGuestbook');
   const statGuests = document.getElementById('statGuests');
-  const statStorage = document.getElementById('statStorage');
 
   const mediaGrid = document.getElementById('adminMediaGrid');
   const guestbookTableBody = document.getElementById('adminGuestbookBody');
@@ -274,6 +273,7 @@
 
   if (btnOpenR2Guide && r2GuideModal) {
     btnOpenR2Guide.addEventListener('click', () => {
+      if (btnOpenR2Guide.disabled) return;
       r2GuideModal.classList.add('active');
     });
   }
@@ -299,10 +299,9 @@
         if (statMedia) statMedia.textContent = data.stats.total_media;
         if (statGuestbook) statGuestbook.textContent = data.stats.total_guestbook;
         if (statGuests) statGuests.textContent = data.stats.total_guests;
-        if (statStorage) statStorage.textContent = data.stats.storage_mb + ' MB';
       } else { throw new Error('No se pudieron cargar las cifras'); }
     } catch (e) {
-      [statMedia, statGuestbook, statGuests, statStorage].filter(Boolean).forEach((element) => { element.textContent = '—'; element.title = 'No se pudo cargar. Pulsa Actualizar panel.'; });
+      [statMedia, statGuestbook, statGuests].filter(Boolean).forEach((element) => { element.textContent = '—'; element.title = 'No se pudo cargar. Pulsa Actualizar panel.'; });
     }
   }
 
@@ -422,11 +421,22 @@
     syncSelectionUI();
   }
 
+  function syncAlbumDownloadButton() {
+    if (!btnOpenR2Guide) return;
+    const hasMedia = adminMediaTotal > 0 || allMediaItems.length > 0;
+    btnOpenR2Guide.disabled = !hasMedia;
+    btnOpenR2Guide.setAttribute('aria-disabled', String(!hasMedia));
+    btnOpenR2Guide.title = hasMedia
+      ? 'Descargar todo el álbum en ZIP'
+      : 'No hay fotos ni videos disponibles para descargar';
+  }
+
   function applyMediaFilters() {
     const items = filterAdminMedia(allMediaItems, mediaSearch ? mediaSearch.value : '', mediaType ? mediaType.value : 'all', mediaSort ? mediaSort.value : 'recent');
     visibleMediaItems = items;
     renderMediaGrid(items);
     syncSelectionUI();
+    syncAlbumDownloadButton();
     if (mediaResults) mediaResults.textContent = items.length + ' visibles de ' + allMediaItems.length + ' cargados de ' + adminMediaTotal + ' en total' + (adminMediaHasMore ? '. Hay más recuerdos por cargar.' : '');
     if (loadMoreButton) { loadMoreButton.hidden = !adminMediaHasMore; loadMoreButton.disabled = adminMediaLoading; }
   }
@@ -866,10 +876,28 @@
   // =====================================================================
   // 4. GESTIÓN DEL LIBRO DE FIRMAS
   // =====================================================================
+  function syncGuestbookPdfButton() {
+    if (!btnExportGuestbookPdf) return;
+    const hasEntries = allGuestbookEntries.length > 0;
+    const pdfHref = btnExportGuestbookPdf.dataset.href || '/novios/firmas-pdf';
+    btnExportGuestbookPdf.classList.toggle('is-disabled', !hasEntries);
+    btnExportGuestbookPdf.setAttribute('aria-disabled', String(!hasEntries));
+    if (hasEntries) {
+      btnExportGuestbookPdf.setAttribute('href', pdfHref);
+      btnExportGuestbookPdf.removeAttribute('tabindex');
+      btnExportGuestbookPdf.title = 'Generar PDF del libro de firmas';
+    } else {
+      btnExportGuestbookPdf.removeAttribute('href');
+      btnExportGuestbookPdf.setAttribute('tabindex', '-1');
+      btnExportGuestbookPdf.title = 'No hay dedicatorias disponibles para generar el PDF';
+    }
+  }
+
   function applyGuestbookFilter() {
     const query = (guestbookSearch ? guestbookSearch.value : '').trim().toLocaleLowerCase('es');
     const entries = allGuestbookEntries.filter((item) => [item.raw_guest_name || item.guest_name, item.raw_message || item.message].some((value) => String(value || '').toLocaleLowerCase('es').includes(query)));
     renderGuestbookTable(entries);
+    syncGuestbookPdfButton();
     if (guestbookResults) guestbookResults.textContent = entries.length + ' de ' + allGuestbookEntries.length + ' dedicatorias';
   }
 
@@ -978,7 +1006,7 @@
     const help = document.getElementById('qrUrlHelp');
     if (!isValidQrUrl(configuredQrUrl)) {
       if (btnPrintCard) btnPrintCard.disabled = true;
-      if (help) help.textContent = 'Configura un enlace http o https válido en APP_URL (o QR_URL) dentro de .env.';
+      if (help) help.textContent = 'El enlace del código QR no está disponible. Si el código QR no funciona correctamente, favor de avisar al desarrollador.';
       return;
     }
     // Generar código QR nítido de alta resolución
@@ -994,12 +1022,12 @@
     qrImg.addEventListener('load', () => {
       if (btnPrintCard) btnPrintCard.disabled = false;
       const help = document.getElementById('qrUrlHelp');
-      if (help) help.textContent = 'QR listo. Enlace configurado desde .env (solo lectura).';
+      if (help) help.textContent = 'Si el código QR no funciona correctamente, favor de avisar al desarrollador.';
     });
     qrImg.addEventListener('error', () => {
       if (btnPrintCard) btnPrintCard.disabled = true;
       const help = document.getElementById('qrUrlHelp');
-      if (help) help.textContent = 'No se pudo generar el QR. Revisa tu conexion y vuelve a cargar esta vista.';
+      if (help) help.textContent = 'No se pudo generar el QR. Si el código QR no funciona correctamente, favor de avisar al desarrollador.';
     });
   }
   if (qrUrlInput) {
@@ -1068,7 +1096,7 @@
 
   if (btnPrintCard) {
     btnPrintCard.addEventListener('click', () => {
-      if (!isValidQrUrl(configuredQrUrl)) { showAdminToast('Configura un enlace válido en APP_URL (o QR_URL) dentro de .env.', 'warning', 'Enlace no configurado'); return; }
+      if (!isValidQrUrl(configuredQrUrl)) { showAdminToast('El código QR no está disponible en este momento. Favor de avisar al desarrollador.', 'warning', 'Código QR no disponible'); return; }
       if (!qrImg || !qrImg.complete || !qrImg.naturalWidth) { showAdminToast('Espera a que el QR termine de cargar antes de imprimir.', 'warning', 'Preparando tarjeta'); return; }
       printModal.classList.add('active');
       updatePrintSummary();
@@ -1133,9 +1161,8 @@
   if (guestbookSearch) guestbookSearch.addEventListener('input', applyGuestbookFilter);
   if (btnExportGuestbookPdf) {
     btnExportGuestbookPdf.addEventListener('click', (event) => {
-      if (allGuestbookEntries.length === 0) {
+      if (allGuestbookEntries.length === 0 || btnExportGuestbookPdf.getAttribute('aria-disabled') === 'true') {
         event.preventDefault();
-        showAdminToast('Aún no hay dedicatorias para generar el PDF del libro de firmas.', 'warning', 'Libro sin firmas');
       }
     });
   }
@@ -1198,6 +1225,8 @@
   syncDialogs();
 
   // Inicialización
+  syncAlbumDownloadButton();
+  syncGuestbookPdfButton();
   loadStats();
   loadMedia();
   loadGuestbook();
