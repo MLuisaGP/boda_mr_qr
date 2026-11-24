@@ -1220,13 +1220,20 @@
   }
 
   if (guestForm) {
+    let isSubmittingGuestForm = false;
+    const guestSubmitBtn = guestForm.querySelector('button[type="submit"]');
+
     guestForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (isSubmittingGuestForm) return;
       const name = guestNameInput ? guestNameInput.value.trim() : '';
       if (!name) {
         showToast('Por favor escribe tu nombre para continuar.', 'warning', 'Falta tu nombre');
         return;
       }
+
+      isSubmittingGuestForm = true;
+      if (guestSubmitBtn) guestSubmitBtn.disabled = true;
 
       const existingToken = getSavedGuestToken();
       try {
@@ -1239,12 +1246,14 @@
         syncUploadDeadlineFromApi(data);
         if (data.success && data.guest) {
           setGuestSession(data.guest);
-          showToast(`¡Bienvenido, ${data.guest.name}!`, 'success', 'Perfil listo');
         } else {
           showToast(data.error || 'No se pudo guardar tu perfil.', 'error', 'No se pudo guardar');
         }
       } catch (err) {
         showToast('Error de conexión con el servidor.', 'error', 'Sin conexión');
+      } finally {
+        isSubmittingGuestForm = false;
+        if (guestSubmitBtn) guestSubmitBtn.disabled = false;
       }
     });
   }
